@@ -11,6 +11,7 @@ Este es **Billedy**, una app web de finanzas personales en Next.js 15+ con App R
 **Documentación**:
 - `docs/BILLEDY_CONTEXT.md` - Schema de BD y requerimientos funcionales
 - `docs/ARCHITECTURE.md` - Arquitectura feature-based y convenciones
+- `docs/ROADMAP.md` - Plan de desarrollo y pendientes
 
 ## Stack
 
@@ -50,6 +51,15 @@ src/features/transactions/
 - `categories` - Categorías
 - `accounts` - Cuentas bancarias
 - `projects` - Proyectos/períodos
+
+## Diseño
+
+### Mobile-First
+El uso principal de esta app es a través del teléfono. **Siempre usar mobile-first** como enfoque de diseño:
+- Diseñar primero para pantallas móviles (< 768px)
+- Escalar hacia arriba con breakpoints (`md:`, `lg:`, `xl:`)
+- Priorizar touch targets grandes (mínimo 44x44px)
+- Optimizar para uso con una mano
 
 ## Convenciones
 

@@ -23,7 +23,7 @@ export * from './templates';
 
 import { relations } from 'drizzle-orm';
 import { users, oauthAccounts, sessions } from './auth';
-import { currencies, categories, categoryTemplates, projects, accounts } from './core';
+import { currencies, categories, categoryTemplates, projects, projectMembers, accounts } from './core';
 import { transactions, credits, recurringItems, budgets } from './transactions';
 import { savingsFunds, savingsMovements } from './savings';
 import { templates, templateItems } from './templates';
@@ -34,6 +34,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
   categories: many(categories),
   projects: many(projects),
+  projectMemberships: many(projectMembers),
   accounts: many(accounts),
   transactions: many(transactions),
   credits: many(credits),
@@ -81,11 +82,28 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     fields: [projects.baseCurrencyId],
     references: [currencies.id],
   }),
+  members: many(projectMembers),
   transactions: many(transactions),
   credits: many(credits),
   recurringItems: many(recurringItems),
   budgets: many(budgets),
   savingsFunds: many(savingsFunds),
+}));
+
+// Project members relations
+export const projectMembersRelations = relations(projectMembers, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectMembers.projectId],
+    references: [projects.id],
+  }),
+  user: one(users, {
+    fields: [projectMembers.userId],
+    references: [users.id],
+  }),
+  inviter: one(users, {
+    fields: [projectMembers.invitedBy],
+    references: [users.id],
+  }),
 }));
 
 // Accounts relations

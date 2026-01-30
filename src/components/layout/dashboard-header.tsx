@@ -11,6 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { ProjectSelector } from '@/features/projects/components';
+import { setCurrentProjectId } from '@/features/projects/actions';
+import type { Project } from '@/features/projects/types';
 
 interface DashboardHeaderProps {
   user: {
@@ -19,9 +23,14 @@ interface DashboardHeaderProps {
     email?: string | null;
     image?: string | null;
   };
+  projects: Project[];
+  currentProjectId: string | null;
 }
 
-export function DashboardHeader({ user }: DashboardHeaderProps) {
+export function DashboardHeader({ user, projects, currentProjectId }: DashboardHeaderProps) {
+  const handleProjectChange = async (projectId: string) => {
+    await setCurrentProjectId(projectId);
+  };
   const initials = user.name
     ?.split(' ')
     .map((n) => n[0])
@@ -31,11 +40,19 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center justify-between">
-        <div className="flex items-center gap-6">
+      <div className="container mx-auto px-4 flex h-14 items-center justify-between">
+        <div className="flex items-center gap-4 md:gap-6">
           <a href="/dashboard" className="font-bold text-xl">
             Billedy
           </a>
+          {projects.length > 0 && currentProjectId && (
+            <ProjectSelector
+              projects={projects}
+              currentProjectId={currentProjectId}
+              userId={user.id}
+              onProjectChange={handleProjectChange}
+            />
+          )}
           <nav className="hidden md:flex items-center gap-4 text-sm">
             <a
               href="/dashboard"
@@ -64,7 +81,9 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
           </nav>
         </div>
 
-        <DropdownMenu>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
@@ -95,6 +114,7 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
     </header>
   );

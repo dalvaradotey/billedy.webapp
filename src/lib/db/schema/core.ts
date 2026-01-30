@@ -7,6 +7,7 @@ import {
   integer,
   decimal,
   pgEnum,
+  unique,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 
@@ -21,6 +22,7 @@ export const accountTypeEnum = pgEnum('account_type', [
   'cash',
   'credit_card',
 ]);
+export const projectRoleEnum = pgEnum('project_role', ['owner', 'editor', 'viewer']);
 
 // ============================================================================
 // CURRENCIES
@@ -102,6 +104,34 @@ export const projects = pgTable('n1n4_projects', {
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
+
+// ============================================================================
+// PROJECT MEMBERS (Shared access to projects)
+// ============================================================================
+
+export const projectMembers = pgTable(
+  'n1n4_project_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    role: projectRoleEnum('role').notNull().default('viewer'),
+    invitedBy: uuid('invited_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    invitedAt: timestamp('invited_at', { mode: 'date' }).defaultNow().notNull(),
+    acceptedAt: timestamp('accepted_at', { mode: 'date' }),
+    createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique('project_members_project_user').on(table.projectId, table.userId),
+  ]
+);
 
 // ============================================================================
 // ACCOUNTS (Bank accounts, cash, credit cards)
