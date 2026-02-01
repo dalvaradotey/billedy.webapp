@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { credits, categories, transactions, projectMembers } from '@/lib/db/schema';
+import { credits, categories, transactions, projectMembers, entities } from '@/lib/db/schema';
 import { eq, and, sql, isNotNull, desc } from 'drizzle-orm';
 import type { CreditWithProgress, CreditSummary } from './types';
 
@@ -66,6 +66,8 @@ export async function getCreditsWithProgress(
       userId: credits.userId,
       projectId: credits.projectId,
       categoryId: credits.categoryId,
+      entityId: credits.entityId,
+      accountId: credits.accountId,
       name: credits.name,
       originalPrincipalAmount: credits.originalPrincipalAmount,
       originalTotalAmount: credits.originalTotalAmount,
@@ -78,6 +80,7 @@ export async function getCreditsWithProgress(
       exchangeRate: credits.exchangeRate,
       installments: credits.installments,
       installmentAmount: credits.installmentAmount,
+      initialPaidInstallments: credits.initialPaidInstallments,
       startDate: credits.startDate,
       endDate: credits.endDate,
       frequency: credits.frequency,
@@ -88,9 +91,12 @@ export async function getCreditsWithProgress(
       updatedAt: credits.updatedAt,
       categoryName: categories.name,
       categoryColor: categories.color,
+      entityName: entities.name,
+      entityImageUrl: entities.imageUrl,
     })
     .from(credits)
     .innerJoin(categories, eq(credits.categoryId, categories.id))
+    .leftJoin(entities, eq(credits.entityId, entities.id))
     .where(and(...conditions))
     .orderBy(desc(credits.createdAt));
 
@@ -98,7 +104,7 @@ export async function getCreditsWithProgress(
     return [];
   }
 
-  // Obtener cuotas pagadas por crédito
+  // Obtener cuotas pagadas por crédito (transacciones con isPaid=true)
   const paidByCredit = await db
     .select({
       creditId: transactions.creditId,
@@ -115,7 +121,7 @@ export async function getCreditsWithProgress(
     )
     .groupBy(transactions.creditId);
 
-  // Crear mapa de cuotas pagadas
+  // Crear mapa de cuotas pagadas (de transacciones)
   const paidMap = new Map<string, { count: number; amount: number }>();
   for (const row of paidByCredit) {
     if (row.creditId) {
@@ -128,13 +134,15 @@ export async function getCreditsWithProgress(
 
   // Combinar créditos con progreso
   return creditsList.map((credit) => {
-    const paid = paidMap.get(credit.id) ?? { count: 0, amount: 0 };
+    const transactionsPaid = paidMap.get(credit.id) ?? { count: 0, amount: 0 };
     const totalAmount = parseFloat(credit.baseTotalAmount);
     const installmentAmount = parseFloat(credit.installmentAmount);
 
-    const paidInstallments = paid.count;
+    // Cuotas pagadas = iniciales (pre-registro) + transacciones pagadas
+    const paidInstallments = credit.initialPaidInstallments + transactionsPaid.count;
     const remainingInstallments = credit.installments - paidInstallments;
-    const paidAmount = paid.amount;
+    // Monto pagado = cuotas iniciales * monto cuota + transacciones pagadas
+    const paidAmount = (credit.initialPaidInstallments * installmentAmount) + transactionsPaid.amount;
     const remainingAmount = totalAmount - paidAmount;
     const progressPercentage = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
 
@@ -168,6 +176,8 @@ export async function getCreditById(
       userId: credits.userId,
       projectId: credits.projectId,
       categoryId: credits.categoryId,
+      entityId: credits.entityId,
+      accountId: credits.accountId,
       name: credits.name,
       originalPrincipalAmount: credits.originalPrincipalAmount,
       originalTotalAmount: credits.originalTotalAmount,
@@ -180,6 +190,7 @@ export async function getCreditById(
       exchangeRate: credits.exchangeRate,
       installments: credits.installments,
       installmentAmount: credits.installmentAmount,
+      initialPaidInstallments: credits.initialPaidInstallments,
       startDate: credits.startDate,
       endDate: credits.endDate,
       frequency: credits.frequency,
@@ -190,9 +201,12 @@ export async function getCreditById(
       updatedAt: credits.updatedAt,
       categoryName: categories.name,
       categoryColor: categories.color,
+      entityName: entities.name,
+      entityImageUrl: entities.imageUrl,
     })
     .from(credits)
     .innerJoin(categories, eq(credits.categoryId, categories.id))
+    .leftJoin(entities, eq(credits.entityId, entities.id))
     .innerJoin(projectMembers, eq(credits.projectId, projectMembers.projectId))
     .where(
       and(
@@ -208,8 +222,9 @@ export async function getCreditById(
   }
 
   const credit = result[0];
+  const installmentAmount = parseFloat(credit.installmentAmount);
 
-  // Obtener cuotas pagadas
+  // Obtener cuotas pagadas (de transacciones)
   const paidResult = await db
     .select({
       paidCount: sql<number>`COUNT(*)`,
@@ -223,12 +238,14 @@ export async function getCreditById(
       )
     );
 
-  const paid = paidResult[0];
+  const transactionsPaid = paidResult[0];
   const totalAmount = parseFloat(credit.baseTotalAmount);
 
-  const paidInstallments = Number(paid?.paidCount ?? 0);
+  // Cuotas pagadas = iniciales + transacciones
+  const paidInstallments = credit.initialPaidInstallments + Number(transactionsPaid?.paidCount ?? 0);
   const remainingInstallments = credit.installments - paidInstallments;
-  const paidAmount = parseFloat(paid?.paidAmount ?? '0');
+  // Monto pagado = cuotas iniciales * monto cuota + transacciones pagadas
+  const paidAmount = (credit.initialPaidInstallments * installmentAmount) + parseFloat(transactionsPaid?.paidAmount ?? '0');
   const remainingAmount = totalAmount - paidAmount;
   const progressPercentage = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
 

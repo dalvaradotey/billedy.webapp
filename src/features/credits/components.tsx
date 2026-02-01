@@ -26,6 +26,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/currency-input';
+import { InstallmentSelector } from '@/components/installment-selector';
+import { CategorySelector } from '@/components/category-selector';
+import { EntitySelector } from '@/components/entity-selector';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -34,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import type { Entity } from '@/features/entities/types';
 import {
   Form,
   FormControl,
@@ -98,8 +103,8 @@ const FREQUENCY_LABELS: Record<string, string> = {
 };
 
 /**
- * Calcula cuántas cuotas deberían estar pagadas basándose en la fecha de inicio,
- * frecuencia y la fecha actual
+ * Calcula cuántas cuotas están vencidas basándose en la fecha de inicio,
+ * frecuencia y la fecha actual (solo cuenta cuotas cuya fecha ya pasó)
  */
 function calculatePaidInstallments(
   startDate: Date | undefined,
@@ -109,43 +114,47 @@ function calculatePaidInstallments(
   if (!startDate || !frequency || !totalInstallments) return 0;
 
   const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Inicio del día
   const start = new Date(startDate);
 
-  // Si la fecha de inicio es en el futuro, no hay cuotas pagadas
-  if (start > now) return 0;
+  // Si la fecha de inicio es hoy o en el futuro, no hay cuotas vencidas
+  if (start >= today) return 0;
 
   let paidCount = 0;
 
-  switch (frequency) {
-    case 'monthly': {
-      // Calcular meses de diferencia
-      const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 +
-                         (now.getMonth() - start.getMonth());
-      // +1 porque la primera cuota es en la fecha de inicio
-      paidCount = monthsDiff + 1;
-      break;
+  // Iterar cada cuota y verificar si su fecha ya pasó
+  for (let i = 0; i < totalInstallments; i++) {
+    const paymentDate = new Date(start);
+
+    switch (frequency) {
+      case 'monthly':
+        paymentDate.setMonth(paymentDate.getMonth() + i);
+        break;
+      case 'biweekly':
+        paymentDate.setDate(paymentDate.getDate() + i * 14);
+        break;
+      case 'weekly':
+        paymentDate.setDate(paymentDate.getDate() + i * 7);
+        break;
     }
-    case 'biweekly': {
-      // Calcular quincenas (14 días)
-      const daysDiff = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      paidCount = Math.floor(daysDiff / 14) + 1;
-      break;
-    }
-    case 'weekly': {
-      // Calcular semanas (7 días)
-      const daysDiff = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-      paidCount = Math.floor(daysDiff / 7) + 1;
+
+    // Solo contar si la fecha ya pasó (antes de hoy)
+    if (paymentDate < today) {
+      paidCount++;
+    } else {
+      // Las fechas son secuenciales, si esta no está vencida, las siguientes tampoco
       break;
     }
   }
 
-  // No puede exceder el total de cuotas
-  return Math.min(Math.max(0, paidCount), totalInstallments);
+  return paidCount;
 }
 
 interface CreditListProps {
   credits: CreditWithProgress[];
   categories: { id: string; name: string; color: string }[];
+  entities: Entity[];
+  accounts: { id: string; name: string; type: string }[];
   summary: CreditSummary;
   projectId: string;
   userId: string;
@@ -155,6 +164,8 @@ interface CreditListProps {
 export function CreditList({
   credits,
   categories,
+  entities,
+  accounts,
   summary,
   projectId,
   userId,
@@ -289,6 +300,8 @@ export function CreditList({
             projectId={projectId}
             userId={userId}
             categories={categories}
+            entities={entities}
+            accounts={accounts}
             credit={editingCredit}
             onSuccess={handleDialogClose}
             onMutationStart={onMutationStart}
@@ -403,17 +416,31 @@ interface CreditCardProps {
   onMutationError?: (toastId: string | number, error: string) => void;
 }
 
+const CONFIRM_DELETE_TEXT = 'ELIMINAR';
+
 function CreditCard({ credit, userId, onEdit, onMutationStart, onMutationSuccess, onMutationError }: CreditCardProps) {
   const [isPending, startTransition] = useTransition();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+
+  const canDelete = confirmText === CONFIRM_DELETE_TEXT;
+
+  const handleCloseDeleteDialog = (open: boolean) => {
+    setShowDeleteDialog(open);
+    if (!open) {
+      setConfirmText('');
+    }
+  };
 
   const handleDelete = () => {
+    if (!canDelete) return;
     const toastId = toast.loading('Eliminando crédito...');
     onMutationStart?.(toastId);
     startTransition(async () => {
       const result = await deleteCredit(credit.id, userId);
       setShowDeleteDialog(false);
+      setConfirmText('');
       if (result.success) {
         onMutationSuccess?.(toastId, 'Crédito eliminado');
       } else {
@@ -460,13 +487,21 @@ function CreditCard({ credit, userId, onEdit, onMutationStart, onMutationSuccess
     <div className={`rounded-lg border p-4 space-y-3 ${credit.isArchived ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div
-            className="h-3 w-3 rounded-full"
-            style={{ backgroundColor: credit.categoryColor }}
-          />
+          {credit.entityImageUrl && (
+            <img
+              src={credit.entityImageUrl}
+              alt={credit.entityName ?? ''}
+              className="h-8 w-8 rounded-full object-cover"
+            />
+          )}
           <div>
             <p className="font-medium">{credit.name}</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              {credit.entityName && <span>{credit.entityName} • </span>}
+              <span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ backgroundColor: credit.categoryColor }}
+              />
               {credit.categoryName} • {FREQUENCY_LABELS[credit.frequency]}
             </p>
           </div>
@@ -517,23 +552,39 @@ function CreditCard({ credit, userId, onEdit, onMutationStart, onMutationSuccess
           </DropdownMenu>
 
           {/* Delete Confirmation Dialog */}
-          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialog open={showDeleteDialog} onOpenChange={handleCloseDeleteDialog}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Eliminar crédito</AlertDialogTitle>
-                <AlertDialogDescription>
-                  ¿Estás seguro de eliminar este crédito? Se eliminarán también todas las cuotas asociadas.
-                  Esta acción no se puede deshacer.
+                <AlertDialogTitle className="text-destructive">
+                  ¿Eliminar crédito permanentemente?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="space-y-3">
+                  <span className="block">
+                    Esta acción <strong>no se puede deshacer</strong>. Se eliminará el crédito
+                    &quot;{credit.name}&quot; junto con todas las{' '}
+                    <strong>{credit.paidInstallments} transacciones</strong> asociadas.
+                  </span>
+                  <span className="block">
+                    Para confirmar, escribe <strong>{CONFIRM_DELETE_TEXT}</strong> a continuación:
+                  </span>
                 </AlertDialogDescription>
               </AlertDialogHeader>
+              <div className="py-2">
+                <Input
+                  placeholder={`Escribe ${CONFIRM_DELETE_TEXT} para confirmar`}
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
+                  className={confirmText && !canDelete ? 'border-destructive' : ''}
+                />
+              </div>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
-                  disabled={isPending}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  disabled={!canDelete || isPending}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
                 >
-                  {isPending ? 'Eliminando...' : 'Eliminar'}
+                  {isPending ? 'Eliminando...' : 'Eliminar crédito y transacciones'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -624,6 +675,8 @@ interface CreditDialogContentProps {
   projectId: string;
   userId: string;
   categories: { id: string; name: string; color: string }[];
+  entities: Entity[];
+  accounts: { id: string; name: string; type: string }[];
   credit: CreditWithProgress | null;
   onSuccess: () => void;
   onMutationStart?: (toastId: string | number) => void;
@@ -635,6 +688,8 @@ function CreditDialogContent({
   projectId,
   userId,
   categories,
+  entities,
+  accounts,
   credit,
   onSuccess,
   onMutationStart,
@@ -643,14 +698,22 @@ function CreditDialogContent({
 }: CreditDialogContentProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [localCategories, setLocalCategories] = useState<{ id: string; name: string; color: string }[]>(
+    categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))
+  );
 
   const isEditing = !!credit;
+
+  // Cuenta por defecto: la marcada como default o la primera disponible
+  const defaultAccountId = accounts.find(a => a.type !== 'credit_card')?.id ?? accounts[0]?.id ?? '';
 
   const form = useForm<CreateCreditInput>({
     resolver: zodResolver(createCreditSchema),
     defaultValues: {
       projectId,
       categoryId: credit?.categoryId ?? '',
+      entityId: credit?.entityId ?? undefined,
+      accountId: credit?.accountId ?? defaultAccountId,
       name: credit?.name ?? '',
       principalAmount: credit ? parseFloat(credit.basePrincipalAmount) : undefined,
       installmentAmount: credit ? parseFloat(credit.installmentAmount) : undefined,
@@ -728,16 +791,41 @@ function CreditDialogContent({
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Name & Category - 2 columns on desktop */}
+          {/* Name */}
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nombre</FormLabel>
+                <FormControl>
+                  <Input placeholder="Ej: Crédito de consumo" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Category & Entity - 2 columns on desktop */}
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
-              name="name"
+              name="categoryId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre</FormLabel>
+                  <FormLabel>Categoría</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej: Crédito de consumo" {...field} />
+                    <CategorySelector
+                      categories={localCategories}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      onCategoryCreated={(cat) =>
+                        setLocalCategories((prev) => [...prev, { id: cat.id, name: cat.name, color: cat.color }])
+                      }
+                      projectId={projectId}
+                      userId={userId}
+                      disabled={isEditing}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -746,39 +834,49 @@ function CreditDialogContent({
 
             <FormField
               control={form.control}
-              name="categoryId"
+              name="entityId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    disabled={isEditing}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una categoría" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="h-2 w-2 rounded-full"
-                              style={{ backgroundColor: cat.color }}
-                            />
-                            {cat.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Entidad (opcional)</FormLabel>
+                  <FormControl>
+                    <EntitySelector
+                      entities={entities}
+                      value={field.value ?? undefined}
+                      onValueChange={(val) => field.onChange(val ?? null)}
+                      disabled={isEditing}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
+
+          {/* Account selector */}
+          <FormField
+            control={form.control}
+            name="accountId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cuenta de cargo</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value} disabled={isEditing}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una cuenta" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           {!isEditing && (
             <>
@@ -791,12 +889,10 @@ function CreditDialogContent({
                     <FormItem>
                       <FormLabel>Monto solicitado (capital)</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
+                        <CurrencyInput
+                          value={field.value ?? undefined}
+                          onChange={field.onChange}
                           placeholder="0"
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -811,13 +907,11 @@ function CreditDialogContent({
                     <FormItem>
                       <FormLabel>N° de cuotas</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
+                        <InstallmentSelector
+                          value={field.value}
+                          onChange={field.onChange}
                           min={1}
-                          max={360}
-                          {...field}
-                          value={field.value ?? ''}
-                          onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                          max={60}
                         />
                       </FormControl>
                       <FormMessage />
@@ -834,12 +928,10 @@ function CreditDialogContent({
                   <FormItem>
                     <FormLabel>Valor de la cuota</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
+                      <CurrencyInput
+                        value={field.value ?? undefined}
+                        onChange={field.onChange}
                         placeholder="0"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />

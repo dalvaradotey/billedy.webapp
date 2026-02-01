@@ -10,11 +10,6 @@ import type { CreateProjectInput, UpdateProjectInput } from './schemas';
 
 const CURRENT_PROJECT_COOKIE = 'billedy_current_project';
 
-const MONTH_NAMES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
-
 type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
@@ -68,32 +63,6 @@ export async function createProject(
   revalidatePath('/dashboard');
 
   return { success: true, data: { id: newProject.id } };
-}
-
-/**
- * Crea un proyecto con el nombre del mes actual
- */
-export async function createMonthProject(userId: string): Promise<ActionResult<{ id: string }>> {
-  // Obtener la moneda CLP
-  const clpCurrency = await db
-    .select()
-    .from(currencies)
-    .where(eq(currencies.code, 'CLP'))
-    .limit(1);
-
-  if (!clpCurrency[0]) {
-    return { success: false, error: 'No se encontró la moneda CLP' };
-  }
-
-  const now = new Date();
-  const monthName = MONTH_NAMES[now.getMonth()];
-  const year = now.getFullYear();
-
-  return createProject(userId, {
-    name: `${monthName} ${year}`,
-    baseCurrencyId: clpCurrency[0].id,
-    currency: 'CLP',
-  });
 }
 
 /**

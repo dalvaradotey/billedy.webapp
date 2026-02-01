@@ -2,10 +2,3 @@ import type { InferSelectModel } from 'drizzle-orm';
 import type { categories } from '@/lib/db/schema';
 
 export type Category = InferSelectModel<typeof categories>;
-
-export type CategoryType = 'income' | 'expense';
-
-export type CategoryGroup = {
-  name: string | null;
-  categories: Category[];
-};

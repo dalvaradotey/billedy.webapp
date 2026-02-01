@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { getCategories, getCategoriesGrouped } from '@/features/categories/queries';
+import { getCategories } from '@/features/categories/queries';
+import { getCurrentProjectId } from '@/features/projects/actions';
+import { getLatestProject } from '@/features/projects/queries';
 import { CategoryList } from '@/features/categories/components';
 
 interface CategoriesPageProps {
@@ -14,20 +16,27 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
     redirect('/login');
   }
 
+  // Obtener proyecto actual
+  let projectId = await getCurrentProjectId();
+  if (!projectId) {
+    const latestProject = await getLatestProject(session.user.id);
+    if (!latestProject) {
+      redirect('/dashboard');
+    }
+    projectId = latestProject.id;
+  }
+
   const params = await searchParams;
   const showArchived = params.view === 'archived';
 
-  const [categories, groupedCategories] = await Promise.all([
-    getCategories(session.user.id),
-    getCategoriesGrouped(session.user.id),
-  ]);
+  const categories = await getCategories(projectId, session.user.id);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Categorías</h1>
         <p className="text-muted-foreground">
-          Administra las categorías para organizar tus ingresos y gastos.
+          Administra las categorías para organizar tus transacciones.
         </p>
       </div>
 
@@ -42,7 +51,7 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
 
       <CategoryList
         categories={categories}
-        groupedCategories={groupedCategories}
+        projectId={projectId}
         userId={session.user.id}
         showArchived={showArchived}
       />

@@ -17,6 +17,7 @@ import {
   categories,
   projects,
   accounts,
+  entities,
   categoryTypeEnum,
 } from './core';
 
@@ -45,6 +46,12 @@ export const credits = pgTable('n1n4_credits', {
   categoryId: uuid('category_id')
     .notNull()
     .references(() => categories.id),
+  entityId: uuid('entity_id').references(() => entities.id, {
+    onDelete: 'set null',
+  }),
+  accountId: uuid('account_id').references(() => accounts.id, {
+    onDelete: 'set null',
+  }),
   name: varchar('name', { length: 255 }).notNull(),
   originalPrincipalAmount: decimal('original_principal_amount', {
     precision: 15,
@@ -78,6 +85,7 @@ export const credits = pgTable('n1n4_credits', {
     precision: 15,
     scale: 2,
   }).notNull(),
+  initialPaidInstallments: integer('initial_paid_installments').default(0).notNull(),
   startDate: date('start_date', { mode: 'date' }).notNull(),
   endDate: date('end_date', { mode: 'date' }).notNull(),
   frequency: creditFrequencyEnum('frequency').default('monthly').notNull(),
@@ -132,20 +140,17 @@ export const transactions = pgTable('n1n4_transactions', {
     .notNull()
     .references(() => categories.id),
   accountId: uuid('account_id').references(() => accounts.id),
+  entityId: uuid('entity_id').references(() => entities.id, {
+    onDelete: 'set null',
+  }),
   type: categoryTypeEnum('type').notNull(),
   originalAmount: decimal('original_amount', {
     precision: 15,
     scale: 2,
   }).notNull(),
   originalCurrency: varchar('original_currency', { length: 3 }).notNull(),
-  originalCurrencyId: uuid('original_currency_id')
-    .notNull()
-    .references(() => currencies.id),
   baseAmount: decimal('base_amount', { precision: 15, scale: 2 }).notNull(),
   baseCurrency: varchar('base_currency', { length: 3 }).notNull(),
-  baseCurrencyId: uuid('base_currency_id')
-    .notNull()
-    .references(() => currencies.id),
   exchangeRate: decimal('exchange_rate', { precision: 15, scale: 6 })
     .default('1')
     .notNull(),
@@ -160,36 +165,83 @@ export const transactions = pgTable('n1n4_transactions', {
   recurringItemId: uuid('recurring_item_id').references(() => recurringItems.id, {
     onDelete: 'set null',
   }),
+  budgetId: uuid('budget_id').references(() => budgets.id, {
+    onDelete: 'set null',
+  }),
+  cardPurchaseId: uuid('card_purchase_id').references(() => cardPurchases.id, {
+    onDelete: 'set null',
+  }),
+  // Para transferencias entre cuentas: referencia a la transacción vinculada
+  linkedTransactionId: uuid('linked_transaction_id'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
 
 // ============================================================================
-// BUDGETS (Monthly budget per category)
+// CREDIT CARD PURCHASES (Installment purchases on credit cards)
 // ============================================================================
 
-export const budgets = pgTable(
-  'n1n4_budgets',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    projectId: uuid('project_id')
-      .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
-    categoryId: uuid('category_id')
-      .notNull()
-      .references(() => categories.id),
-    year: integer('year').notNull(),
-    month: integer('month').notNull(), // 1-12
-    amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
-    createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
-  },
-  (table) => [
-    unique('budgets_project_category_period').on(
-      table.projectId,
-      table.categoryId,
-      table.year,
-      table.month
-    ),
-  ]
-);
+export const cardPurchases = pgTable('n1n4_card_purchases', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
+  accountId: uuid('account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  categoryId: uuid('category_id').references(() => categories.id, {
+    onDelete: 'set null',
+  }),
+  entityId: uuid('entity_id').references(() => entities.id, {
+    onDelete: 'set null',
+  }),
+
+  // Purchase details
+  description: varchar('description', { length: 500 }).notNull(),
+  storeName: varchar('store_name', { length: 255 }), // Alternative to entityId - user can use one or the other
+  purchaseDate: date('purchase_date', { mode: 'date' }).notNull(),
+
+  // Amounts
+  originalAmount: decimal('original_amount', { precision: 15, scale: 2 }).notNull(), // Cash price
+  totalAmount: decimal('total_amount', { precision: 15, scale: 2 }).notNull(), // Total with interest
+  interestAmount: decimal('interest_amount', { precision: 15, scale: 2 }).notNull(), // Calculated interest
+  interestRate: decimal('interest_rate', { precision: 5, scale: 2 }), // Optional: interest rate %
+
+  // Installments
+  installments: integer('installments').notNull(),
+  installmentAmount: decimal('installment_amount', { precision: 15, scale: 2 }).notNull(),
+  firstChargeDate: date('first_charge_date', { mode: 'date' }).notNull(),
+  chargedInstallments: integer('charged_installments').default(0).notNull(),
+  initialPaidInstallments: integer('initial_paid_installments').default(0).notNull(),
+
+  // Status
+  isActive: boolean('is_active').default(true).notNull(),
+  isExternalDebt: boolean('is_external_debt').default(false).notNull(), // For purchases made for others (family, etc.)
+  notes: text('notes'),
+
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// BUDGETS (Budget definitions/templates)
+// ============================================================================
+
+export const budgets = pgTable('n1n4_budgets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  categoryId: uuid('category_id').references(() => categories.id, {
+    onDelete: 'set null',
+  }),
+  defaultAmount: decimal('default_amount', { precision: 15, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).default('CLP').notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+});

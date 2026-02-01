@@ -1,82 +1,61 @@
 import { db } from '@/lib/db';
-import { categories } from '@/lib/db/schema';
-import { eq, and, asc } from 'drizzle-orm';
-import type { Category, CategoryType, CategoryGroup } from './types';
+import { categories, projectMembers } from '@/lib/db/schema';
+import { eq, and, asc, isNotNull } from 'drizzle-orm';
+import type { Category } from './types';
 
 /**
- * Obtiene todas las categorías del usuario
+ * Obtiene todas las categorías del proyecto
  */
-export async function getCategories(userId: string): Promise<Category[]> {
-  return db
-    .select()
-    .from(categories)
-    .where(eq(categories.userId, userId))
-    .orderBy(asc(categories.group), asc(categories.name));
-}
-
-/**
- * Obtiene categorías activas (no archivadas) del usuario
- */
-export async function getActiveCategories(userId: string): Promise<Category[]> {
-  return db
-    .select()
-    .from(categories)
-    .where(and(eq(categories.userId, userId), eq(categories.isArchived, false)))
-    .orderBy(asc(categories.group), asc(categories.name));
-}
-
-/**
- * Obtiene categorías por tipo (income/expense)
- */
-export async function getCategoriesByType(
-  userId: string,
-  type: CategoryType
-): Promise<Category[]> {
-  return db
-    .select()
-    .from(categories)
+export async function getCategories(projectId: string, userId: string): Promise<Category[]> {
+  // Verificar acceso al proyecto
+  const hasAccess = await db
+    .select({ id: projectMembers.id })
+    .from(projectMembers)
     .where(
       and(
-        eq(categories.userId, userId),
-        eq(categories.type, type),
-        eq(categories.isArchived, false)
+        eq(projectMembers.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
       )
     )
-    .orderBy(asc(categories.group), asc(categories.name));
+    .limit(1);
+
+  if (hasAccess.length === 0) {
+    return [];
+  }
+
+  return db
+    .select()
+    .from(categories)
+    .where(eq(categories.projectId, projectId))
+    .orderBy(asc(categories.name));
 }
 
 /**
- * Obtiene categorías agrupadas por grupo
+ * Obtiene categorías activas (no archivadas) del proyecto
  */
-export async function getCategoriesGrouped(userId: string): Promise<CategoryGroup[]> {
-  const allCategories = await getActiveCategories(userId);
+export async function getActiveCategories(projectId: string, userId: string): Promise<Category[]> {
+  const hasAccess = await db
+    .select({ id: projectMembers.id })
+    .from(projectMembers)
+    .where(
+      and(
+        eq(projectMembers.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
 
-  const groupMap = new Map<string | null, Category[]>();
-
-  for (const category of allCategories) {
-    const groupName = category.group;
-    if (!groupMap.has(groupName)) {
-      groupMap.set(groupName, []);
-    }
-    groupMap.get(groupName)!.push(category);
+  if (hasAccess.length === 0) {
+    return [];
   }
 
-  // Convertir a array y ordenar (null al final)
-  const groups: CategoryGroup[] = [];
-  const sortedKeys = Array.from(groupMap.keys()).sort((a, b) => {
-    if (a === null) return 1;
-    if (b === null) return -1;
-    return a.localeCompare(b);
-  });
-
-  for (const key of sortedKeys) {
-    groups.push({
-      name: key,
-      categories: groupMap.get(key)!,
-    });
-  }
-
-  return groups;
+  return db
+    .select()
+    .from(categories)
+    .where(and(eq(categories.projectId, projectId), eq(categories.isArchived, false)))
+    .orderBy(asc(categories.name));
 }
 
 /**
@@ -87,9 +66,24 @@ export async function getCategoryById(
   userId: string
 ): Promise<Category | null> {
   const result = await db
-    .select()
+    .select({
+      id: categories.id,
+      projectId: categories.projectId,
+      name: categories.name,
+      color: categories.color,
+      isArchived: categories.isArchived,
+      createdAt: categories.createdAt,
+      updatedAt: categories.updatedAt,
+    })
     .from(categories)
-    .where(and(eq(categories.id, categoryId), eq(categories.userId, userId)))
+    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
+    .where(
+      and(
+        eq(categories.id, categoryId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
     .limit(1);
 
   return result[0] ?? null;

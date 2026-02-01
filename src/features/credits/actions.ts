@@ -68,12 +68,6 @@ export async function createCredit(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Validar que cuotas pagadas no excedan el total
-  const paidInstallmentsCount = parsed.data.paidInstallments ?? 0;
-  if (paidInstallmentsCount > parsed.data.installments) {
-    return { success: false, error: 'Las cuotas pagadas no pueden ser mayores al total de cuotas' };
-  }
-
   // Verificar acceso al proyecto
   const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
@@ -105,12 +99,40 @@ export async function createCredit(
     parsed.data.installments
   );
 
+  // Calcular cuotas ya pagadas (vencidas antes de hoy) - NO crear transacciones
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let initialPaidInstallments = 0;
+
+  for (let i = 0; i < parsed.data.installments; i++) {
+    const paymentDate = new Date(parsed.data.startDate);
+    switch (parsed.data.frequency) {
+      case 'monthly':
+        paymentDate.setMonth(paymentDate.getMonth() + i);
+        break;
+      case 'biweekly':
+        paymentDate.setDate(paymentDate.getDate() + i * 14);
+        break;
+      case 'weekly':
+        paymentDate.setDate(paymentDate.getDate() + i * 7);
+        break;
+    }
+
+    if (paymentDate < today) {
+      initialPaidInstallments++;
+    } else {
+      break;
+    }
+  }
+
   const [newCredit] = await db
     .insert(credits)
     .values({
       userId,
       projectId: parsed.data.projectId,
       categoryId: parsed.data.categoryId,
+      entityId: parsed.data.entityId || null,
+      accountId: parsed.data.accountId,
       name: parsed.data.name,
       originalPrincipalAmount: principalAmount,
       originalTotalAmount: totalAmount,
@@ -123,6 +145,7 @@ export async function createCredit(
       exchangeRate: '1',
       installments: parsed.data.installments,
       installmentAmount,
+      initialPaidInstallments,
       startDate: parsed.data.startDate,
       endDate,
       frequency: parsed.data.frequency,
@@ -131,52 +154,8 @@ export async function createCredit(
     })
     .returning({ id: credits.id });
 
-  // Si hay cuotas ya pagadas, generar las transacciones correspondientes
-  const paidInstallments = parsed.data.paidInstallments ?? 0;
-  if (paidInstallments > 0) {
-    const paidTransactions = [];
-    const now = new Date();
-
-    for (let i = 0; i < paidInstallments; i++) {
-      const paymentDate = new Date(parsed.data.startDate);
-      switch (parsed.data.frequency) {
-        case 'monthly':
-          paymentDate.setMonth(paymentDate.getMonth() + i);
-          break;
-        case 'biweekly':
-          paymentDate.setDate(paymentDate.getDate() + i * 14);
-          break;
-        case 'weekly':
-          paymentDate.setDate(paymentDate.getDate() + i * 7);
-          break;
-      }
-
-      paidTransactions.push({
-        userId,
-        projectId: parsed.data.projectId,
-        categoryId: parsed.data.categoryId,
-        creditId: newCredit.id,
-        type: 'expense' as const,
-        description: `${parsed.data.name} - Cuota ${i + 1}/${parsed.data.installments}`,
-        originalAmount: installmentAmount,
-        originalCurrency: project[0].currency,
-        originalCurrencyId: project[0].baseCurrencyId,
-        baseAmount: installmentAmount,
-        baseCurrency: project[0].currency,
-        baseCurrencyId: project[0].baseCurrencyId,
-        exchangeRate: '1',
-        date: paymentDate,
-        isPaid: true,
-        paidAt: now,
-      });
-    }
-
-    await db.insert(transactions).values(paidTransactions);
-  }
-
   revalidatePath('/dashboard');
   revalidatePath('/dashboard/credits');
-  revalidatePath('/dashboard/transactions');
 
   return { success: true, data: { id: newCredit.id } };
 }
@@ -318,6 +297,7 @@ export async function generateCreditInstallment(
       id: credits.id,
       projectId: credits.projectId,
       categoryId: credits.categoryId,
+      accountId: credits.accountId,
       name: credits.name,
       installmentAmount: credits.installmentAmount,
       baseCurrency: credits.baseCurrency,
@@ -378,15 +358,14 @@ export async function generateCreditInstallment(
       userId,
       projectId: credit.projectId,
       categoryId: credit.categoryId,
+      accountId: credit.accountId,
       creditId: credit.id,
       type: 'expense',
       description: `${credit.name} - Cuota ${paidCount + 1}/${credit.installments}`,
       originalAmount: credit.installmentAmount,
       originalCurrency: credit.baseCurrency,
-      originalCurrencyId: credit.baseCurrencyId,
       baseAmount: credit.installmentAmount,
       baseCurrency: credit.baseCurrency,
-      baseCurrencyId: credit.baseCurrencyId,
       exchangeRate: '1',
       date: nextPaymentDate,
       isPaid: false,
@@ -413,6 +392,7 @@ export async function generateAllCreditInstallments(
       id: credits.id,
       projectId: credits.projectId,
       categoryId: credits.categoryId,
+      accountId: credits.accountId,
       name: credits.name,
       installmentAmount: credits.installmentAmount,
       baseCurrency: credits.baseCurrency,
@@ -472,15 +452,14 @@ export async function generateAllCreditInstallments(
       userId,
       projectId: credit.projectId,
       categoryId: credit.categoryId,
+      accountId: credit.accountId,
       creditId: credit.id,
       type: 'expense' as const,
       description: `${credit.name} - Cuota ${i + 1}/${credit.installments}`,
       originalAmount: credit.installmentAmount,
       originalCurrency: credit.baseCurrency,
-      originalCurrencyId: credit.baseCurrencyId,
       baseAmount: credit.installmentAmount,
       baseCurrency: credit.baseCurrency,
-      baseCurrencyId: credit.baseCurrencyId,
       exchangeRate: '1',
       date: paymentDate,
       isPaid: false,

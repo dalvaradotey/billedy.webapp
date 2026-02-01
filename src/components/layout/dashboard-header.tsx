@@ -14,7 +14,7 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ProjectSelector } from '@/features/projects/components';
 import { setCurrentProjectId } from '@/features/projects/actions';
-import type { Project } from '@/features/projects/types';
+import type { Project, Currency } from '@/features/projects/types';
 
 interface DashboardHeaderProps {
   user: {
@@ -25,9 +25,11 @@ interface DashboardHeaderProps {
   };
   projects: Project[];
   currentProjectId: string | null;
+  currencies: Currency[];
+  isAdmin?: boolean;
 }
 
-export function DashboardHeader({ user, projects, currentProjectId }: DashboardHeaderProps) {
+export function DashboardHeader({ user, projects, currentProjectId, currencies, isAdmin }: DashboardHeaderProps) {
   const handleProjectChange = async (projectId: string) => {
     await setCurrentProjectId(projectId);
   };
@@ -50,6 +52,7 @@ export function DashboardHeader({ user, projects, currentProjectId }: DashboardH
               projects={projects}
               currentProjectId={currentProjectId}
               userId={user.id}
+              currencies={currencies}
               onProjectChange={handleProjectChange}
             />
           )}
@@ -61,10 +64,10 @@ export function DashboardHeader({ user, projects, currentProjectId }: DashboardH
               Resumen
             </a>
             <a
-              href="/dashboard/transactions"
+              href="/dashboard/accounts"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              Transacciones
+              Cuentas
             </a>
             <a
               href="/dashboard/budgets"
@@ -77,6 +80,36 @@ export function DashboardHeader({ user, projects, currentProjectId }: DashboardH
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Ahorros
+            </a>
+            <a
+              href="/dashboard/card-purchases"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Compra en cuotas
+            </a>
+            <a
+              href="/dashboard/credits"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Créditos
+            </a>
+            <a
+              href="/dashboard/templates"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Plantillas
+            </a>
+            <a
+              href="/dashboard/cycles"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Ciclos
+            </a>
+            <a
+              href="/dashboard/transactions"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Transacciones
             </a>
           </nav>
         </div>
@@ -105,6 +138,14 @@ export function DashboardHeader({ user, projects, currentProjectId }: DashboardH
             <DropdownMenuItem asChild>
               <a href="/dashboard/settings">Configuración</a>
             </DropdownMenuItem>
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <a href="/admin/entities">Administrar entidades</a>
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="cursor-pointer text-red-600 focus:text-red-600"

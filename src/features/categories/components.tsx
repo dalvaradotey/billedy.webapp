@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useTransition, useEffect, useCallback, useRef } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Plus, Pencil, Archive, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -50,7 +49,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { createCategory, updateCategory, archiveCategory, restoreCategory, deleteCategory } from './actions';
 import { createCategorySchema, type CreateCategoryInput } from './schemas';
-import type { Category, CategoryGroup } from './types';
+import type { Category } from './types';
 
 // Colores predefinidos para categorías
 const PRESET_COLORS = [
@@ -74,85 +73,23 @@ const PRESET_COLORS = [
 
 interface CategoryListProps {
   categories: Category[];
-  groupedCategories: CategoryGroup[];
+  projectId: string;
   userId: string;
   showArchived?: boolean;
 }
 
 export function CategoryList({
   categories,
-  groupedCategories,
+  projectId,
   userId,
   showArchived = false,
 }: CategoryListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [pendingToast, setPendingToast] = useState<{ id: string | number; message: string } | null>(null);
 
-  // Ref para trackear los datos anteriores
-  const prevCategoriesRef = useRef<Category[]>(categories);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Detectar cuando categories cambia y ocultar loading
-  useEffect(() => {
-    const dataChanged = categories !== prevCategoriesRef.current ||
-                        categories.length !== prevCategoriesRef.current.length ||
-                        JSON.stringify(categories.map(c => c.id)) !== JSON.stringify(prevCategoriesRef.current.map(c => c.id));
-
-    if (isRefreshing && dataChanged) {
-      if (pendingToast) {
-        toast.success(pendingToast.message, { id: pendingToast.id });
-        setPendingToast(null);
-      }
-      setIsRefreshing(false);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-    }
-
-    prevCategoriesRef.current = categories;
-  }, [categories, isRefreshing, pendingToast]);
-
-  // Fallback timeout
-  useEffect(() => {
-    if (isRefreshing && !timeoutRef.current) {
-      timeoutRef.current = setTimeout(() => {
-        if (pendingToast) {
-          toast.success(pendingToast.message, { id: pendingToast.id });
-          setPendingToast(null);
-        }
-        setIsRefreshing(false);
-        timeoutRef.current = null;
-      }, 5000);
-    }
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-    };
-  }, [isRefreshing, pendingToast]);
-
-  const onMutationStart = useCallback(() => {
-    setIsRefreshing(true);
-  }, []);
-
-  const onMutationSuccess = useCallback((toastId: string | number, message: string) => {
-    setPendingToast({ id: toastId, message });
-  }, []);
-
-  const onMutationError = useCallback((toastId: string | number, error: string) => {
-    toast.error(error, { id: toastId });
-    setIsRefreshing(false);
-    setPendingToast(null);
-  }, []);
-
-  const displayGroups = showArchived
-    ? [{ name: 'Archivadas', categories: categories.filter((c) => c.isArchived) }]
-    : groupedCategories;
+  const displayCategories = showArchived
+    ? categories.filter((c) => c.isArchived)
+    : categories.filter((c) => !c.isArchived);
 
   const handleEdit = (category: Category) => {
     setEditingCategory(category);
@@ -181,70 +118,30 @@ export function CategoryList({
             </Button>
           </DialogTrigger>
           <CategoryDialogContent
+            projectId={projectId}
             userId={userId}
             category={editingCategory}
             onSuccess={handleDialogClose}
-            onMutationStart={onMutationStart}
-            onMutationSuccess={onMutationSuccess}
-            onMutationError={onMutationError}
           />
         </Dialog>
       </div>
 
-      {isRefreshing ? (
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <Skeleton className="h-4 w-20" />
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: Math.max(3, categories.length) }).map((_, i) => (
-                <CategoryCardSkeleton key={i} />
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : displayGroups.length === 0 ? (
+      {displayCategories.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           No hay categorías{showArchived ? ' archivadas' : ''}
         </div>
       ) : (
-        <div className="space-y-6">
-          {displayGroups.map((group) => (
-            <div key={group.name ?? 'sin-grupo'} className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">
-                {group.name ?? 'Sin grupo'}
-              </h3>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {group.categories.map((category) => (
-                  <CategoryCard
-                    key={category.id}
-                    category={category}
-                    userId={userId}
-                    onEdit={() => handleEdit(category)}
-                    onMutationStart={onMutationStart}
-                    onMutationSuccess={onMutationSuccess}
-                    onMutationError={onMutationError}
-                  />
-                ))}
-              </div>
-            </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {displayCategories.map((category) => (
+            <CategoryCard
+              key={category.id}
+              category={category}
+              userId={userId}
+              onEdit={() => handleEdit(category)}
+            />
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function CategoryCardSkeleton() {
-  return (
-    <div className="flex items-center justify-between rounded-lg border p-3 border-l-4 border-l-muted">
-      <div className="flex items-center gap-3 min-w-0">
-        <Skeleton className="h-3 w-3 rounded-full shrink-0" />
-        <div className="space-y-1">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-3 w-12" />
-        </div>
-      </div>
-      <Skeleton className="h-8 w-8 rounded-md shrink-0" />
     </div>
   );
 }
@@ -253,51 +150,45 @@ interface CategoryCardProps {
   category: Category;
   userId: string;
   onEdit: () => void;
-  onMutationStart?: () => void;
-  onMutationSuccess?: (toastId: string | number, message: string) => void;
-  onMutationError?: (toastId: string | number, error: string) => void;
 }
 
-function CategoryCard({ category, userId, onEdit, onMutationStart, onMutationSuccess, onMutationError }: CategoryCardProps) {
+function CategoryCard({ category, userId, onEdit }: CategoryCardProps) {
   const [isPending, startTransition] = useTransition();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleArchive = () => {
     const toastId = toast.loading('Archivando...');
-    onMutationStart?.();
     startTransition(async () => {
       const result = await archiveCategory(category.id, userId);
       if (result.success) {
-        onMutationSuccess?.(toastId, 'Categoría archivada');
+        toast.success('Categoría archivada', { id: toastId });
       } else {
-        onMutationError?.(toastId, result.error);
+        toast.error(result.error, { id: toastId });
       }
     });
   };
 
   const handleRestore = () => {
     const toastId = toast.loading('Restaurando...');
-    onMutationStart?.();
     startTransition(async () => {
       const result = await restoreCategory(category.id, userId);
       if (result.success) {
-        onMutationSuccess?.(toastId, 'Categoría restaurada');
+        toast.success('Categoría restaurada', { id: toastId });
       } else {
-        onMutationError?.(toastId, result.error);
+        toast.error(result.error, { id: toastId });
       }
     });
   };
 
   const handleDelete = () => {
     const toastId = toast.loading('Eliminando...');
-    onMutationStart?.();
     startTransition(async () => {
       const result = await deleteCategory(category.id, userId);
       setShowDeleteDialog(false);
       if (result.success) {
-        onMutationSuccess?.(toastId, 'Categoría eliminada');
+        toast.success('Categoría eliminada', { id: toastId });
       } else {
-        onMutationError?.(toastId, result.error);
+        toast.error(result.error, { id: toastId });
       }
     });
   };
@@ -312,12 +203,7 @@ function CategoryCard({ category, userId, onEdit, onMutationStart, onMutationSuc
           className="h-3 w-3 rounded-full shrink-0"
           style={{ backgroundColor: category.color }}
         />
-        <div className="min-w-0">
-          <p className="font-medium truncate">{category.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {category.type === 'income' ? 'Ingreso' : 'Gasto'}
-          </p>
-        </div>
+        <p className="font-medium truncate">{category.name}</p>
       </div>
 
       <DropdownMenu>
@@ -357,7 +243,6 @@ function CategoryCard({ category, userId, onEdit, onMutationStart, onMutationSuc
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -383,45 +268,48 @@ function CategoryCard({ category, userId, onEdit, onMutationStart, onMutationSuc
 }
 
 interface CategoryDialogContentProps {
+  projectId: string;
   userId: string;
   category: Category | null;
   onSuccess: () => void;
-  onMutationStart?: () => void;
-  onMutationSuccess?: (toastId: string | number, message: string) => void;
-  onMutationError?: (toastId: string | number, error: string) => void;
 }
 
-function CategoryDialogContent({ userId, category, onSuccess, onMutationStart, onMutationSuccess, onMutationError }: CategoryDialogContentProps) {
+function CategoryDialogContent({ projectId, userId, category, onSuccess }: CategoryDialogContentProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const getDefaultValues = useCallback(() => ({
+    projectId,
+    name: category?.name ?? '',
+    color: category?.color ?? PRESET_COLORS[0],
+  }), [projectId, category]);
+
   const form = useForm<CreateCategoryInput>({
     resolver: zodResolver(createCategorySchema),
-    defaultValues: {
-      name: category?.name ?? '',
-      type: category?.type ?? 'expense',
-      group: category?.group ?? '',
-      color: category?.color ?? PRESET_COLORS[0],
-    },
+    defaultValues: getDefaultValues(),
   });
+
+  // Reset form when category changes (for edit mode)
+  useEffect(() => {
+    form.reset(getDefaultValues());
+  }, [category, form, getDefaultValues]);
 
   const onSubmit = (data: CreateCategoryInput) => {
     setError(null);
     const toastId = toast.loading(category ? 'Actualizando...' : 'Creando categoría...');
-    onMutationStart?.();
 
     startTransition(async () => {
       const result = category
-        ? await updateCategory(category.id, userId, data)
+        ? await updateCategory(category.id, userId, { name: data.name, color: data.color })
         : await createCategory(userId, data);
 
       if (result.success) {
+        toast.success(category ? 'Categoría actualizada' : 'Categoría creada', { id: toastId });
         form.reset();
         onSuccess();
-        onMutationSuccess?.(toastId, category ? 'Categoría actualizada' : 'Categoría creada');
       } else {
+        toast.error(result.error, { id: toastId });
         setError(result.error);
-        onMutationError?.(toastId, result.error);
       }
     });
   };
@@ -448,47 +336,7 @@ function CategoryDialogContent({ userId, category, onSuccess, onMutationStart, o
               <FormItem>
                 <FormLabel>Nombre</FormLabel>
                 <FormControl>
-                  <Input placeholder="Ej: Comida" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un tipo" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="expense">Gasto</SelectItem>
-                    <SelectItem value="income">Ingreso</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="group"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Grupo (opcional)</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Ej: Fijos, Variables"
-                    {...field}
-                    value={field.value ?? ''}
-                  />
+                  <Input placeholder="Ej: Comida, Transporte" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -548,7 +396,6 @@ interface CategorySelectProps {
   categories: Category[];
   value: string;
   onValueChange: (value: string) => void;
-  type?: 'income' | 'expense';
   placeholder?: string;
 }
 
@@ -556,54 +403,28 @@ export function CategorySelect({
   categories,
   value,
   onValueChange,
-  type,
   placeholder = 'Selecciona una categoría',
 }: CategorySelectProps) {
-  const filteredCategories = type
-    ? categories.filter((c) => c.type === type && !c.isArchived)
-    : categories.filter((c) => !c.isArchived);
-
-  // Agrupar por grupo
-  const grouped = new Map<string | null, Category[]>();
-  for (const cat of filteredCategories) {
-    const g = cat.group;
-    if (!grouped.has(g)) grouped.set(g, []);
-    grouped.get(g)!.push(cat);
-  }
-
-  const sortedGroups = Array.from(grouped.entries()).sort(([a], [b]) => {
-    if (a === null) return 1;
-    if (b === null) return -1;
-    return a.localeCompare(b);
-  });
+  const activeCategories = categories.filter((c) => !c.isArchived);
 
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger>
         <SelectValue placeholder={placeholder}>
-          {filteredCategories.find((c) => c.id === value)?.name ?? placeholder}
+          {activeCategories.find((c) => c.id === value)?.name ?? placeholder}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {sortedGroups.map(([group, cats]) => (
-          <div key={group ?? 'sin-grupo'}>
-            {group && (
-              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                {group}
-              </div>
-            )}
-            {cats.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  {cat.name}
-                </div>
-              </SelectItem>
-            ))}
-          </div>
+        {activeCategories.map((cat) => (
+          <SelectItem key={cat.id} value={cat.id}>
+            <div className="flex items-center gap-2">
+              <div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: cat.color }}
+              />
+              {cat.name}
+            </div>
+          </SelectItem>
         ))}
       </SelectContent>
     </Select>

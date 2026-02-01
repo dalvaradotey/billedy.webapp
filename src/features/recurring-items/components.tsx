@@ -566,7 +566,7 @@ function RecurringItemDialogContent({
       projectId,
       name: item?.name ?? '',
       amount: item?.amount ? parseFloat(item.amount) : undefined,
-      type: item?.type ?? 'expense',
+      type: (item?.type === 'income' || item?.type === 'expense') ? item.type : 'expense',
       categoryId: item?.categoryId ?? '',
       dayOfMonth: item?.dayOfMonth ?? undefined,
       isActive: item?.isActive ?? true,
@@ -574,8 +574,7 @@ function RecurringItemDialogContent({
     },
   });
 
-  const selectedType = form.watch('type');
-  const filteredCategories = categories.filter((c) => c.type === selectedType && !c.isArchived);
+  const activeCategories = categories.filter((c) => !c.isArchived);
 
   const onSubmit = (data: CreateRecurringItemInput) => {
     setError(null);
@@ -625,10 +624,7 @@ function RecurringItemDialogContent({
                     type="button"
                     variant={field.value === 'expense' ? 'default' : 'outline'}
                     className="flex-1"
-                    onClick={() => {
-                      field.onChange('expense');
-                      form.setValue('categoryId', '');
-                    }}
+                    onClick={() => field.onChange('expense')}
                   >
                     <ArrowDownCircle className="mr-2 h-4 w-4" />
                     Gasto
@@ -637,10 +633,7 @@ function RecurringItemDialogContent({
                     type="button"
                     variant={field.value === 'income' ? 'default' : 'outline'}
                     className="flex-1"
-                    onClick={() => {
-                      field.onChange('income');
-                      form.setValue('categoryId', '');
-                    }}
+                    onClick={() => field.onChange('income')}
                   >
                     <ArrowUpCircle className="mr-2 h-4 w-4" />
                     Ingreso
@@ -725,7 +718,7 @@ function RecurringItemDialogContent({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {filteredCategories.map((cat) => (
+                    {activeCategories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         <div className="flex items-center gap-2">
                           <div

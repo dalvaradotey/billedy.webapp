@@ -6,7 +6,9 @@ import {
 } from '@/features/credits/queries';
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject } from '@/features/projects/queries';
-import { getCategoriesByType } from '@/features/categories/queries';
+import { getActiveCategories } from '@/features/categories/queries';
+import { getEntities } from '@/features/entities/queries';
+import { getAccounts } from '@/features/accounts/queries';
 import { CreditList } from '@/features/credits/components';
 
 interface CreditsPageProps {
@@ -37,18 +39,13 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
   const showArchived = params.archived === 'true';
 
   // Cargar datos en paralelo
-  const [credits, summary, expenseCategories] = await Promise.all([
+  const [credits, summary, categories, entities, accounts] = await Promise.all([
     getCreditsWithProgress(projectId, session.user.id, showArchived),
     getCreditsSummary(projectId, session.user.id),
-    getCategoriesByType(session.user.id, 'expense'),
+    getActiveCategories(projectId, session.user.id),
+    getEntities(),
+    getAccounts(session.user.id),
   ]);
-
-  // Preparar categorías para el select
-  const categories = expenseCategories.map((cat) => ({
-    id: cat.id,
-    name: cat.name,
-    color: cat.color,
-  }));
 
   return (
     <div className="space-y-6">
@@ -62,6 +59,8 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
       <CreditList
         credits={credits}
         categories={categories}
+        entities={entities}
+        accounts={accounts}
         summary={summary}
         projectId={projectId}
         userId={session.user.id}

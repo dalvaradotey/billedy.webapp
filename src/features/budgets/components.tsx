@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -8,11 +8,8 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Copy,
-  AlertTriangle,
-  CheckCircle,
-  TrendingUp,
-  TrendingDown,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +22,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/currency-input';
 import {
   Select,
   SelectContent,
@@ -40,7 +38,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Progress } from '@/components/ui/progress';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,14 +54,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { CategorySelector } from '@/components/category-selector';
 import {
-  upsertBudget,
+  createBudget,
   updateBudget,
   deleteBudget,
-  copyBudgetsFromPreviousMonth,
+  toggleBudgetActive,
 } from './actions';
-import { upsertBudgetSchema, type UpsertBudgetInput } from './schemas';
-import type { BudgetWithProgress, BudgetSummary, BudgetPeriod } from './types';
+import { createBudgetSchema } from './schemas';
+import type { CreateBudgetInput, UpdateBudgetInput } from './schemas';
+import type { BudgetWithCategory } from './types';
 
 function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -76,34 +77,27 @@ function formatCurrency(amount: number | string, currency: string = 'CLP'): stri
   }).format(num);
 }
 
-const MONTH_NAMES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-];
-
 interface BudgetListProps {
-  budgets: BudgetWithProgress[];
-  categoriesWithoutBudget: { id: string; name: string; color: string }[];
-  summary: BudgetSummary;
+  budgets: BudgetWithCategory[];
+  categories: { id: string; name: string; color: string }[];
+  currencies: { code: string; name: string }[];
   projectId: string;
   userId: string;
-  period: BudgetPeriod;
+  defaultCurrency: string;
 }
 
 export function BudgetList({
   budgets,
-  categoriesWithoutBudget,
-  summary,
+  categories,
+  currencies,
   projectId,
   userId,
-  period,
+  defaultCurrency,
 }: BudgetListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingBudget, setEditingBudget] = useState<BudgetWithProgress | null>(null);
-  const [isCopying, startCopyTransition] = useTransition();
-  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<BudgetWithCategory | null>(null);
 
-  const handleEdit = (budget: BudgetWithProgress) => {
+  const handleEdit = (budget: BudgetWithCategory) => {
     setEditingBudget(budget);
     setIsDialogOpen(true);
   };
@@ -118,159 +112,81 @@ export function BudgetList({
     setIsDialogOpen(true);
   };
 
-  const handleCopyFromPrevious = () => {
-    const toastId = toast.loading('Copiando presupuestos...');
-    startCopyTransition(async () => {
-      const result = await copyBudgetsFromPreviousMonth(
-        projectId,
-        userId,
-        period.year,
-        period.month
-      );
-      setShowCopyDialog(false);
-      if (result.success) {
-        toast.success('Presupuestos copiados', { id: toastId });
-      } else {
-        toast.error(result.error, { id: toastId });
-      }
-    });
-  };
+  const activeBudgets = budgets.filter((b) => b.isActive);
+  const inactiveBudgets = budgets.filter((b) => !b.isActive);
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <SummaryCard
-          title="Presupuestado"
-          value={formatCurrency(summary.totalBudgeted)}
-          icon={<TrendingUp className="h-4 w-4 text-blue-600" />}
-          className="text-blue-600"
-        />
-        <SummaryCard
-          title="Gastado"
-          value={formatCurrency(summary.totalSpent)}
-          icon={<TrendingDown className="h-4 w-4 text-red-600" />}
-          className="text-red-600"
-        />
-        <SummaryCard
-          title="Disponible"
-          value={formatCurrency(summary.totalRemaining)}
-          className={summary.totalRemaining >= 0 ? 'text-green-600' : 'text-red-600'}
-        />
-        <SummaryCard
-          title="Estado"
-          value={`${summary.categoriesOnTrack} OK`}
-          subtitle={summary.categoriesOverBudget > 0 ? `${summary.categoriesOverBudget} excedidos` : undefined}
-          icon={
-            summary.categoriesOverBudget > 0 ? (
-              <AlertTriangle className="h-4 w-4 text-orange-500" />
-            ) : (
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            )
-          }
-        />
-      </div>
-
-      {/* Period Info and Actions */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="text-lg font-medium">
-          {MONTH_NAMES[period.month - 1]} {period.year}
+        <div>
+          <h2 className="text-lg font-medium">Presupuestos</h2>
+          <p className="text-sm text-muted-foreground">
+            Define plantillas de presupuesto para asignar a cada ciclo de facturación
+          </p>
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => setShowCopyDialog(true)}
-            disabled={isCopying}
-          >
-            <Copy className={`h-4 w-4 ${isCopying ? 'animate-spin' : ''}`} />
-            Copiar del mes anterior
-          </Button>
-
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
-                <Plus className="h-4 w-4" />
-                Nuevo presupuesto
-              </Button>
-            </DialogTrigger>
-            <BudgetDialogContent
-              projectId={projectId}
-              userId={userId}
-              period={period}
-              categoriesWithoutBudget={categoriesWithoutBudget}
-              budget={editingBudget}
-              onSuccess={handleDialogClose}
-            />
-          </Dialog>
-
-          {/* Copy Confirmation Dialog */}
-          <AlertDialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Copiar presupuestos</AlertDialogTitle>
-                <AlertDialogDescription>
-                  ¿Copiar los presupuestos del mes anterior? Solo se copiarán las categorías
-                  que no tengan presupuesto asignado en este mes.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isCopying}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleCopyFromPrevious} disabled={isCopying}>
-                  {isCopying ? 'Copiando...' : 'Copiar presupuestos'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
+              <Plus className="h-4 w-4" />
+              Nuevo presupuesto
+            </Button>
+          </DialogTrigger>
+          <BudgetDialogContent
+            projectId={projectId}
+            userId={userId}
+            categories={categories}
+            currencies={currencies}
+            budget={editingBudget}
+            onSuccess={handleDialogClose}
+            defaultCurrency={defaultCurrency}
+          />
+        </Dialog>
       </div>
 
-      {/* Budget List */}
-      {budgets.length === 0 ? (
+      {/* Active Budgets */}
+      {activeBudgets.length === 0 && inactiveBudgets.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground border rounded-lg">
-          No hay presupuestos configurados para este mes
+          No hay presupuestos configurados
         </div>
       ) : (
-        <div className="space-y-3">
-          {budgets.map((budget) => (
-            <BudgetCard
-              key={budget.id}
-              budget={budget}
-              userId={userId}
-              onEdit={() => handleEdit(budget)}
-            />
-          ))}
-        </div>
+        <>
+          {activeBudgets.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Activos</h3>
+              {activeBudgets.map((budget) => (
+                <BudgetCard
+                  key={budget.id}
+                  budget={budget}
+                  userId={userId}
+                  onEdit={() => handleEdit(budget)}
+                />
+              ))}
+            </div>
+          )}
+
+          {inactiveBudgets.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground">Inactivos</h3>
+              {inactiveBudgets.map((budget) => (
+                <BudgetCard
+                  key={budget.id}
+                  budget={budget}
+                  userId={userId}
+                  onEdit={() => handleEdit(budget)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
-interface SummaryCardProps {
-  title: string;
-  value: string;
-  subtitle?: string;
-  icon?: React.ReactNode;
-  className?: string;
-}
-
-function SummaryCard({ title, value, subtitle, icon, className }: SummaryCardProps) {
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-        {icon}
-        {title}
-      </div>
-      <div className={`text-2xl font-bold ${className ?? ''}`}>{value}</div>
-      {subtitle && <div className="text-xs text-muted-foreground">{subtitle}</div>}
-    </div>
-  );
-}
-
 interface BudgetCardProps {
-  budget: BudgetWithProgress;
+  budget: BudgetWithCategory;
   userId: string;
   onEdit: () => void;
 }
@@ -292,35 +208,44 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
     });
   };
 
-  const progressColor = budget.isOverBudget
-    ? 'bg-red-500'
-    : budget.percentage >= 80
-    ? 'bg-orange-500'
-    : 'bg-green-500';
+  const handleToggleActive = () => {
+    const toastId = toast.loading(budget.isActive ? 'Desactivando...' : 'Activando...');
+    startTransition(async () => {
+      const result = await toggleBudgetActive(budget.id, userId, !budget.isActive);
+      if (result.success) {
+        toast.success(budget.isActive ? 'Presupuesto desactivado' : 'Presupuesto activado', { id: toastId });
+      } else {
+        toast.error(result.error, { id: toastId });
+      }
+    });
+  };
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
+    <div className={`rounded-lg border p-4 ${!budget.isActive ? 'opacity-60' : ''}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div
-            className="h-3 w-3 rounded-full"
-            style={{ backgroundColor: budget.categoryColor }}
-          />
+          {budget.categoryColor && (
+            <div
+              className="h-3 w-3 rounded-full"
+              style={{ backgroundColor: budget.categoryColor }}
+            />
+          )}
           <div>
-            <p className="font-medium">{budget.categoryName}</p>
-            <p className="text-sm text-muted-foreground">
-              {formatCurrency(budget.spent)} de {formatCurrency(budget.amount)}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="font-medium">{budget.name}</p>
+              {!budget.isActive && (
+                <Badge variant="secondary" className="text-xs">Inactivo</Badge>
+              )}
+            </div>
+            {budget.categoryName && (
+              <p className="text-sm text-muted-foreground">{budget.categoryName}</p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span
-            className={`text-sm font-medium ${
-              budget.isOverBudget ? 'text-red-600' : 'text-muted-foreground'
-            }`}
-          >
-            {budget.percentage}%
+        <div className="flex items-center gap-4">
+          <span className="text-lg font-semibold">
+            {formatCurrency(budget.defaultAmount, budget.currency)}
           </span>
 
           <DropdownMenu>
@@ -337,6 +262,19 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
                 <Pencil className="mr-2 h-4 w-4" />
                 Editar
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleToggleActive}>
+                {budget.isActive ? (
+                  <>
+                    <ToggleLeft className="mr-2 h-4 w-4" />
+                    Desactivar
+                  </>
+                ) : (
+                  <>
+                    <ToggleRight className="mr-2 h-4 w-4" />
+                    Activar
+                  </>
+                )}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Eliminar
@@ -344,7 +282,6 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Delete Confirmation Dialog */}
           <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -367,21 +304,6 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
           </AlertDialog>
         </div>
       </div>
-
-      <div className="space-y-1">
-        <Progress
-          value={Math.min(budget.percentage, 100)}
-          className="h-2"
-          indicatorClassName={progressColor}
-        />
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>
-            {budget.isOverBudget
-              ? `Excedido por ${formatCurrency(Math.abs(budget.remaining))}`
-              : `Quedan ${formatCurrency(budget.remaining)}`}
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
@@ -389,45 +311,78 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
 interface BudgetDialogContentProps {
   projectId: string;
   userId: string;
-  period: BudgetPeriod;
-  categoriesWithoutBudget: { id: string; name: string; color: string }[];
-  budget: BudgetWithProgress | null;
+  categories: { id: string; name: string; color: string }[];
+  currencies: { code: string; name: string }[];
+  budget: BudgetWithCategory | null;
   onSuccess: () => void;
+  defaultCurrency: string;
 }
 
 function BudgetDialogContent({
   projectId,
   userId,
-  period,
-  categoriesWithoutBudget,
+  categories,
+  currencies,
   budget,
   onSuccess,
+  defaultCurrency,
 }: BudgetDialogContentProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showCurrencySelector, setShowCurrencySelector] = useState(false);
+  const [localCategories, setLocalCategories] = useState(categories);
 
-  const form = useForm<UpsertBudgetInput>({
-    resolver: zodResolver(upsertBudgetSchema),
-    defaultValues: {
-      projectId,
-      year: period.year,
-      month: period.month,
-      categoryId: budget?.categoryId ?? '',
-      amount: budget?.amount ? parseFloat(budget.amount) : undefined,
-    },
+  const isEditing = !!budget;
+
+  // Update local categories when props change
+  useEffect(() => {
+    setLocalCategories(categories);
+  }, [categories]);
+
+  const handleCategoryCreated = (newCategory: { id: string; name: string; color: string }) => {
+    setLocalCategories((prev) => [...prev, newCategory]);
+  };
+
+  const getDefaultValues = useCallback(() => ({
+    projectId,
+    name: budget?.name ?? '',
+    categoryId: budget?.categoryId ?? undefined,
+    defaultAmount: budget?.defaultAmount ? parseFloat(budget.defaultAmount) : undefined,
+    currency: budget?.currency ?? defaultCurrency,
+  }), [projectId, budget, defaultCurrency]);
+
+  const form = useForm<CreateBudgetInput>({
+    resolver: zodResolver(createBudgetSchema),
+    defaultValues: getDefaultValues(),
   });
 
-  const onSubmit = (data: UpsertBudgetInput) => {
+  // Reset form when budget changes (for edit mode)
+  useEffect(() => {
+    form.reset(getDefaultValues());
+    // Show currency selector if budget has a different currency than project default
+    if (budget) {
+      setShowCurrencySelector(budget.currency !== defaultCurrency);
+    } else {
+      setShowCurrencySelector(false);
+    }
+  }, [budget, form, getDefaultValues]);
+
+  const onSubmit = (data: CreateBudgetInput) => {
     setError(null);
-    const toastId = toast.loading(budget ? 'Actualizando presupuesto...' : 'Creando presupuesto...');
+    const toastId = toast.loading(isEditing ? 'Actualizando presupuesto...' : 'Creando presupuesto...');
 
     startTransition(async () => {
-      const result = budget
-        ? await updateBudget(budget.id, userId, { amount: data.amount })
-        : await upsertBudget(userId, data);
+      const result = isEditing
+        ? await updateBudget(budget.id, userId, {
+            name: data.name,
+            categoryId: data.categoryId,
+            defaultAmount: data.defaultAmount,
+            currency: data.currency,
+          })
+        : await createBudget(userId, data);
 
       if (result.success) {
-        toast.success(budget ? 'Presupuesto actualizado' : 'Presupuesto creado', { id: toastId });
+        toast.success(isEditing ? 'Presupuesto actualizado' : 'Presupuesto creado', { id: toastId });
         form.reset();
         onSuccess();
       } else {
@@ -437,82 +392,128 @@ function BudgetDialogContent({
     });
   };
 
-  const isEditing = !!budget;
-
-  // Combinar categoría actual si estamos editando
-  const availableCategories = isEditing
-    ? [{ id: budget.categoryId, name: budget.categoryName, color: budget.categoryColor }]
-    : categoriesWithoutBudget;
-
   return (
     <DialogContent className="sm:max-w-[425px]">
       <DialogHeader>
         <DialogTitle>{isEditing ? 'Editar presupuesto' : 'Nuevo presupuesto'}</DialogTitle>
         <DialogDescription>
           {isEditing
-            ? 'Modifica el monto del presupuesto.'
-            : `Configura un presupuesto para ${MONTH_NAMES[period.month - 1]} ${period.year}.`}
+            ? 'Modifica los datos del presupuesto.'
+            : 'Crea una plantilla de presupuesto que podrás asignar a cada ciclo.'}
         </DialogDescription>
       </DialogHeader>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Category */}
+          {/* Name */}
           <FormField
             control={form.control}
-            name="categoryId"
+            name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Categoría</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value}
-                  disabled={isEditing}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una categoría" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {availableCategories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: cat.color }}
-                          />
-                          {cat.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Nombre</FormLabel>
+                <FormControl>
+                  <Input placeholder="Ej: Comida, Transporte, etc." {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          {/* Amount */}
+          {/* Category (optional) */}
           <FormField
             control={form.control}
-            name="amount"
+            name="categoryId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Monto presupuestado</FormLabel>
+                <FormLabel>Categoría (opcional)</FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    {...field}
-                    value={field.value ?? ''}
-                    onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                  <CategorySelector
+                    categories={localCategories}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    projectId={projectId}
+                    userId={userId}
+                    allowNone
+                    noneLabel="Sin categoría específica"
+                    placeholder="Selecciona una categoría"
+                    onCategoryCreated={handleCategoryCreated}
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          {/* Default Amount */}
+          <FormField
+            control={form.control}
+            name="defaultAmount"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Monto por defecto</FormLabel>
+                <FormControl>
+                  <CurrencyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    currency={form.watch('currency') ?? defaultCurrency}
+                    placeholder="0"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Currency Selector */}
+          <div className="space-y-3">
+            <div className="flex flex-row items-center justify-between rounded-lg border p-3">
+              <div className="space-y-0.5">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Moneda diferente
+                </label>
+                <p className="text-[0.8rem] text-muted-foreground">
+                  Por defecto se usa {defaultCurrency}
+                </p>
+              </div>
+              <Switch
+                checked={showCurrencySelector}
+                onCheckedChange={(checked) => {
+                  setShowCurrencySelector(checked);
+                  if (!checked) {
+                    form.setValue('currency', defaultCurrency);
+                  }
+                }}
+              />
+            </div>
+
+            {showCurrencySelector && (
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Moneda</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una moneda" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {currencies.map((currency) => (
+                          <SelectItem key={currency.code} value={currency.code}>
+                            {currency.code} - {currency.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 

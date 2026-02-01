@@ -8,6 +8,8 @@ export type CreditFrequency = 'monthly' | 'biweekly' | 'weekly';
 export type CreditWithProgress = Credit & {
   categoryName: string;
   categoryColor: string;
+  entityName: string | null;
+  entityImageUrl: string | null;
   paidInstallments: number;
   remainingInstallments: number;
   paidAmount: number;

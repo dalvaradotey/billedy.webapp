@@ -2,8 +2,11 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { getTransactions, getTransactionSummary } from '@/features/transactions/queries';
 import { getActiveCategories } from '@/features/categories/queries';
+import { getAccounts } from '@/features/accounts/queries';
+import { getActiveBudgets } from '@/features/budgets/queries';
+import { getEntities } from '@/features/entities/queries';
 import { getCurrentProjectId } from '@/features/projects/actions';
-import { getLatestProject } from '@/features/projects/queries';
+import { getLatestProject, getProjectById } from '@/features/projects/queries';
 import { TransactionList } from '@/features/transactions/components';
 import type { TransactionFilters } from '@/features/transactions/types';
 
@@ -57,11 +60,17 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   }
 
   // Cargar datos en paralelo
-  const [transactions, summary, categories] = await Promise.all([
+  const [transactions, summary, categories, accounts, budgets, entities, project] = await Promise.all([
     getTransactions(projectId, session.user.id, filters),
     getTransactionSummary(projectId, session.user.id),
-    getActiveCategories(session.user.id),
+    getActiveCategories(projectId, session.user.id),
+    getAccounts(session.user.id),
+    getActiveBudgets(projectId, session.user.id),
+    getEntities(),
+    getProjectById(projectId, session.user.id),
   ]);
+
+  const defaultCurrency = project?.currency ?? 'CLP';
 
   return (
     <div className="space-y-6">
@@ -75,9 +84,13 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
       <TransactionList
         transactions={transactions}
         categories={categories}
+        accounts={accounts}
+        budgets={budgets}
+        entities={entities}
         summary={summary}
         projectId={projectId}
         userId={session.user.id}
+        defaultCurrency={defaultCurrency}
       />
     </div>
   );

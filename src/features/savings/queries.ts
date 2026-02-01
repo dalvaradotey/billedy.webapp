@@ -259,11 +259,12 @@ export async function getMovementsByFund(
 /**
  * Obtiene todas las monedas disponibles
  */
-export async function getAllCurrencies(): Promise<{ id: string; code: string }[]> {
+export async function getAllCurrencies(): Promise<{ id: string; code: string; name: string }[]> {
   return await db
     .select({
       id: currencies.id,
       code: currencies.code,
+      name: currencies.name,
     })
     .from(currencies)
     .orderBy(currencies.code);

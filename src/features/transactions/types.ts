@@ -8,6 +8,10 @@ export type TransactionType = 'income' | 'expense';
 export type TransactionWithCategory = Transaction & {
   categoryName: string;
   categoryColor: string;
+  accountName: string | null;
+  budgetName: string | null;
+  entityName: string | null;
+  entityImageUrl: string | null;
 };
 
 export type TransactionFilters = {

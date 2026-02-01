@@ -1,9 +1,9 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { currencies, categoryTemplates, categories, projects, projectMembers } from '@/lib/db/schema';
+import { currencies, projects, projectMembers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { checkNeedsOnboarding, checkHasCategories } from './queries';
+import { checkNeedsOnboarding } from './queries';
 
 const MONTH_NAMES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -13,7 +13,6 @@ const MONTH_NAMES = [
 /**
  * Ejecuta el proceso de onboarding para un usuario nuevo
  * - Crea un proyecto inicial con el mes actual
- * - Copia las categorías del sistema al usuario
  */
 export async function runOnboarding(userId: string): Promise<{ success: boolean; projectId?: string }> {
   const needsOnboarding = await checkNeedsOnboarding(userId);
@@ -57,25 +56,6 @@ export async function runOnboarding(userId: string): Promise<{ success: boolean;
     role: 'owner',
     acceptedAt: new Date(),
   });
-
-  // Copiar categorías del sistema si el usuario no tiene
-  const hasCategories = await checkHasCategories(userId);
-
-  if (!hasCategories) {
-    const templates = await db.select().from(categoryTemplates);
-
-    if (templates.length > 0) {
-      await db.insert(categories).values(
-        templates.map((template) => ({
-          userId,
-          name: template.name,
-          type: template.type,
-          group: template.group,
-          color: template.color,
-        }))
-      );
-    }
-  }
 
   return { success: true, projectId: newProject.id };
 }

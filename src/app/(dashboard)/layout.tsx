@@ -1,12 +1,14 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
-import { runOnboarding } from '@/features/onboarding';
+import { NoProjectsMessage } from '@/components/layout/no-projects-message';
 import {
   getActiveProjects,
   getCurrentProjectId,
   getLatestProject,
+  getCurrencies,
 } from '@/features/projects';
+import { isUserAdmin } from '@/features/entities';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -21,9 +23,6 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  // Ejecutar onboarding si el usuario es nuevo
-  await runOnboarding(session.user.id);
-
   // Obtener proyectos del usuario
   const projects = await getActiveProjects(session.user.id);
 
@@ -37,14 +36,31 @@ export default async function DashboardLayout({
     currentProjectId = latestProject?.id ?? null;
   }
 
+  // Si el usuario no tiene proyectos, mostrar mensaje para crear uno
+  const hasNoProjects = projects.length === 0;
+
+  // Obtener monedas disponibles
+  const currencies = await getCurrencies();
+
+  // Verificar si el usuario es admin
+  const isAdmin = await isUserAdmin(session.user.id);
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader
         user={session.user}
         projects={projects}
         currentProjectId={currentProjectId}
+        currencies={currencies}
+        isAdmin={isAdmin}
       />
-      <main className="container mx-auto px-4 py-6">{children}</main>
+      <main className="container mx-auto px-4 py-6">
+        {hasNoProjects ? (
+          <NoProjectsMessage userId={session.user.id} currencies={currencies} />
+        ) : (
+          children
+        )}
+      </main>
     </div>
   );
 }

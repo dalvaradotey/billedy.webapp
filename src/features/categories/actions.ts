@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { categories } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { categories, projectMembers } from '@/lib/db/schema';
+import { eq, and, isNotNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { createCategorySchema, updateCategorySchema } from './schemas';
 import type { CreateCategoryInput, UpdateCategoryInput } from './schemas';
@@ -10,6 +10,25 @@ import type { CreateCategoryInput, UpdateCategoryInput } from './schemas';
 type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+/**
+ * Verifica que el usuario tenga acceso al proyecto
+ */
+async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
+  const member = await db
+    .select({ id: projectMembers.id })
+    .from(projectMembers)
+    .where(
+      and(
+        eq(projectMembers.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  return member.length > 0;
+}
 
 /**
  * Crea una nueva categoría
@@ -24,15 +43,23 @@ export async function createCategory(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
+  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  if (!hasAccess) {
+    return { success: false, error: 'No tienes acceso a este proyecto' };
+  }
+
   const [newCategory] = await db
     .insert(categories)
     .values({
-      ...parsed.data,
-      userId,
+      projectId: parsed.data.projectId,
+      name: parsed.data.name,
+      color: parsed.data.color,
     })
     .returning({ id: categories.id });
 
   revalidatePath('/dashboard/categories');
+  revalidatePath('/dashboard/budgets');
+  revalidatePath('/dashboard/transactions');
 
   return { success: true, data: { id: newCategory.id } };
 }
@@ -51,13 +78,31 @@ export async function updateCategory(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
+  // Verificar que la categoría existe y el usuario tiene acceso al proyecto
+  const existing = await db
+    .select({ projectId: categories.projectId })
+    .from(categories)
+    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
+    .where(
+      and(
+        eq(categories.id, categoryId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  if (!existing[0]) {
+    return { success: false, error: 'Categoría no encontrada' };
+  }
+
   await db
     .update(categories)
     .set({
       ...parsed.data,
       updatedAt: new Date(),
     })
-    .where(and(eq(categories.id, categoryId), eq(categories.userId, userId)));
+    .where(eq(categories.id, categoryId));
 
   revalidatePath('/dashboard/categories');
 
@@ -71,13 +116,31 @@ export async function archiveCategory(
   categoryId: string,
   userId: string
 ): Promise<ActionResult> {
+  // Verificar acceso
+  const existing = await db
+    .select({ projectId: categories.projectId })
+    .from(categories)
+    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
+    .where(
+      and(
+        eq(categories.id, categoryId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  if (!existing[0]) {
+    return { success: false, error: 'Categoría no encontrada' };
+  }
+
   await db
     .update(categories)
     .set({
       isArchived: true,
       updatedAt: new Date(),
     })
-    .where(and(eq(categories.id, categoryId), eq(categories.userId, userId)));
+    .where(eq(categories.id, categoryId));
 
   revalidatePath('/dashboard/categories');
 
@@ -91,13 +154,31 @@ export async function restoreCategory(
   categoryId: string,
   userId: string
 ): Promise<ActionResult> {
+  // Verificar acceso
+  const existing = await db
+    .select({ projectId: categories.projectId })
+    .from(categories)
+    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
+    .where(
+      and(
+        eq(categories.id, categoryId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  if (!existing[0]) {
+    return { success: false, error: 'Categoría no encontrada' };
+  }
+
   await db
     .update(categories)
     .set({
       isArchived: false,
       updatedAt: new Date(),
     })
-    .where(and(eq(categories.id, categoryId), eq(categories.userId, userId)));
+    .where(eq(categories.id, categoryId));
 
   revalidatePath('/dashboard/categories');
 
@@ -112,9 +193,25 @@ export async function deleteCategory(
   categoryId: string,
   userId: string
 ): Promise<ActionResult> {
-  await db
-    .delete(categories)
-    .where(and(eq(categories.id, categoryId), eq(categories.userId, userId)));
+  // Verificar acceso
+  const existing = await db
+    .select({ projectId: categories.projectId })
+    .from(categories)
+    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
+    .where(
+      and(
+        eq(categories.id, categoryId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  if (!existing[0]) {
+    return { success: false, error: 'Categoría no encontrada' };
+  }
+
+  await db.delete(categories).where(eq(categories.id, categoryId));
 
   revalidatePath('/dashboard/categories');
 

@@ -27,7 +27,7 @@ export default async function RecurringPage() {
   const [items, summary, categories] = await Promise.all([
     getRecurringItems(projectId, session.user.id),
     getRecurringItemsSummary(projectId, session.user.id),
-    getActiveCategories(session.user.id),
+    getActiveCategories(projectId, session.user.id),
   ]);
 
   return (

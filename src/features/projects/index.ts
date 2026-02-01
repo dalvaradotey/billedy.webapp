@@ -11,11 +11,11 @@ export {
   getActiveProjects,
   getProjectById,
   getLatestProject,
+  getCurrencies,
 } from './queries';
 
 export {
   createProject,
-  createMonthProject,
   updateProject,
   archiveProject,
   restoreProject,

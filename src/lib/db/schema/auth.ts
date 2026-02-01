@@ -20,6 +20,7 @@ export const users = pgTable('n1n4_users', {
   emailVerified: timestamp('email_verified', { mode: 'date' }),
   image: varchar('image', { length: 255 }),
   isActive: boolean('is_active').default(true).notNull(),
+  isAdmin: boolean('is_admin').default(false).notNull(),
   lastLoginAt: timestamp('last_login_at', { mode: 'date' }),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),

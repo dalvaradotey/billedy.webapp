@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { transactions, categories, projectMembers } from '@/lib/db/schema';
-import { eq, and, desc, asc, gte, lte, like, sql, isNotNull, or } from 'drizzle-orm';
+import { transactions, categories, projectMembers, accounts, budgets, entities } from '@/lib/db/schema';
+import { eq, and, desc, gte, lte, like, sql, isNotNull, or } from 'drizzle-orm';
 import type {
   Transaction,
   TransactionWithCategory,
@@ -58,13 +58,12 @@ export async function getTransactions(
       projectId: transactions.projectId,
       categoryId: transactions.categoryId,
       accountId: transactions.accountId,
+      entityId: transactions.entityId,
       type: transactions.type,
       originalAmount: transactions.originalAmount,
       originalCurrency: transactions.originalCurrency,
-      originalCurrencyId: transactions.originalCurrencyId,
       baseAmount: transactions.baseAmount,
       baseCurrency: transactions.baseCurrency,
-      baseCurrencyId: transactions.baseCurrencyId,
       exchangeRate: transactions.exchangeRate,
       date: transactions.date,
       description: transactions.description,
@@ -73,14 +72,24 @@ export async function getTransactions(
       paidAt: transactions.paidAt,
       creditId: transactions.creditId,
       recurringItemId: transactions.recurringItemId,
+      budgetId: transactions.budgetId,
+      cardPurchaseId: transactions.cardPurchaseId,
+      linkedTransactionId: transactions.linkedTransactionId,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
       categoryColor: categories.color,
+      accountName: accounts.name,
+      budgetName: budgets.name,
+      entityName: entities.name,
+      entityImageUrl: entities.imageUrl,
     })
     .from(transactions)
     .innerJoin(categories, eq(transactions.categoryId, categories.id))
     .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
+    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
+    .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
+    .leftJoin(entities, eq(transactions.entityId, entities.id))
     .where(and(...conditions))
     .orderBy(desc(transactions.date), desc(transactions.createdAt));
 
@@ -101,13 +110,12 @@ export async function getTransactionById(
       projectId: transactions.projectId,
       categoryId: transactions.categoryId,
       accountId: transactions.accountId,
+      entityId: transactions.entityId,
       type: transactions.type,
       originalAmount: transactions.originalAmount,
       originalCurrency: transactions.originalCurrency,
-      originalCurrencyId: transactions.originalCurrencyId,
       baseAmount: transactions.baseAmount,
       baseCurrency: transactions.baseCurrency,
-      baseCurrencyId: transactions.baseCurrencyId,
       exchangeRate: transactions.exchangeRate,
       date: transactions.date,
       description: transactions.description,
@@ -116,14 +124,24 @@ export async function getTransactionById(
       paidAt: transactions.paidAt,
       creditId: transactions.creditId,
       recurringItemId: transactions.recurringItemId,
+      budgetId: transactions.budgetId,
+      cardPurchaseId: transactions.cardPurchaseId,
+      linkedTransactionId: transactions.linkedTransactionId,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
       categoryColor: categories.color,
+      accountName: accounts.name,
+      budgetName: budgets.name,
+      entityName: entities.name,
+      entityImageUrl: entities.imageUrl,
     })
     .from(transactions)
     .innerJoin(categories, eq(transactions.categoryId, categories.id))
     .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
+    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
+    .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
+    .leftJoin(entities, eq(transactions.entityId, entities.id))
     .where(
       and(
         eq(transactions.id, transactionId),
@@ -207,13 +225,12 @@ export async function getRecentTransactions(
       projectId: transactions.projectId,
       categoryId: transactions.categoryId,
       accountId: transactions.accountId,
+      entityId: transactions.entityId,
       type: transactions.type,
       originalAmount: transactions.originalAmount,
       originalCurrency: transactions.originalCurrency,
-      originalCurrencyId: transactions.originalCurrencyId,
       baseAmount: transactions.baseAmount,
       baseCurrency: transactions.baseCurrency,
-      baseCurrencyId: transactions.baseCurrencyId,
       exchangeRate: transactions.exchangeRate,
       date: transactions.date,
       description: transactions.description,
@@ -222,14 +239,24 @@ export async function getRecentTransactions(
       paidAt: transactions.paidAt,
       creditId: transactions.creditId,
       recurringItemId: transactions.recurringItemId,
+      budgetId: transactions.budgetId,
+      cardPurchaseId: transactions.cardPurchaseId,
+      linkedTransactionId: transactions.linkedTransactionId,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
       categoryColor: categories.color,
+      accountName: accounts.name,
+      budgetName: budgets.name,
+      entityName: entities.name,
+      entityImageUrl: entities.imageUrl,
     })
     .from(transactions)
     .innerJoin(categories, eq(transactions.categoryId, categories.id))
     .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
+    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
+    .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
+    .leftJoin(entities, eq(transactions.entityId, entities.id))
     .where(
       and(
         eq(transactions.projectId, projectId),

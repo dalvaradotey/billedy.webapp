@@ -1,2 +1,2 @@
-export { checkNeedsOnboarding, checkHasCategories } from './queries';
+export { checkNeedsOnboarding } from './queries';
 export { runOnboarding } from './actions';

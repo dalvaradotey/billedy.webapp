@@ -1,30 +1,17 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import {
-  getBudgetsWithProgress,
-  getBudgetSummary,
-  getCategoriesWithoutBudget,
-} from '@/features/budgets/queries';
+import { getBudgetsWithCategory, getProjectCategories } from '@/features/budgets/queries';
 import { getCurrentProjectId } from '@/features/projects/actions';
-import { getLatestProject } from '@/features/projects/queries';
+import { getLatestProject, getProjectById } from '@/features/projects/queries';
+import { getAllCurrencies } from '@/features/savings/queries';
 import { BudgetList } from '@/features/budgets/components';
-import type { BudgetPeriod } from '@/features/budgets/types';
 
-interface BudgetsPageProps {
-  searchParams: Promise<{
-    year?: string;
-    month?: string;
-  }>;
-}
-
-export default async function BudgetsPage({ searchParams }: BudgetsPageProps) {
+export default async function BudgetsPage() {
   const session = await auth();
 
   if (!session?.user) {
     redirect('/login');
   }
-
-  const params = await searchParams;
 
   // Obtener proyecto actual
   let projectId = await getCurrentProjectId();
@@ -36,36 +23,32 @@ export default async function BudgetsPage({ searchParams }: BudgetsPageProps) {
     projectId = latestProject.id;
   }
 
-  // Determinar período (mes actual por defecto)
-  const now = new Date();
-  const period: BudgetPeriod = {
-    year: params.year ? parseInt(params.year) : now.getFullYear(),
-    month: params.month ? parseInt(params.month) : now.getMonth() + 1,
-  };
-
   // Cargar datos en paralelo
-  const [budgets, summary, categoriesWithoutBudget] = await Promise.all([
-    getBudgetsWithProgress(projectId, session.user.id, period),
-    getBudgetSummary(projectId, session.user.id, period),
-    getCategoriesWithoutBudget(projectId, session.user.id, period),
+  const [budgets, categories, currencies, project] = await Promise.all([
+    getBudgetsWithCategory(projectId, session.user.id),
+    getProjectCategories(projectId, session.user.id),
+    getAllCurrencies(),
+    getProjectById(projectId, session.user.id),
   ]);
+
+  const defaultCurrency = project?.currency ?? 'CLP';
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Presupuestos</h1>
         <p className="text-muted-foreground">
-          Controla tus límites de gasto por categoría.
+          Define plantillas de presupuesto para asignar a cada ciclo de facturación.
         </p>
       </div>
 
       <BudgetList
         budgets={budgets}
-        categoriesWithoutBudget={categoriesWithoutBudget}
-        summary={summary}
+        categories={categories}
+        currencies={currencies.map((c) => ({ code: c.code, name: c.name }))}
         projectId={projectId}
         userId={session.user.id}
-        period={period}
+        defaultCurrency={defaultCurrency}
       />
     </div>
   );

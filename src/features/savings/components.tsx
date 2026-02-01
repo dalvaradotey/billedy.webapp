@@ -28,6 +28,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { CurrencyInput } from '@/components/currency-input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -714,6 +715,8 @@ function SavingsFundDialogContent({
     fund?.currencyId ?? defaultCurrencyId
   );
 
+  const selectedCurrencyCode = currencies.find((c) => c.id === selectedCurrencyId)?.code ?? 'CLP';
+
   const isEditing = !!fund;
 
   const form = useForm<CreateSavingsFundInput>({
@@ -865,14 +868,11 @@ function SavingsFundDialogContent({
                 <FormItem>
                   <FormLabel>Meta total (opcional)</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
+                    <CurrencyInput
+                      value={field.value ?? undefined}
+                      onChange={field.onChange}
+                      currency={selectedCurrencyCode}
                       placeholder="0"
-                      {...field}
-                      value={field.value ?? ''}
-                      onChange={(e) =>
-                        field.onChange(e.target.value ? Number(e.target.value) : undefined)
-                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -887,14 +887,11 @@ function SavingsFundDialogContent({
                 <FormItem>
                   <FormLabel>Meta mensual</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
+                    <CurrencyInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      currency={selectedCurrencyCode}
                       placeholder="0"
-                      {...field}
-                      value={field.value ?? ''}
-                      onChange={(e) =>
-                        field.onChange(e.target.value ? Number(e.target.value) : undefined)
-                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -912,14 +909,11 @@ function SavingsFundDialogContent({
                 <FormItem>
                   <FormLabel>Balance inicial (opcional)</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
+                    <CurrencyInput
+                      value={field.value}
+                      onChange={(value) => field.onChange(value ?? 0)}
+                      currency={selectedCurrencyCode}
                       placeholder="0"
-                      {...field}
-                      value={field.value ?? ''}
-                      onChange={(e) =>
-                        field.onChange(e.target.value ? Number(e.target.value) : 0)
-                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -1041,14 +1035,11 @@ function MovementDialogContent({
               <FormItem>
                 <FormLabel>Monto</FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
+                  <CurrencyInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    currency={currencyCode}
                     placeholder="0"
-                    {...field}
-                    value={field.value ?? ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value ? Number(e.target.value) : undefined)
-                    }
                   />
                 </FormControl>
                 <FormMessage />

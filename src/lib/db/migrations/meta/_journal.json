@@ -15,6 +15,55 @@
       "when": 1769690318531,
       "tag": "0001_bent_toad_men",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769737420048,
+      "tag": "0002_cooing_lightspeed",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1769804406510,
+      "tag": "0003_next_firebird",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769804500000,
+      "tag": "0004_budget_redesign",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1769805000000,
+      "tag": "0005_categories_redesign",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1769807000000,
+      "tag": "0006_transactions_budget_fk",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769808000000,
+      "tag": "0007_accounts_credit_limit_and_transfers",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1769809000000,
+      "tag": "0008_card_purchases",
+      "breakpoints": true
     }
   ]
 }

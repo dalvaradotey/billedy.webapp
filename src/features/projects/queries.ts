@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import { projects, currencies, projectMembers } from '@/lib/db/schema';
-import { eq, desc, and, isNotNull } from 'drizzle-orm';
-import type { Project, ProjectWithCurrency } from './types';
+import { eq, desc, and, isNotNull, asc } from 'drizzle-orm';
+import type { Project, ProjectWithCurrency, Currency } from './types';
 
 /**
  * Obtiene todos los proyectos donde el usuario es miembro (aceptado)
@@ -15,9 +15,7 @@ export async function getProjects(userId: string): Promise<Project[]> {
       description: projects.description,
       baseCurrencyId: projects.baseCurrencyId,
       currency: projects.currency,
-      defaultIncomeAmount: projects.defaultIncomeAmount,
       maxInstallmentAmount: projects.maxInstallmentAmount,
-      debitAvailable: projects.debitAvailable,
       isArchived: projects.isArchived,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
@@ -45,9 +43,7 @@ export async function getActiveProjects(userId: string): Promise<Project[]> {
       description: projects.description,
       baseCurrencyId: projects.baseCurrencyId,
       currency: projects.currency,
-      defaultIncomeAmount: projects.defaultIncomeAmount,
       maxInstallmentAmount: projects.maxInstallmentAmount,
-      debitAvailable: projects.debitAvailable,
       isArchived: projects.isArchived,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
@@ -79,9 +75,7 @@ export async function getProjectById(
       description: projects.description,
       baseCurrencyId: projects.baseCurrencyId,
       currency: projects.currency,
-      defaultIncomeAmount: projects.defaultIncomeAmount,
       maxInstallmentAmount: projects.maxInstallmentAmount,
-      debitAvailable: projects.debitAvailable,
       isArchived: projects.isArchived,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
@@ -115,9 +109,7 @@ export async function getLatestProject(userId: string): Promise<Project | null> 
       description: projects.description,
       baseCurrencyId: projects.baseCurrencyId,
       currency: projects.currency,
-      defaultIncomeAmount: projects.defaultIncomeAmount,
       maxInstallmentAmount: projects.maxInstallmentAmount,
-      debitAvailable: projects.debitAvailable,
       isArchived: projects.isArchived,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
@@ -135,4 +127,14 @@ export async function getLatestProject(userId: string): Promise<Project | null> 
     .limit(1);
 
   return result[0] ?? null;
+}
+
+/**
+ * Obtiene todas las monedas disponibles
+ */
+export async function getCurrencies(): Promise<Currency[]> {
+  return db
+    .select()
+    .from(currencies)
+    .orderBy(asc(currencies.code));
 }

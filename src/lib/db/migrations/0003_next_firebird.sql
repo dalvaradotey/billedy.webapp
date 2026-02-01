@@ -1,0 +1,1 @@
+ALTER TABLE "n1n4_billing_cycles" DROP COLUMN "closed_at";
