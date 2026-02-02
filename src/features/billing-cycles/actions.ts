@@ -10,7 +10,6 @@ import {
   templates,
   templateItems,
   credits,
-  cardPurchases,
   projects,
   currencies,
 } from '@/lib/db/schema';
@@ -206,6 +205,7 @@ async function loadCycleTransactions(
           userId: credit.userId,
           projectId: credit.projectId,
           categoryId: credit.categoryId,
+          accountId: credit.accountId,
           entityId: credit.entityId,
           type: 'expense',
           description: `${credit.name} - Cuota ${installmentNumber}/${totalInstallments}`,
@@ -223,56 +223,10 @@ async function loadCycleTransactions(
     }
   }
 
-  // 3. Generar cuotas de compras en cuotas activas
-  const activePurchases = await db
-    .select()
-    .from(cardPurchases)
-    .where(
-      and(
-        eq(cardPurchases.projectId, projectId),
-        eq(cardPurchases.isActive, true)
-      )
-    );
-
-  for (const purchase of activePurchases) {
-    if (!purchase.categoryId) continue;
-
-    const firstChargeDate = new Date(purchase.firstChargeDate);
-    const totalInstallments = purchase.installments;
-    const chargedInstallments = purchase.chargedInstallments;
-    const remainingInstallments = totalInstallments - chargedInstallments;
-
-    if (remainingInstallments <= 0) continue;
-
-    // Calcular cuotas que caen en el rango
-    for (let i = 0; i < remainingInstallments; i++) {
-      const installmentNumber = chargedInstallments + i + 1;
-      const installmentDate = new Date(firstChargeDate);
-      installmentDate.setMonth(installmentDate.getMonth() + chargedInstallments + i);
-
-      // Verificar si la cuota cae dentro del rango del ciclo
-      if (installmentDate >= startDate && installmentDate <= endDate) {
-        transactionsToInsert.push({
-          userId: purchase.userId,
-          projectId: purchase.projectId,
-          categoryId: purchase.categoryId,
-          accountId: purchase.accountId,
-          entityId: purchase.entityId,
-          type: 'expense',
-          description: `${purchase.description} - Cuota ${installmentNumber}/${totalInstallments}`,
-          originalAmount: purchase.installmentAmount,
-          originalCurrency: baseCurrency,
-          baseAmount: purchase.installmentAmount,
-          baseCurrency: baseCurrency,
-          exchangeRate: '1',
-          date: installmentDate,
-          notes: purchase.notes,
-          isPaid: false,
-          cardPurchaseId: purchase.id,
-        });
-      }
-    }
-  }
+  // NOTA: Las compras en cuotas (cardPurchases) ya no se procesan aquí.
+  // Desde el rediseño, createCardPurchase crea TODAS las transacciones de cuotas
+  // inmediatamente al registrar la compra, con isPaid=true para que afecten
+  // el balance de la tarjeta de crédito de inmediato.
 
   // Insertar todas las transacciones
   if (transactionsToInsert.length > 0) {

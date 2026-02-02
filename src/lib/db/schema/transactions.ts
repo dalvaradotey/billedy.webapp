@@ -173,6 +173,10 @@ export const transactions = pgTable('n1n4_transactions', {
   }),
   // Para transferencias entre cuentas: referencia a la transacción vinculada
   linkedTransactionId: uuid('linked_transaction_id'),
+  // Para pagos de tarjeta de crédito: referencia a la transferencia que pagó esta transacción
+  paidByTransferId: uuid('paid_by_transfer_id'),
+  // Para compras en cuotas: indica si la cuota fue pagada antes de usar la app
+  isHistoricallyPaid: boolean('is_historically_paid').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });

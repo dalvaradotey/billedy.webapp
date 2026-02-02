@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { cardPurchases, accounts, categories, projectMembers, projects, entities, transactions } from '@/lib/db/schema';
-import { eq, and, desc, isNotNull, sql } from 'drizzle-orm';
+import { eq, and, desc, isNotNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { CardPurchaseWithDetails, CardPurchasesSummary, DebtCapacityReport } from './types';
 
@@ -83,7 +83,7 @@ export async function getCardPurchases(
     return [];
   }
 
-  // Obtener cuotas pagadas por compra (contando transacciones con isPaid = true)
+  // Obtener cuotas pagadas por compra (históricas o pagadas con transferencia)
   const paidByPurchase = await db
     .select({
       cardPurchaseId: transactions.cardPurchaseId,
@@ -94,7 +94,10 @@ export async function getCardPurchases(
       and(
         eq(transactions.projectId, projectId),
         isNotNull(transactions.cardPurchaseId),
-        eq(transactions.isPaid, true)
+        or(
+          eq(transactions.isHistoricallyPaid, true),
+          isNotNull(transactions.paidByTransferId)
+        )
       )
     )
     .groupBy(transactions.cardPurchaseId);
@@ -107,11 +110,10 @@ export async function getCardPurchases(
     }
   }
 
-  // Calcular campos derivados usando transacciones pagadas + cuotas iniciales
+  // Calcular campos derivados usando transacciones pagadas
   return result.map((purchase) => {
-    // Cuotas pagadas = iniciales (pre-registro) + transacciones pagadas
-    const transactionsPaid = paidMap.get(purchase.id) ?? 0;
-    const paidInstallments = (purchase.initialPaidInstallments ?? 0) + transactionsPaid;
+    // Cuotas pagadas = históricas (isHistoricallyPaid) + pagadas con transferencia (paidByTransferId)
+    const paidInstallments = paidMap.get(purchase.id) ?? 0;
     const remaining = purchase.installments - paidInstallments;
     const remainingAmount = remaining * parseFloat(purchase.installmentAmount);
     const progress = (paidInstallments / purchase.installments) * 100;
@@ -126,7 +128,7 @@ export async function getCardPurchases(
 
     return {
       ...purchase,
-      chargedInstallments: paidInstallments, // Sobreescribir con el conteo real de transacciones
+      chargedInstallments: paidInstallments, // Cuotas realmente pagadas (con transferencia)
       remainingInstallments: remaining,
       remainingAmount,
       progressPercentage: Math.round(progress),
@@ -191,7 +193,7 @@ export async function getCardPurchasesSummary(
     };
   }
 
-  // Obtener cuotas pagadas por compra
+  // Obtener cuotas pagadas por compra (históricas o pagadas con transferencia)
   const paidByPurchase = await db
     .select({
       cardPurchaseId: transactions.cardPurchaseId,
@@ -202,7 +204,10 @@ export async function getCardPurchasesSummary(
       and(
         eq(transactions.projectId, projectId),
         isNotNull(transactions.cardPurchaseId),
-        eq(transactions.isPaid, true)
+        or(
+          eq(transactions.isHistoricallyPaid, true),
+          isNotNull(transactions.paidByTransferId)
+        )
       )
     )
     .groupBy(transactions.cardPurchaseId);
@@ -223,9 +228,8 @@ export async function getCardPurchasesSummary(
   let externalDebt = 0;
 
   for (const p of purchases) {
-    // Cuotas pagadas = iniciales (pre-registro) + transacciones pagadas
-    const transactionsPaid = paidMap.get(p.id) ?? 0;
-    const paidInstallments = (p.initialPaidInstallments ?? 0) + transactionsPaid;
+    // Cuotas pagadas = históricas (isHistoricallyPaid) + pagadas con transferencia (paidByTransferId)
+    const paidInstallments = paidMap.get(p.id) ?? 0;
     const remaining = p.installments - paidInstallments;
     const remainingAmount = remaining * parseFloat(p.installmentAmount);
 
@@ -318,7 +322,7 @@ export async function getCardPurchaseById(
 
   const purchase = result[0];
 
-  // Obtener cuotas pagadas contando transacciones
+  // Obtener cuotas pagadas (históricas o pagadas con transferencia)
   const paidResult = await db
     .select({
       paidCount: sql<number>`COUNT(*)`,
@@ -327,13 +331,15 @@ export async function getCardPurchaseById(
     .where(
       and(
         eq(transactions.cardPurchaseId, purchaseId),
-        eq(transactions.isPaid, true)
+        or(
+          eq(transactions.isHistoricallyPaid, true),
+          isNotNull(transactions.paidByTransferId)
+        )
       )
     );
 
-  // Cuotas pagadas = iniciales (pre-registro) + transacciones pagadas
-  const transactionsPaid = Number(paidResult[0]?.paidCount ?? 0);
-  const paidInstallments = (purchase.initialPaidInstallments ?? 0) + transactionsPaid;
+  // Cuotas pagadas = históricas (isHistoricallyPaid) + pagadas con transferencia (paidByTransferId)
+  const paidInstallments = Number(paidResult[0]?.paidCount ?? 0);
   const remaining = purchase.installments - paidInstallments;
   const remainingAmount = remaining * parseFloat(purchase.installmentAmount);
   const progress = (paidInstallments / purchase.installments) * 100;
@@ -347,7 +353,7 @@ export async function getCardPurchaseById(
 
   return {
     ...purchase,
-    chargedInstallments: paidInstallments, // Sobreescribir con el total (iniciales + transacciones)
+    chargedInstallments: paidInstallments, // Cuotas realmente pagadas (con transferencia)
     remainingInstallments: remaining,
     remainingAmount,
     progressPercentage: Math.round(progress),
@@ -421,7 +427,7 @@ export async function getDebtCapacityReport(
     };
   }
 
-  // Obtener cuotas pagadas por compra
+  // Obtener cuotas pagadas por compra (históricas o pagadas con transferencia)
   const paidByPurchase = await db
     .select({
       cardPurchaseId: transactions.cardPurchaseId,
@@ -432,7 +438,10 @@ export async function getDebtCapacityReport(
       and(
         eq(transactions.projectId, projectId),
         isNotNull(transactions.cardPurchaseId),
-        eq(transactions.isPaid, true)
+        or(
+          eq(transactions.isHistoricallyPaid, true),
+          isNotNull(transactions.paidByTransferId)
+        )
       )
     )
     .groupBy(transactions.cardPurchaseId);
@@ -448,9 +457,8 @@ export async function getDebtCapacityReport(
   let externalMonthlyCharge = 0;
 
   for (const p of purchases) {
-    // Cuotas pagadas = iniciales (pre-registro) + transacciones pagadas
-    const transactionsPaid = paidMap.get(p.id) ?? 0;
-    const paidInstallments = (p.initialPaidInstallments ?? 0) + transactionsPaid;
+    // Cuotas pagadas = históricas (isHistoricallyPaid) + pagadas con transferencia (paidByTransferId)
+    const paidInstallments = paidMap.get(p.id) ?? 0;
     const remaining = p.installments - paidInstallments;
     if (remaining > 0) {
       // Usar el monto de la cuota mensual, no el total restante

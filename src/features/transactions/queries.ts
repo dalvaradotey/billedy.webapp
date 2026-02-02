@@ -75,6 +75,8 @@ export async function getTransactions(
       budgetId: transactions.budgetId,
       cardPurchaseId: transactions.cardPurchaseId,
       linkedTransactionId: transactions.linkedTransactionId,
+      paidByTransferId: transactions.paidByTransferId,
+      isHistoricallyPaid: transactions.isHistoricallyPaid,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
@@ -127,6 +129,8 @@ export async function getTransactionById(
       budgetId: transactions.budgetId,
       cardPurchaseId: transactions.cardPurchaseId,
       linkedTransactionId: transactions.linkedTransactionId,
+      paidByTransferId: transactions.paidByTransferId,
+      isHistoricallyPaid: transactions.isHistoricallyPaid,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
@@ -242,6 +246,8 @@ export async function getRecentTransactions(
       budgetId: transactions.budgetId,
       cardPurchaseId: transactions.cardPurchaseId,
       linkedTransactionId: transactions.linkedTransactionId,
+      paidByTransferId: transactions.paidByTransferId,
+      isHistoricallyPaid: transactions.isHistoricallyPaid,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
@@ -266,6 +272,85 @@ export async function getRecentTransactions(
     )
     .orderBy(desc(transactions.date), desc(transactions.createdAt))
     .limit(limit);
+
+  return result;
+}
+
+/**
+ * Obtiene transacciones pendientes de pago de una tarjeta de crédito
+ * (transacciones de tipo expense sin paidByTransferId)
+ */
+export async function getUnpaidCreditCardTransactions(
+  accountId: string,
+  projectId: string,
+  userId: string
+): Promise<TransactionWithCategory[]> {
+  // Verificar acceso
+  const hasAccess = await db
+    .select({ id: projectMembers.id })
+    .from(projectMembers)
+    .where(
+      and(
+        eq(projectMembers.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  if (hasAccess.length === 0) {
+    return [];
+  }
+
+  const result = await db
+    .select({
+      id: transactions.id,
+      userId: transactions.userId,
+      projectId: transactions.projectId,
+      categoryId: transactions.categoryId,
+      accountId: transactions.accountId,
+      entityId: transactions.entityId,
+      type: transactions.type,
+      originalAmount: transactions.originalAmount,
+      originalCurrency: transactions.originalCurrency,
+      baseAmount: transactions.baseAmount,
+      baseCurrency: transactions.baseCurrency,
+      exchangeRate: transactions.exchangeRate,
+      date: transactions.date,
+      description: transactions.description,
+      notes: transactions.notes,
+      isPaid: transactions.isPaid,
+      paidAt: transactions.paidAt,
+      creditId: transactions.creditId,
+      recurringItemId: transactions.recurringItemId,
+      budgetId: transactions.budgetId,
+      cardPurchaseId: transactions.cardPurchaseId,
+      linkedTransactionId: transactions.linkedTransactionId,
+      paidByTransferId: transactions.paidByTransferId,
+      isHistoricallyPaid: transactions.isHistoricallyPaid,
+      createdAt: transactions.createdAt,
+      updatedAt: transactions.updatedAt,
+      categoryName: categories.name,
+      categoryColor: categories.color,
+      accountName: accounts.name,
+      budgetName: budgets.name,
+      entityName: entities.name,
+      entityImageUrl: entities.imageUrl,
+    })
+    .from(transactions)
+    .innerJoin(categories, eq(transactions.categoryId, categories.id))
+    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
+    .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
+    .leftJoin(entities, eq(transactions.entityId, entities.id))
+    .where(
+      and(
+        eq(transactions.accountId, accountId),
+        eq(transactions.projectId, projectId),
+        eq(transactions.type, 'expense'),
+        sql`${transactions.paidByTransferId} IS NULL`
+      )
+    )
+    .orderBy(desc(transactions.date), desc(transactions.createdAt));
 
   return result;
 }

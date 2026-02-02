@@ -6,6 +6,7 @@ import { cardPurchases, transactions, projectMembers, accounts, projects, curren
 import { eq, and, isNotNull } from 'drizzle-orm';
 import { createCardPurchaseSchema, updateCardPurchaseSchema } from './schemas';
 import type { CardPurchase } from './types';
+import { updateAccountBalance } from '@/features/accounts/actions';
 
 /**
  * Crea una nueva compra en cuotas
@@ -119,15 +120,61 @@ export async function createCardPurchase(data: {
         installments: validated.installments,
         installmentAmount: installmentAmount.toFixed(2),
         firstChargeDate: validated.firstChargeDate,
-        chargedInstallments: 0,
+        chargedInstallments: validated.installments, // Todas las cuotas se crean de inmediato
         initialPaidInstallments,
         isExternalDebt: validated.isExternalDebt || false,
         notes: validated.notes || null,
-        isActive: initialPaidInstallments < validated.installments,
+        isActive: true, // Activa mientras tenga cuotas pendientes de pago
       })
       .returning();
 
+    // Crear TODAS las transacciones de cuotas inmediatamente
+    // isPaid = true para que afecten el balance de la TC
+    // paidByTransferId = null hasta que el usuario pague la TC
+    if (validated.categoryId) {
+      const installmentTransactions = [];
+
+      for (let i = 0; i < validated.installments; i++) {
+        const chargeDate = new Date(validated.firstChargeDate);
+        chargeDate.setMonth(chargeDate.getMonth() + i);
+
+        const installmentNumber = i + 1;
+        // Las primeras initialPaidInstallments cuotas se marcan como históricamente pagadas
+        const isHistorical = i < initialPaidInstallments;
+
+        installmentTransactions.push({
+          userId: validated.userId,
+          projectId: validated.projectId,
+          accountId: validated.accountId,
+          categoryId: validated.categoryId,
+          entityId: validated.entityId || null,
+          cardPurchaseId: purchase.id,
+          type: 'expense' as const,
+          description: `${validated.description} - Cuota ${installmentNumber}/${validated.installments}`,
+          originalAmount: installmentAmount.toFixed(2),
+          originalCurrency: projectInfo.currencyCode,
+          baseAmount: installmentAmount.toFixed(2),
+          baseCurrency: projectInfo.currencyCode,
+          exchangeRate: '1',
+          date: chargeDate,
+          isPaid: true, // Siempre true para TC - afecta balance inmediatamente
+          paidAt: null, // Se establece cuando se paga la TC
+          isHistoricallyPaid: isHistorical, // Cuotas pagadas antes de usar la app
+        });
+      }
+
+      if (installmentTransactions.length > 0) {
+        await db.insert(transactions).values(installmentTransactions);
+
+        // Actualizar el balance de la tarjeta de crédito
+        // Para TC, un gasto aumenta la deuda (updateAccountBalance ya maneja esto)
+        await updateAccountBalance(validated.accountId, -totalAmount);
+      }
+    }
+
     revalidatePath('/dashboard/card-purchases');
+    revalidatePath('/dashboard/transactions');
+    revalidatePath('/dashboard/accounts');
     revalidatePath('/dashboard');
 
     return { success: true, data: purchase };

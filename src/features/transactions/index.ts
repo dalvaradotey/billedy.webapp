@@ -8,8 +8,11 @@ export type {
 } from './types';
 
 // Schemas
-export { createTransactionSchema, updateTransactionSchema, togglePaidSchema } from './schemas';
-export type { CreateTransactionInput, UpdateTransactionInput, TogglePaidInput } from './schemas';
+export { createTransactionSchema, updateTransactionSchema, togglePaidSchema, setHistoricallyPaidSchema } from './schemas';
+export type { CreateTransactionInput, UpdateTransactionInput, TogglePaidInput, SetHistoricallyPaidInput } from './schemas';
+
+// Actions
+export { setTransactionsHistoricallyPaid } from './actions';
 
 // Components
-export { TransactionList } from './components';
+export { TransactionList, PayCreditCardDialog, PayCreditCardButton } from './components';
