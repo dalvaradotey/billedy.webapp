@@ -193,7 +193,6 @@ notes               TEXT NULLABLE
 is_paid             BOOLEAN DEFAULT false
 paid_at             TIMESTAMP NULLABLE
 credit_id           UUID NULLABLE FK → credits
-recurring_item_id   UUID NULLABLE FK → recurring_items
 created_at          TIMESTAMP
 updated_at          TIMESTAMP
 ```
@@ -225,24 +224,6 @@ notes                   TEXT NULLABLE
 is_archived             BOOLEAN DEFAULT false
 created_at              TIMESTAMP
 updated_at              TIMESTAMP
-```
-
-##### n1n4_recurring_items
-Gastos/ingresos fijos que se precargan cada mes.
-```sql
-id              UUID PRIMARY KEY
-user_id         UUID FK → users
-project_id      UUID FK → projects
-category_id     UUID FK → categories
-account_id      UUID NULLABLE FK → accounts
-type            ENUM (income, expense)
-name            VARCHAR (CAE, Netflix, Agua)
-amount          DECIMAL
-currency_id     UUID FK → currencies
-day_of_month    INTEGER NULLABLE (día que vence: 5, 15, 25)
-is_active       BOOLEAN DEFAULT true
-created_at      TIMESTAMP
-updated_at      TIMESTAMP
 ```
 
 ##### n1n4_budgets
@@ -398,9 +379,6 @@ CREATE INDEX idx_categories_user ON n1n4_categories(user_id);
 -- Budgets
 CREATE INDEX idx_budgets_project_month ON n1n4_budgets(project_id, year, month);
 
--- Recurring Items
-CREATE INDEX idx_recurring_items_project ON n1n4_recurring_items(project_id);
-
 -- Savings
 CREATE INDEX idx_savings_funds_user ON n1n4_savings_funds(user_id);
 CREATE INDEX idx_savings_movements_fund ON n1n4_savings_movements(savings_fund_id);
@@ -414,14 +392,13 @@ CREATE UNIQUE INDEX idx_sessions_token ON n1n4_sessions(session_token);
 
 ## Flujo de Inicio de Mes
 
-1. Se generan `transactions` desde `recurring_items` donde `is_active=true` (con `is_paid=false`)
-2. Se generan `transactions` desde `credits` activos (cuotas del mes)
-3. Se copian/crean `budgets` del mes (o desde mes anterior)
-4. Se registra transacción de ingreso fijo (sueldo) automáticamente
+1. Se generan `transactions` desde `credits` activos (cuotas del mes)
+2. Se copian/crean `budgets` del mes (o desde mes anterior)
+3. Se registra transacción de ingreso fijo (sueldo) automáticamente
 
 ## Flujo Durante el Mes
 
-- Usuario marca gastos fijos como pagados (`is_paid=true`)
+- Usuario marca gastos como pagados (`is_paid=true`)
 - Usuario agrega gastos variables (Comida, Bencina, Otros)
 - Usuario registra ingresos extras (bonos, ventas)
 - Usuario registra depósitos a fondos de ahorro
@@ -430,11 +407,10 @@ CREATE UNIQUE INDEX idx_sessions_token ON n1n4_sessions(session_token);
 
 ```typescript
 const ingresos = project.defaultIncomeAmount + sumExtras;
-const gastosFijos = sum(transactions where recurring_item_id != null && is_paid);
 const cuotasCreditos = sum(transactions where credit_id != null);
 const gastosVariables = sum(transactions where category in presupuestos);
 
-const totalEgresos = gastosFijos + cuotasCreditos + gastosVariables;
+const totalEgresos = cuotasCreditos + gastosVariables;
 const ahorroTotalMes = ingresos - totalEgresos;
 
 const planAhorro = sum(savings_funds.monthly_target);

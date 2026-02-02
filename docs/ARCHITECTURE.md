@@ -44,7 +44,6 @@ src/
 │   ├── credits/
 │   ├── budgets/
 │   ├── savings/
-│   ├── recurring-items/
 │   ├── categories/
 │   ├── accounts/
 │   └── projects/
@@ -122,7 +121,7 @@ src/features/transactions/
 
 | Tipo | Formato | Ejemplo |
 |------|---------|---------|
-| Features (carpetas) | kebab-case | `recurring-items/`, `savings/` |
+| Features (carpetas) | kebab-case | `transactions/`, `savings/` |
 | Componentes | kebab-case.tsx | `transaction-form.tsx` |
 | Actions | kebab-case.ts | `create-transaction.ts` |
 | Queries | kebab-case.ts | `get-transactions.ts` |
@@ -258,7 +257,6 @@ export async function getTransactions(projectId: string) {
 | `credits` | Créditos/préstamos con cuotas |
 | `budgets` | Presupuestos mensuales por categoría |
 | `savings` | Fondos de ahorro y movimientos |
-| `recurring-items` | Gastos fijos recurrentes |
 | `categories` | Categorías de transacciones |
 | `accounts` | Cuentas bancarias y efectivo |
 | `projects` | Proyectos/períodos financieros |

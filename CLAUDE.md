@@ -47,7 +47,6 @@ src/features/transactions/
 - `credits` - Créditos/préstamos con cuotas
 - `budgets` - Presupuestos mensuales
 - `savings` - Fondos de ahorro
-- `recurring-items` - Gastos fijos recurrentes
 - `categories` - Categorías
 - `accounts` - Cuentas bancarias
 - `projects` - Proyectos/períodos
@@ -66,7 +65,7 @@ El uso principal de esta app es a través del teléfono. **Siempre usar mobile-f
 ### Nombrado de Archivos
 | Tipo | Formato | Ejemplo |
 |------|---------|---------|
-| Features | kebab-case/ | `recurring-items/` |
+| Features | kebab-case/ | `transactions/` |
 | Componentes | kebab-case.tsx | `transaction-form.tsx` |
 | Actions | kebab-case.ts | `create-transaction.ts` |
 | Hooks | use-kebab-case.ts | `use-filters.ts` |

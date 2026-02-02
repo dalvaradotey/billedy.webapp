@@ -127,32 +127,7 @@ tags: [roadmap, pendientes, plan]
 
 ---
 
-### ~~Fase 5: Feature - Recurring Items~~ ✅
-
-**Completado**
-
-- [x] `src/features/recurring-items/`
-  - [x] `types.ts` - Tipos de item recurrente
-  - [x] `schemas.ts` - Validaciones Zod
-  - [x] `queries.ts` - Listar items, resumen
-  - [x] `actions.ts` - CRUD + generación de transacciones
-  - [x] `components.tsx` - Lista, tabla, formulario modal
-
-- [x] UI
-  - [x] Página `/dashboard/recurring`
-  - [x] Cards de resumen (ingresos/gastos fijos, balance)
-  - [x] Tabla con items activos/inactivos
-  - [x] Toggle para activar/desactivar
-  - [x] Modal para crear/editar con selector de día del mes
-  - [x] Botón para generar transacciones
-
-- [x] Lógica de negocio
-  - [x] `generateTransactionsFromRecurring()` - Crea transacciones desde items activos
-  - [x] Marca transacciones con `recurringItemId`
-
----
-
-### ~~Fase 6: Feature - Credits~~ ✅
+### ~~Fase 5: Feature - Credits~~ ✅
 
 **Completado**
 
@@ -178,7 +153,7 @@ tags: [roadmap, pendientes, plan]
 
 ---
 
-### ~~Fase 7: Feature - Budgets~~ ✅
+### ~~Fase 6: Feature - Budgets~~ ✅
 
 **Completado**
 
@@ -199,7 +174,7 @@ tags: [roadmap, pendientes, plan]
 
 ---
 
-### ~~Fase 8: Feature - Savings~~ ✅
+### ~~Fase 7: Feature - Savings~~ ✅
 
 **Completado**
 
@@ -225,7 +200,7 @@ tags: [roadmap, pendientes, plan]
 
 ---
 
-### Fase 9: Dashboard Completo
+### Fase 8: Dashboard Completo
 
 **Objetivo**: Resumen mensual con todos los datos.
 
@@ -258,19 +233,18 @@ tags: [roadmap, pendientes, plan]
 
 ---
 
-### Fase 10: Flujo de Inicio de Mes
+### Fase 9: Flujo de Inicio de Mes
 
 **Objetivo**: Automatizar la precarga del nuevo mes.
 
 - [ ] Detectar cambio de mes o primer acceso del mes
-- [ ] Generar transacciones desde `recurring_items` con `is_paid=false`
 - [ ] Generar cuotas de `credits` activos
 - [ ] Copiar `budgets` del mes anterior (o crear nuevos)
 - [ ] Registrar ingreso fijo (sueldo) si está configurado
 
 ---
 
-### Fase 11: Accounts (Opcional)
+### Fase 10: Accounts (Opcional)
 
 **Objetivo**: Gestionar múltiples cuentas bancarias.
 
@@ -280,7 +254,7 @@ tags: [roadmap, pendientes, plan]
 
 ---
 
-### Fase 12: Multi-moneda (Opcional)
+### Fase 11: Multi-moneda (Opcional)
 
 **Objetivo**: Soporte para transacciones en diferentes monedas.
 
@@ -290,7 +264,7 @@ tags: [roadmap, pendientes, plan]
 
 ---
 
-### Fase 13: Proyectos Compartidos (Opcional)
+### Fase 12: Proyectos Compartidos (Opcional)
 
 **Objetivo**: Permitir compartir proyectos con otros usuarios.
 
@@ -316,12 +290,11 @@ tags: [roadmap, pendientes, plan]
 2. **Projects** - Selector de período
 3. **Categories** - Base para transacciones
 4. **Transactions** - Core de la app
-5. **Recurring Items** - Automatizar gastos fijos
+5. **Credits** - Gestión de deudas
 6. **Budgets** - Control de presupuestos
-7. **Credits** - Gestión de deudas
-8. **Savings** - Fondos de ahorro
-9. **Dashboard** - Integrar todo
-10. **Flujo de mes** - Automatización
+7. **Savings** - Fondos de ahorro
+8. **Dashboard** - Integrar todo
+9. **Flujo de mes** - Automatización
 
 ---
 

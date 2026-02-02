@@ -97,34 +97,6 @@ export const credits = pgTable('n1n4_credits', {
 });
 
 // ============================================================================
-// RECURRING ITEMS (Fixed expenses/incomes preloaded each month)
-// ============================================================================
-
-export const recurringItems = pgTable('n1n4_recurring_items', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  projectId: uuid('project_id')
-    .notNull()
-    .references(() => projects.id, { onDelete: 'cascade' }),
-  categoryId: uuid('category_id')
-    .notNull()
-    .references(() => categories.id),
-  accountId: uuid('account_id').references(() => accounts.id),
-  type: categoryTypeEnum('type').notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
-  currencyId: uuid('currency_id')
-    .notNull()
-    .references(() => currencies.id),
-  dayOfMonth: integer('day_of_month'), // 1-31
-  isActive: boolean('is_active').default(true).notNull(),
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
-});
-
-// ============================================================================
 // TRANSACTIONS (Income/Expenses)
 // ============================================================================
 
@@ -160,9 +132,6 @@ export const transactions = pgTable('n1n4_transactions', {
   isPaid: boolean('is_paid').default(false).notNull(),
   paidAt: timestamp('paid_at', { mode: 'date' }),
   creditId: uuid('credit_id').references(() => credits.id, {
-    onDelete: 'set null',
-  }),
-  recurringItemId: uuid('recurring_item_id').references(() => recurringItems.id, {
     onDelete: 'set null',
   }),
   budgetId: uuid('budget_id').references(() => budgets.id, {
