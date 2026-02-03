@@ -3,7 +3,7 @@
 import { db } from '@/lib/db';
 import { categories, projectMembers } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
+import { invalidateRelatedCache } from '@/lib/cache';
 import { createCategorySchema, updateCategorySchema } from './schemas';
 import type { CreateCategoryInput, UpdateCategoryInput } from './schemas';
 
@@ -57,9 +57,7 @@ export async function createCategory(
     })
     .returning({ id: categories.id });
 
-  revalidatePath('/dashboard/categories');
-  revalidatePath('/dashboard/budgets');
-  revalidatePath('/dashboard/transactions');
+  invalidateRelatedCache('categories');
 
   return { success: true, data: { id: newCategory.id } };
 }
@@ -104,7 +102,7 @@ export async function updateCategory(
     })
     .where(eq(categories.id, categoryId));
 
-  revalidatePath('/dashboard/categories');
+  invalidateRelatedCache('categories');
 
   return { success: true, data: undefined };
 }
@@ -142,7 +140,7 @@ export async function archiveCategory(
     })
     .where(eq(categories.id, categoryId));
 
-  revalidatePath('/dashboard/categories');
+  invalidateRelatedCache('categories');
 
   return { success: true, data: undefined };
 }
@@ -180,7 +178,7 @@ export async function restoreCategory(
     })
     .where(eq(categories.id, categoryId));
 
-  revalidatePath('/dashboard/categories');
+  invalidateRelatedCache('categories');
 
   return { success: true, data: undefined };
 }
@@ -213,7 +211,7 @@ export async function deleteCategory(
 
   await db.delete(categories).where(eq(categories.id, categoryId));
 
-  revalidatePath('/dashboard/categories');
+  invalidateRelatedCache('categories');
 
   return { success: true, data: undefined };
 }

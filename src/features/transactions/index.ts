@@ -14,5 +14,19 @@ export type { CreateTransactionInput, UpdateTransactionInput, TogglePaidInput, S
 // Actions
 export { setTransactionsHistoricallyPaid } from './actions';
 
-// Components
-export { TransactionList, PayCreditCardDialog, PayCreditCardButton } from './components';
+// Components (from components/ folder)
+export {
+  TransactionList,
+  PayCreditCardDialog,
+  PayCreditCardButton,
+  BulkPayCreditCardDialog,
+  TransactionDialogContent,
+  TransactionTable,
+  TransactionTableSkeleton,
+  SummaryCard,
+  TransferForm,
+  DeleteTransactionDialog,
+  TogglePaidDialog,
+  BulkDeleteDialog,
+  HistoricallyPaidDialog,
+} from './components/index';

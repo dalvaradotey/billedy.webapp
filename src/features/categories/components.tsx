@@ -4,8 +4,10 @@ import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Plus, Pencil, Archive, RotateCcw, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Archive, RotateCcw, Trash2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/empty-state';
+import { toastActions } from '@/lib/toast-messages';
 import {
   Dialog,
   DialogContent,
@@ -127,9 +129,11 @@ export function CategoryList({
       </div>
 
       {displayCategories.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          No hay categorías{showArchived ? ' archivadas' : ''}
-        </div>
+        <EmptyState
+          icon={Tag}
+          title={showArchived ? 'No hay categorías archivadas' : 'No hay categorías'}
+          description="Crea categorías para organizar tus transacciones."
+        />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {displayCategories.map((category) => (
@@ -157,38 +161,38 @@ function CategoryCard({ category, userId, onEdit }: CategoryCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleArchive = () => {
-    const toastId = toast.loading('Archivando...');
+    const { onSuccess, onError } = toastActions.archiving('categoría');
     startTransition(async () => {
       const result = await archiveCategory(category.id, userId);
       if (result.success) {
-        toast.success('Categoría archivada', { id: toastId });
+        onSuccess();
       } else {
-        toast.error(result.error, { id: toastId });
+        onError(result.error);
       }
     });
   };
 
   const handleRestore = () => {
-    const toastId = toast.loading('Restaurando...');
+    const { onSuccess, onError } = toastActions.restoring('categoría');
     startTransition(async () => {
       const result = await restoreCategory(category.id, userId);
       if (result.success) {
-        toast.success('Categoría restaurada', { id: toastId });
+        onSuccess();
       } else {
-        toast.error(result.error, { id: toastId });
+        onError(result.error);
       }
     });
   };
 
   const handleDelete = () => {
-    const toastId = toast.loading('Eliminando...');
+    const { onSuccess, onError } = toastActions.deleting('categoría');
     startTransition(async () => {
       const result = await deleteCategory(category.id, userId);
       setShowDeleteDialog(false);
       if (result.success) {
-        toast.success('Categoría eliminada', { id: toastId });
+        onSuccess();
       } else {
-        toast.error(result.error, { id: toastId });
+        onError(result.error);
       }
     });
   };
@@ -296,7 +300,7 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
 
   const onSubmit = (data: CreateCategoryInput) => {
     setError(null);
-    const toastId = toast.loading(category ? 'Actualizando...' : 'Creando categoría...');
+    const action = category ? toastActions.updating('categoría') : toastActions.creating('categoría');
 
     startTransition(async () => {
       const result = category
@@ -304,11 +308,11 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
         : await createCategory(userId, data);
 
       if (result.success) {
-        toast.success(category ? 'Categoría actualizada' : 'Categoría creada', { id: toastId });
+        action.onSuccess();
         form.reset();
         onSuccess();
       } else {
-        toast.error(result.error, { id: toastId });
+        action.onError(result.error);
         setError(result.error);
       }
     });

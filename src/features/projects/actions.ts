@@ -3,7 +3,7 @@
 import { db } from '@/lib/db';
 import { projects, currencies, projectMembers } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
+import { invalidateRelatedCache } from '@/lib/cache';
 import { cookies } from 'next/headers';
 import { createProjectSchema, updateProjectSchema } from './schemas';
 import type { CreateProjectInput, UpdateProjectInput } from './schemas';
@@ -60,7 +60,7 @@ export async function createProject(
     acceptedAt: new Date(),
   });
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('projects');
 
   return { success: true, data: { id: newProject.id } };
 }
@@ -87,7 +87,7 @@ export async function updateProject(
     })
     .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('projects');
 
   return { success: true, data: undefined };
 }
@@ -107,7 +107,7 @@ export async function archiveProject(
     })
     .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('projects');
 
   return { success: true, data: undefined };
 }
@@ -127,7 +127,7 @@ export async function restoreProject(
     })
     .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('projects');
 
   return { success: true, data: undefined };
 }
@@ -151,5 +151,5 @@ export async function setCurrentProjectId(projectId: string): Promise<void> {
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 365, // 1 año
   });
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('projects');
 }

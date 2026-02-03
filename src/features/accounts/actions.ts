@@ -3,7 +3,7 @@
 import { db } from '@/lib/db';
 import { accounts, transactions } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
+import { invalidateRelatedCache } from '@/lib/cache';
 import { createAccountSchema, updateAccountSchema } from './schemas';
 import type { CreateAccountInput, UpdateAccountInput } from './schemas';
 
@@ -48,7 +48,7 @@ export async function createAccount(
     })
     .returning({ id: accounts.id });
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('accounts');
 
   return { success: true, data: { id: newAccount.id } };
 }
@@ -105,7 +105,7 @@ export async function updateAccount(
 
   await db.update(accounts).set(updateData).where(eq(accounts.id, accountId));
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('accounts');
 
   return { success: true, data: undefined };
 }
@@ -133,7 +133,7 @@ export async function archiveAccount(
     .set({ isArchived: true, isDefault: false, updatedAt: new Date() })
     .where(eq(accounts.id, accountId));
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('accounts');
 
   return { success: true, data: undefined };
 }
@@ -161,7 +161,7 @@ export async function restoreAccount(
     .set({ isArchived: false, updatedAt: new Date() })
     .where(eq(accounts.id, accountId));
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('accounts');
 
   return { success: true, data: undefined };
 }
@@ -190,7 +190,7 @@ export async function deleteAccount(
 
   await db.delete(accounts).where(eq(accounts.id, accountId));
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('accounts');
 
   return { success: true, data: undefined };
 }
@@ -220,7 +220,7 @@ export async function adjustAccountBalance(
     .set({ currentBalance: String(newBalance), updatedAt: new Date() })
     .where(eq(accounts.id, accountId));
 
-  revalidatePath('/dashboard');
+  invalidateRelatedCache('accounts');
 
   return { success: true, data: undefined };
 }
@@ -256,6 +256,9 @@ export async function updateAccountBalance(
     .update(accounts)
     .set({ currentBalance: String(newBalance), updatedAt: new Date() })
     .where(eq(accounts.id, accountId));
+
+  // No invalidamos caché aquí porque esta función es interna
+  // y se llama desde otras actions que ya invalidan
 }
 
 /**
@@ -313,8 +316,7 @@ export async function recalculateAccountBalance(
     .set({ currentBalance: String(newBalance), updatedAt: new Date() })
     .where(eq(accounts.id, accountId));
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/accounts');
+  invalidateRelatedCache('accounts');
 
   return { success: true, data: { newBalance } };
 }
@@ -338,8 +340,7 @@ export async function recalculateAllAccountBalances(
     }
   }
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/accounts');
+  // invalidateRelatedCache ya se llama en cada recalculateAccountBalance
 
   return { success: true, data: { updated } };
 }

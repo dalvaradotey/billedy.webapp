@@ -3,7 +3,7 @@
 import { db } from '@/lib/db';
 import { entities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
+import { invalidateRelatedCache } from '@/lib/cache';
 import { uploadImage, deleteImage } from '@/lib/cloudinary';
 import { createEntitySchema, updateEntitySchema } from './schemas';
 import { isUserAdmin } from './queries';
@@ -52,7 +52,7 @@ export async function createEntity(
     })
     .returning({ id: entities.id });
 
-  revalidatePath('/admin/entities');
+  invalidateRelatedCache('entities');
 
   return { success: true, data: { id: newEntity.id } };
 }
@@ -109,7 +109,7 @@ export async function updateEntity(
     })
     .where(eq(entities.id, entityId));
 
-  revalidatePath('/admin/entities');
+  invalidateRelatedCache('entities');
 
   return { success: true, data: undefined };
 }
@@ -134,7 +134,7 @@ export async function deactivateEntity(
     })
     .where(eq(entities.id, entityId));
 
-  revalidatePath('/admin/entities');
+  invalidateRelatedCache('entities');
 
   return { success: true, data: undefined };
 }
@@ -159,7 +159,7 @@ export async function activateEntity(
     })
     .where(eq(entities.id, entityId));
 
-  revalidatePath('/admin/entities');
+  invalidateRelatedCache('entities');
 
   return { success: true, data: undefined };
 }
@@ -194,7 +194,7 @@ export async function deleteEntity(
 
   await db.delete(entities).where(eq(entities.id, entityId));
 
-  revalidatePath('/admin/entities');
+  invalidateRelatedCache('entities');
 
   return { success: true, data: undefined };
 }

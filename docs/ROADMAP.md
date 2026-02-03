@@ -1,337 +1,532 @@
 ---
-title: Roadmap de Desarrollo
-description: Plan de trabajo pendiente para Billedy
-version: 1.0.0
+title: Roadmap - Plan de Refactorización
+description: Plan de refactorización y mejoras para Billedy
+version: 2.0.0
 created: 2025-01-28
-updated: 2025-01-28
+updated: 2026-02-03
 author: Claude Code
-tags: [roadmap, pendientes, plan]
+tags: [roadmap, refactoring, mejoras]
 ---
 
-# Billedy - Roadmap de Desarrollo
+# Billedy - Plan de Refactorización
 
-## Estado Actual
+## Resumen Ejecutivo
 
-### Completado
+Este documento define el plan de refactorización para mejorar la calidad del código, rendimiento y experiencia de usuario de Billedy.
 
-- [x] Arquitectura feature-based definida y documentada
-- [x] Estructura de carpetas (`src/features/`, `src/components/`, etc.)
-- [x] Drizzle ORM configurado con PostgreSQL (Supabase)
-- [x] 16 tablas creadas con migraciones aplicadas
-- [x] Seed de currencies (3) y category_templates (30)
-- [x] NextAuth v4 con Google OAuth funcionando
-- [x] Adapter personalizado de Drizzle para NextAuth
-- [x] Página de login (`/login`)
-- [x] Layout del dashboard con protección de rutas
-- [x] Dashboard básico (`/dashboard`)
-- [x] Header con navegación y menú de usuario
-- [x] Shadcn/ui configurado (button, card, avatar, dropdown-menu)
-- [x] Deploy en Vercel funcionando
-- [x] Dark/Light Mode con next-themes
-- [x] Onboarding automático (proyecto inicial + categorías)
-- [x] Zod + drizzle-zod para validaciones
-- [x] Feature Projects (selector, crear proyecto, cookies)
-- [x] Tabla project_members (estructura para compartir proyectos)
+### Áreas de Mejora Identificadas
+
+| Área | Problema | Estado |
+|------|----------|--------|
+| **Archivos grandes** | 8 archivos > 500 líneas | ✅ Completado (todos divididos en carpetas) |
+| **Código duplicado** | ~1500 líneas duplicadas | ✅ Reducido (~300 líneas restantes) |
+| **Loading states** | Patrón inconsistente | 🔄 En progreso |
+| **Caché** | Sin estrategia definida | ✅ `lib/cache.ts` implementado |
+| **BD** | 15 campos no usados | ⏳ Pospuesto |
 
 ---
 
-## Pendiente
+## Fase 1: Arquitectura de Loading y Estado
 
-### ~~Fase 0: Dark/Light Mode~~ ✅
+### 1.1 Patrón de Loading Recomendado
 
-**Completado**
+Basado en [documentación oficial de Next.js](https://nextjs.org/docs/app/api-reference/file-conventions/loading) y [mejores prácticas 2026](https://dev.to/boopykiki/a-complete-nextjs-streaming-guide-loadingtsx-suspense-and-performance-9g9):
 
-- [x] Instalar `next-themes`
-- [x] Crear ThemeProvider
-- [x] Configurar para seguir preferencia del sistema por defecto
-- [x] Agregar toggle de tema en el header
-- [x] Persistir preferencia del usuario en localStorage
-
----
-
-### ~~Fase 1: Onboarding de Usuario~~ ✅
-
-**Completado**
-
-#### 1.1 Crear proyecto inicial automáticamente
-- [x] Detectar si el usuario es nuevo (sin proyectos)
-- [x] Crear proyecto default con nombre del mes actual (ej: "Enero 2025")
-- [x] Asignar CLP como moneda base
-
-#### 1.2 Copiar categorías del sistema al usuario
-- [x] Copiar `category_templates` a `categories` para el nuevo usuario
-- [x] Mantener grupos y colores
-
-#### 1.3 Página de configuración inicial (opcional - pendiente)
-- [ ] Wizard de bienvenida
-- [ ] Configurar sueldo fijo (`default_income_amount`)
-- [ ] Configurar límite de cuotas (`max_installment_amount`)
-- [ ] Configurar débito disponible (`debit_available`)
-
----
-
-### ~~Fase 2: Feature - Projects~~ ✅
-
-**Completado**
-
-- [x] `src/features/projects/`
-  - [x] `types.ts` - Tipos de proyecto
-  - [x] `schemas.ts` - Validaciones Zod
-  - [x] `queries.ts` - Obtener proyectos del usuario
-  - [x] `actions.ts` - Crear, actualizar, archivar proyecto
-  - [x] `components.tsx` - Selector de proyecto, formulario
-
-- [x] UI
-  - [x] Selector de proyecto en el header
-  - [x] Modal para crear nuevo proyecto (mes)
-  - [ ] Página de configuración del proyecto (pendiente)
-
----
-
-### ~~Fase 3: Feature - Categories~~ ✅
-
-**Completado**
-
-- [x] `src/features/categories/`
-  - [x] `types.ts` - Tipos de categoría
-  - [x] `schemas.ts` - Validaciones Zod
-  - [x] `queries.ts` - CRUD de categorías, filtrar por tipo, agrupar
-  - [x] `actions.ts` - Crear, editar, archivar, restaurar, eliminar
-  - [x] `components.tsx` - Lista, selector, modal de edición
-
-- [x] UI
-  - [x] Lista de categorías con colores agrupadas
-  - [x] Modal para crear/editar categoría con selector de colores
-  - [x] Página `/dashboard/categories` con tabs activas/archivadas
-
----
-
-### ~~Fase 4: Feature - Transactions~~ ✅
-
-**Completado**
-
-- [x] `src/features/transactions/`
-  - [x] `types.ts` - Tipos de transacción
-  - [x] `schemas.ts` - Validaciones Zod
-  - [x] `queries.ts` - Listar, filtrar, buscar, resumen
-  - [x] `actions.ts` - Crear, editar, eliminar, toggle pagado
-  - [x] `components.tsx` - Lista, tabla, formulario modal
-
-- [x] UI
-  - [x] Página `/dashboard/transactions`
-  - [x] Cards de resumen (ingresos, gastos, balance, pendientes)
-  - [x] Tabla con checkbox de pagado
-  - [x] Filtros por tipo y estado de pago
-  - [x] Modal para crear/editar transacción
-  - [x] Selector de categoría filtrado por tipo
-
----
-
-### ~~Fase 5: Feature - Credits~~ ✅
-
-**Completado**
-
-- [x] `src/features/credits/`
-  - [x] `types.ts` - Tipos con progreso de pago
-  - [x] `schemas.ts` - Validaciones Zod
-  - [x] `queries.ts` - Créditos con cálculo de cuotas pagadas
-  - [x] `actions.ts` - CRUD + generación de cuotas
-  - [x] `components.tsx` - Lista con barras de progreso
-
-- [x] UI
-  - [x] Página `/dashboard/credits`
-  - [x] Cards de resumen (activos, deuda total, pagado, cuota mensual)
-  - [x] Lista de créditos con progreso visual
-  - [x] Detalle con info de cuotas y próximo pago
-  - [x] Modal para crear/editar crédito
-  - [x] Botón para generar todas las cuotas
-
-- [x] Lógica de negocio
-  - [x] Calcular cuotas pagadas automáticamente por fecha
-  - [x] Generar transacciones de cuotas
-  - [x] Marcar transacciones con `creditId`
-
----
-
-### ~~Fase 6: Feature - Budgets~~ ✅
-
-**Completado**
-
-- [x] `src/features/budgets/`
-  - [x] `types.ts` - Tipos con progreso de gasto
-  - [x] `schemas.ts` - Validaciones Zod
-  - [x] `queries.ts` - Presupuestos con cálculo de gasto
-  - [x] `actions.ts` - CRUD + copiar del mes anterior
-  - [x] `components.tsx` - Lista con barras de progreso
-
-- [x] UI
-  - [x] Página `/dashboard/budgets`
-  - [x] Cards de resumen (presupuestado, gastado, disponible)
-  - [x] Lista de presupuestos con barra de progreso colorida
-  - [x] Indicador de sobre-presupuesto (rojo)
-  - [x] Modal para crear/editar presupuesto
-  - [x] Botón para copiar presupuestos del mes anterior
-
----
-
-### ~~Fase 7: Feature - Savings~~ ✅
-
-**Completado**
-
-- [x] `src/features/savings/`
-  - [x] `types.ts` - Tipos con progreso y movimientos
-  - [x] `schemas.ts` - Validaciones Zod
-  - [x] `queries.ts` - Fondos con cálculo de progreso mensual
-  - [x] `actions.ts` - CRUD de fondos + movimientos
-  - [x] `components.tsx` - Lista con barras de progreso
-
-- [x] UI
-  - [x] Página `/dashboard/savings`
-  - [x] Cards de resumen (fondos activos, balance total, meta mensual, depositado)
-  - [x] Lista de fondos con progreso hacia meta total y mensual
-  - [x] Historial de últimos movimientos por fondo
-  - [x] Modal para crear/editar fondo
-  - [x] Modal para registrar depósito/retiro
-
-- [x] Lógica de negocio
-  - [x] Recalcular balance automáticamente al agregar movimientos
-  - [x] Calcular progreso mensual (depósitos del mes vs meta)
-  - [x] Validar retiros contra balance disponible
-
----
-
-### Fase 8: Dashboard Completo
-
-**Objetivo**: Resumen mensual con todos los datos.
-
-- [ ] Cards con totales reales
-  - [ ] Total ingresos del mes
-  - [ ] Total gastos del mes
-  - [ ] Balance disponible
-  - [ ] Total ahorros
-
-- [ ] Cálculo del balance según fórmula:
-  ```
-  Ingresos (sueldo + extras)
-  - Gastos fijos
-  - Cuotas créditos
-  - Gastos variables
-  = Ahorro total mes
-
-  - Plan ahorro mensual
-  - Débito disponible
-  - Máximo cuotas
-  = Resto disponible
-  ```
-
-- [ ] Gráficos
-  - [ ] Distribución de gastos por categoría
-  - [ ] Evolución mensual (línea de tiempo)
-
-- [ ] Transacciones recientes (últimas 5-10)
-- [ ] Estado de presupuestos
-
----
-
-### Fase 9: Flujo de Inicio de Mes
-
-**Objetivo**: Automatizar la precarga del nuevo mes.
-
-- [ ] Detectar cambio de mes o primer acceso del mes
-- [ ] Generar cuotas de `credits` activos
-- [ ] Copiar `budgets` del mes anterior (o crear nuevos)
-- [ ] Registrar ingreso fijo (sueldo) si está configurado
-
----
-
-### Fase 10: Accounts (Opcional)
-
-**Objetivo**: Gestionar múltiples cuentas bancarias.
-
-- [ ] CRUD de cuentas
-- [ ] Asignar transacciones a cuentas
-- [ ] Balance por cuenta
-
----
-
-### Fase 11: Multi-moneda (Opcional)
-
-**Objetivo**: Soporte para transacciones en diferentes monedas.
-
-- [ ] Selector de moneda en transacciones
-- [ ] Tipo de cambio
-- [ ] Conversión automática a moneda base
-
----
-
-### Fase 12: Proyectos Compartidos (Opcional)
-
-**Objetivo**: Permitir compartir proyectos con otros usuarios.
-
-**Completado (estructura):**
-- [x] Tabla `project_members` con roles (owner, editor, viewer)
-- [x] Queries usando membresía en lugar de userId
-- [x] Creación automática de owner al crear proyecto
-
-**Pendiente (UI):**
-- [ ] Botón para invitar usuarios por email
-- [ ] Modal de gestión de miembros del proyecto
-- [ ] Lista de invitaciones pendientes (aceptar/rechazar)
-- [ ] Indicador visual de rol en el proyecto
-- [ ] Permisos según rol (viewer solo lectura, editor puede modificar)
-- [ ] Notificaciones de invitación
-
----
-
-## Orden Sugerido de Implementación
-
-0. **Dark/Light Mode** - UX básica
-1. **Onboarding** - Para que nuevos usuarios tengan datos
-2. **Projects** - Selector de período
-3. **Categories** - Base para transacciones
-4. **Transactions** - Core de la app
-5. **Credits** - Gestión de deudas
-6. **Budgets** - Control de presupuestos
-7. **Savings** - Fondos de ahorro
-8. **Dashboard** - Integrar todo
-9. **Flujo de mes** - Automatización
-
----
-
-## Notas Técnicas
-
-### Patrón de Feature
-
-Cada feature sigue esta estructura (escalar según necesidad):
+#### Carga Inicial (SSR)
+- **Usar `loading.tsx`** para cada ruta del dashboard
+- Next.js automáticamente wrappea en `<Suspense>`
+- El skeleton se muestra mientras se cargan los datos del servidor
 
 ```
-src/features/[nombre]/
-├── index.ts          # Barrel exports
-├── types.ts          # TypeScript types
-├── schemas.ts        # Zod validations
-├── queries.ts        # Server queries
-├── actions.ts        # Server actions
-├── constants.ts      # Constants (si aplica)
-└── components.tsx    # UI components (o carpeta)
+src/app/(dashboard)/dashboard/transactions/
+├── page.tsx        # Server Component - carga datos
+├── loading.tsx     # Skeleton automático durante SSR
+└── error.tsx       # Manejo de errores
 ```
 
-### Componentes Shadcn a instalar
+#### Actualizaciones Post-Mutación
+- **Usar `useOptimistic`** de React para updates inmediatos
+- **Usar `updateTag()`** de Next.js 16 para invalidar caché
+- **NO usar** `isRefreshing` con refs (patrón actual - eliminar)
 
-```bash
-pnpm dlx shadcn@latest add table dialog form input select badge progress tabs
+```typescript
+// Patrón correcto Next.js 16
+'use client';
+import { useOptimistic } from 'react';
+import { updateTag } from 'next/cache';
+
+function TransactionList({ transactions }) {
+  const [optimisticTxns, addOptimistic] = useOptimistic(
+    transactions,
+    (state, newTxn) => [...state, newTxn]
+  );
+
+  async function handleCreate(data) {
+    addOptimistic(data); // UI se actualiza inmediatamente
+    await createTransaction(data); // Server Action
+    // updateTag() en el server action invalida el caché
+  }
+}
 ```
 
-### Server Actions vs API Routes
+#### Tareas
+- [ ] Crear `loading.tsx` en cada ruta del dashboard
+- [ ] Implementar `useOptimistic` para mutaciones
+- [ ] Migrar de `isRefreshing` pattern a `useOptimistic`
+- [ ] Agregar `error.tsx` en rutas críticas
+- [ ] Agregar `not-found.tsx` global
 
-- Usar **Server Actions** para mutaciones (crear, editar, eliminar)
-- Usar **queries** directas en Server Components para lectura
-- Solo usar API Routes si se necesita endpoint externo
+### 1.2 Estado y Caché
+
+Basado en [análisis de state management 2026](https://www.nucamp.co/blog/state-management-in-2026-redux-context-api-and-modern-patterns):
+
+#### Decisión: NO usar Zustand ni TanStack Query
+
+**Razón**: Con Server Components de Next.js 16:
+- Los datos se cargan en el servidor (no necesitamos client-side fetching)
+- `useOptimistic` maneja updates optimistas
+- `updateTag()` y `revalidateTag()` manejan invalidación de caché
+- El estado local (`useState`) es suficiente para UI state
+
+**Zustand sería útil SOLO si**:
+- Necesitáramos estado global complejo entre componentes no relacionados
+- Tuviéramos preferencias de usuario que persisten entre páginas
+
+**TanStack Query sería útil SOLO si**:
+- Consumiéramos APIs externas desde el cliente
+- Necesitáramos polling o real-time updates
+
+#### Estrategia de Caché Next.js 16
+
+Usar las nuevas APIs de [Next.js 16](https://nextjs.org/blog/next-16):
+
+```typescript
+// En queries.ts - Cachear datos con tags
+import { unstable_cache } from 'next/cache';
+
+export const getTransactions = unstable_cache(
+  async (projectId: string) => {
+    return db.query.transactions.findMany({
+      where: eq(transactions.projectId, projectId),
+    });
+  },
+  ['transactions'],
+  { tags: ['transactions'], revalidate: 60 }
+);
+
+// En actions.ts - Invalidar caché
+import { updateTag } from 'next/cache';
+
+export async function createTransaction(data) {
+  await db.insert(transactions).values(data);
+  updateTag('transactions'); // Invalida inmediatamente
+}
+```
+
+#### Tareas
+- [ ] Implementar `unstable_cache` en queries principales
+- [ ] Usar `updateTag()` en todas las Server Actions
+- [ ] Definir tags por feature (transactions, credits, budgets, etc.)
+- [ ] Eliminar lógica de `isRefreshing` y `useRef` para tracking
 
 ---
 
-## Próxima Sesión
+## Fase 2: Limpieza de Base de Datos (POSPUESTA)
 
-Comenzar con:
-1. **Fase 0: Dark/Light Mode** - Configurar next-themes y toggle
-2. **Fase 1: Onboarding** - Crear proyecto y categorías automáticamente
-3. **Fase 4: Transactions** - Es el core de la aplicación
+> **NOTA**: Esta fase se ejecutará DESPUÉS de completar la refactorización del código.
+> Los cambios de BD se evaluarán cuando todo esté funcionando correctamente.
+
+<details>
+<summary>Ver análisis de campos (referencia futura)</summary>
+
+### Campos a Eliminar
+
+| Tabla | Campo | Razón |
+|-------|-------|-------|
+| `currencies` | `decimalSeparator` | Nunca se lee, hardcodeado en frontend |
+| `currencies` | `thousandsSeparator` | Nunca se lee, hardcodeado en frontend |
+| `currencies` | `decimalPlaces` | Nunca se lee, hardcodeado en frontend |
+| `entities` | `createdBy` | Se escribe pero nunca se lee |
+| `project_members` | `invitedBy` | Feature de invitaciones no implementada |
+| `project_members` | `invitedAt` | Feature de invitaciones no implementada |
+| `projects` | `maxInstallmentAmount` | Se define pero nunca se valida |
+
+### Campos Redundantes a Consolidar
+
+| Tabla | Campos | Acción |
+|-------|--------|--------|
+| `projects` | `currency` + `baseCurrencyId` | Eliminar `currency`, usar solo FK |
+| `transactions` | `originalCurrency` + `originalCurrencyId` | Eliminar string, usar solo FK |
+| `transactions` | `baseCurrency` + `baseCurrencyId` | Eliminar string, usar solo FK |
+| `credits` | Misma redundancia | Eliminar strings de moneda |
+
+### Campos a Revisar/Implementar
+
+| Tabla | Campo | Estado |
+|-------|-------|--------|
+| `transactions.paidAt` | Definido pero nunca se actualiza | Implementar o eliminar |
+| `transactions.linkedTransactionId` | Para transferencias, sin FK formal | Agregar FK o documentar |
+| `transactions.paidByTransferId` | Sin uso actual | Implementar o eliminar |
+| `savingsFunds.accountType` | String libre, debería ser enum | Convertir a enum |
+
+</details>
+
+---
+
+## Fase 3: División de Archivos
+
+### 3.1 Prioridad CRÍTICA (> 1000 líneas)
+
+#### ✅ transactions/ - COMPLETADO
+```
+src/features/transactions/
+├── components/                     # ✅ Dividido (10+ archivos)
+│   ├── index.ts
+│   ├── transaction-list.tsx
+│   ├── transaction-form.tsx
+│   ├── transaction-table.tsx
+│   ├── summary-card.tsx
+│   ├── transfer-form.tsx
+│   ├── confirmation-dialogs.tsx
+│   ├── pay-credit-card-dialog.tsx
+│   └── bulk-pay-cc-dialog.tsx
+├── actions/                        # ✅ Dividido (4 archivos)
+│   ├── index.ts
+│   ├── transaction-crud.ts         # CRUD + verifyProjectAccess
+│   ├── transfer-actions.ts         # Transferencias
+│   └── credit-card-actions.ts      # Pagos TC
+└── ...
+```
+
+#### ✅ card-purchases/ - COMPLETADO
+```
+src/features/card-purchases/
+├── components/                     # ✅ Dividido (5 archivos)
+│   ├── index.ts
+│   ├── summary-cards.tsx
+│   ├── debt-capacity-card.tsx
+│   ├── card-purchase-card.tsx
+│   ├── create-purchase-dialog.tsx
+│   └── card-purchases-list.tsx
+├── actions/                        # ✅ Dividido (3 archivos)
+│   ├── index.ts
+│   ├── purchase-crud.ts            # CRUD de compras
+│   └── installment-actions.ts      # Operaciones de cuotas
+└── ...
+```
+
+#### ✅ savings/ - COMPLETADO
+```
+src/features/savings/
+├── components/                     # ✅ Dividido (7 archivos)
+│   ├── index.ts
+│   ├── constants.tsx
+│   ├── movement-row.tsx
+│   ├── movement-dialog.tsx
+│   ├── savings-fund-dialog.tsx
+│   ├── savings-fund-card.tsx
+│   └── savings-list.tsx
+└── actions.ts                      # Sin cambios
+```
+
+#### ✅ templates/ - COMPLETADO
+```
+src/features/templates/
+├── components/                     # ✅ Dividido (6 archivos)
+│   ├── index.ts
+│   ├── constants.ts
+│   ├── template-list.tsx
+│   ├── template-card.tsx
+│   ├── template-item-row.tsx
+│   ├── template-dialog.tsx
+│   └── template-item-dialog.tsx
+└── actions.ts                      # Sin cambios
+```
+
+#### ✅ credits/ - COMPLETADO
+```
+src/features/credits/
+├── components/                     # ✅ Dividido (7 archivos)
+│   ├── index.ts
+│   ├── constants.ts
+│   ├── utils.ts
+│   ├── summary-card.tsx
+│   ├── credit-card-skeleton.tsx
+│   ├── credit-card.tsx
+│   ├── credit-dialog.tsx
+│   └── credit-list.tsx
+└── actions.ts                      # Sin cambios
+```
+
+#### ✅ accounts/ - COMPLETADO
+```
+src/features/accounts/
+├── components/                     # ✅ Dividido (7 archivos)
+│   ├── index.ts
+│   ├── account-type-icon.tsx
+│   ├── recalculate-button.tsx
+│   ├── summary-card.tsx
+│   ├── account-card-skeleton.tsx
+│   ├── account-card.tsx
+│   ├── account-dialog.tsx
+│   └── accounts-list.tsx
+└── actions.ts                      # Sin cambios
+```
+
+#### ✅ billing-cycles/ - COMPLETADO
+```
+src/features/billing-cycles/
+├── components/                     # ✅ Dividido (6 archivos)
+│   ├── index.ts
+│   ├── utils.ts
+│   ├── summary-card.tsx
+│   ├── billing-cycle-card-skeleton.tsx
+│   ├── billing-cycle-card.tsx
+│   ├── billing-cycle-dialog.tsx
+│   └── billing-cycles-list.tsx
+├── actions/                        # ✅ Dividido (5 archivos)
+│   ├── index.ts
+│   ├── utils.ts                    # Helpers compartidos
+│   ├── cycle-transactions.ts       # Carga de transacciones
+│   ├── billing-cycle-crud.ts       # CRUD de ciclos
+│   └── billing-cycle-status.ts     # Cerrar/reabrir ciclos
+└── ...
+```
+
+### 3.2 Prioridad ALTA (500-1000 líneas) ✅ COMPLETADO
+- [x] `billing-cycles/actions.ts` (592 líneas) → carpeta con 5 archivos
+- [x] `card-purchases/actions.ts` (564 líneas) → carpeta con 3 archivos
+
+---
+
+## Fase 4: Utilidades Globales
+
+### 4.1 Crear src/lib/formatting.ts
+
+Eliminar duplicación de `formatCurrency` (8 archivos) y `formatDate` (5 archivos):
+
+```typescript
+// src/lib/formatting.ts
+export function formatCurrency(amount: number | string, currency = 'CLP'): string
+export function formatDate(date: Date | string | null): string
+export function formatDateLong(date: Date | string | null): string
+export function parseCurrencyToNumber(value: string): number
+```
+
+### 4.2 Crear src/hooks/
+
+```
+src/hooks/
+├── index.ts
+├── use-dialog-state.ts      # Estado de diálogos (reemplaza ~40 implementaciones)
+├── use-optimistic-action.ts # Wrapper sobre useOptimistic + Server Action
+└── use-confirm.ts           # Confirmaciones con callback
+```
+
+### 4.3 Tareas
+- [ ] Crear `src/lib/formatting.ts`
+- [ ] Crear hooks globales
+- [ ] Migrar features a usar utilidades globales
+- [ ] Eliminar código duplicado
+
+---
+
+## Fase 5: Componentes Estandarizados
+
+### 5.1 Componentes de UI
+
+| Componente | Propósito | Uso |
+|------------|-----------|-----|
+| `EmptyState` | Estado vacío consistente | Todas las listas |
+| `LoadingButton` | Botón con estado de carga | Todos los forms |
+| `FormDialog` | Dialog con form integrado | ~50 diálogos |
+| `ConfirmDialog` | Confirmación de acciones | Eliminaciones |
+| `DataCard` | Card de estadística | Dashboards |
+
+### 5.2 Skeletons por Feature ✅ COMPLETADO
+
+Cada feature con lista compleja tiene su skeleton en `components/`:
+
+- [x] `TransactionTableSkeleton`
+- [x] `AccountCardSkeleton`
+- [x] `CreditCardSkeleton`
+- [x] `SavingsFundCardSkeleton`
+- [x] `TemplateCardSkeleton`
+- [x] `CardPurchaseCardSkeleton`
+- [x] `BillingCycleCardSkeleton`
+- [~] `BudgetsSkeleton` (no requerido - lista simple)
+
+---
+
+## Fase 6: Mejoras de UX
+
+### 6.1 Patrones de Feedback ✅ COMPLETADO
+
+Usar `lib/toast-messages.ts` para mensajes consistentes:
+
+```typescript
+import { toastActions } from '@/lib/toast-messages';
+
+// Ejemplo de uso
+const { onSuccess, onError } = toastActions.deleting('categoría');
+const result = await deleteCategory(id, userId);
+result.success ? onSuccess() : onError(result.error);
+```
+
+Acciones disponibles: `creating`, `updating`, `deleting`, `archiving`, `restoring`, `processing`
+
+### 6.2 Empty States Consistentes ✅ COMPLETADO
+
+Todas las features usan el componente `EmptyState` de `@/components/empty-state`:
+- card-purchases, credits, savings, templates, accounts
+- billing-cycles, transactions, budgets, categories
+
+### 6.3 Mobile-First
+- [ ] Revisar touch targets (mínimo 44px)
+- [ ] Optimizar formularios largos (steps/wizard)
+- [ ] Mejorar navegación móvil
+
+---
+
+## Orden de Ejecución
+
+### Sprint 1: Fundamentos ✅ COMPLETADO
+1. [x] Crear `src/lib/formatting.ts`
+2. [x] Crear hooks globales (`use-dialog-state`, `use-optimistic-action`)
+3. [x] Crear componentes base (`EmptyState`, `LoadingButton`)
+4. [ ] Agregar `loading.tsx` y `error.tsx` en rutas
+
+### Sprint 2: Caché y Estado ✅ COMPLETADO
+5. [x] Implementar `src/lib/cache.ts` con `invalidateRelatedCache`
+6. [x] Definir tags por feature (transactions, credits, budgets, etc.)
+7. [ ] Eliminar patrón `isRefreshing` (en progreso)
+8. [ ] Implementar `useOptimistic` en forms principales
+
+### Sprint 3: División de Código (Crítico) ✅ COMPLETADO
+9. [x] Dividir `transactions/components` → carpeta con 10+ archivos
+10. [x] Dividir `transactions/actions` → carpeta con 4 archivos (ver patrón abajo)
+11. [x] Mejorar `ConfirmDialog` para soportar modo controlado
+12. [x] Dividir `card-purchases` → carpeta con 5 archivos
+13. [x] Dividir `savings` → carpeta con 7 archivos
+14. [x] Dividir `templates` → carpeta con 6 archivos
+15. [x] Dividir `credits` → carpeta con 7 archivos
+
+### Sprint 4: División de Código (Alta) ✅ COMPLETADO
+16. [x] Dividir `accounts` → carpeta con 7 archivos
+17. [x] Dividir `billing-cycles/components` → carpeta con 6 archivos
+18. [x] Dividir `billing-cycles/actions` → carpeta con 5 archivos
+19. [x] Dividir `card-purchases/actions` → carpeta con 3 archivos
+
+### Sprint 5: Polish 🔄 EN PROGRESO
+20. [x] Agregar skeletons faltantes (CardPurchaseCardSkeleton, TemplateCardSkeleton)
+21. [x] Estandarizar empty states (9 features migradas a EmptyState)
+22. [ ] Revisar UX móvil
+23. [x] Estandarizar mensajes de toast (lib/toast-messages.ts + migraciones)
+24. [ ] Testing y documentación
+
+### Sprint 6: Limpieza BD (POST-REFACTORIZACIÓN)
+23. [ ] Evaluar campos a eliminar
+24. [ ] Crear migraciones necesarias
+25. [ ] Actualizar seeds y queries
+
+---
+
+## Patrones Establecidos
+
+### Patrón de División de Actions
+
+Cuando `actions.ts` supera ~500 líneas, dividir en carpeta agrupando por responsabilidad:
+
+```
+features/[feature]/actions/
+├── index.ts               # Barrel exports (re-exporta todo)
+├── [feature]-crud.ts      # CRUD básico + helpers compartidos
+├── transfer-actions.ts    # Operaciones de transferencia
+└── [domain]-actions.ts    # Otras operaciones específicas
+```
+
+**Ejemplo real (transactions):**
+```
+actions/
+├── index.ts               # ~20 líneas
+├── transaction-crud.ts    # ~355 líneas (CRUD + verifyProjectAccess)
+├── transfer-actions.ts    # ~330 líneas (transferencias entre cuentas)
+└── credit-card-actions.ts # ~310 líneas (pago TC, histórico)
+```
+
+**Reglas:**
+- `ActionResult<T>` va en `types.ts` (compartido)
+- Helpers como `verifyProjectAccess` van en el archivo CRUD y se exportan
+- Cada archivo tiene sus propios imports de schema y db
+- El `index.ts` solo re-exporta, no tiene lógica
+
+### Patrón de División de Components
+
+Cuando `components.tsx` supera ~500 líneas, dividir en carpeta:
+
+```
+features/[feature]/components/
+├── index.ts                    # Barrel exports
+├── [feature]-form.tsx          # Formulario principal
+├── [feature]-table.tsx         # Tabla/lista
+├── [feature]-dialogs.tsx       # Diálogos de confirmación
+└── [domain]-specific.tsx       # Componentes específicos
+```
+
+### Patrón de ConfirmDialog Reutilizable
+
+El componente `ConfirmDialog` soporta dos modos:
+
+1. **Modo Trigger** - El dialog maneja su propio estado:
+```tsx
+<ConfirmDialog
+  trigger={<Button>Eliminar</Button>}
+  title="¿Eliminar?"
+  description="Esta acción no se puede deshacer"
+  onConfirm={handleDelete}
+/>
+```
+
+2. **Modo Controlado** - Estado externo:
+```tsx
+<ConfirmDialog
+  open={isOpen}
+  onOpenChange={setIsOpen}
+  title="¿Eliminar?"
+  description="Esta acción no se puede deshacer"
+  onConfirm={handleDelete}
+  isPending={isDeleting}
+/>
+```
+
+---
+
+## Métricas de Éxito
+
+| Métrica | Antes | Objetivo |
+|---------|-------|----------|
+| Archivo más grande | 2,461 líneas | < 300 líneas |
+| Código duplicado | ~1,500 líneas | < 100 líneas |
+| Features con skeleton | 3/9 | 9/9 |
+| Features con empty state | 5/9 | 9/9 |
+| Rutas con loading.tsx | 0/9 | 9/9 |
+| Tiempo de respuesta (mutaciones) | Variable | < 100ms (optimistic) |
+
+---
+
+## Referencias
+
+- [Next.js 16 Caching](https://nextjs.org/docs/app/getting-started/caching-and-revalidating)
+- [Next.js Loading UI](https://nextjs.org/docs/app/api-reference/file-conventions/loading)
+- [useOptimistic Hook](https://nextjs.org/docs/app/getting-started/updating-data)
+- [State Management 2026](https://www.nucamp.co/blog/state-management-in-2026-redux-context-api-and-modern-patterns)
+
+---
+
+## Documentación Relacionada
+
+- [ANALYSIS.md](./ANALYSIS.md) - Análisis completo del codebase
+- [PATTERNS.md](./PATTERNS.md) - Patrones de código a seguir
+- [FEATURES_MAP.md](./FEATURES_MAP.md) - Mapa de features y lógica
+- [BILLEDY_CONTEXT.md](./BILLEDY_CONTEXT.md) - Contexto de negocio
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Arquitectura general

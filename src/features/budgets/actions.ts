@@ -3,7 +3,7 @@
 import { db } from '@/lib/db';
 import { budgets, projectMembers } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
+import { invalidateRelatedCache } from '@/lib/cache';
 import {
   createBudgetSchema,
   updateBudgetSchema,
@@ -65,8 +65,7 @@ export async function createBudget(
     })
     .returning({ id: budgets.id });
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/budgets');
+  invalidateRelatedCache('budgets');
 
   return { success: true, data: { id: newBudget.id } };
 }
@@ -118,8 +117,7 @@ export async function updateBudget(
     .set(updateData)
     .where(eq(budgets.id, budgetId));
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/budgets');
+  invalidateRelatedCache('budgets');
 
   return { success: true, data: undefined };
 }
@@ -151,8 +149,7 @@ export async function deleteBudget(
 
   await db.delete(budgets).where(eq(budgets.id, budgetId));
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/budgets');
+  invalidateRelatedCache('budgets');
 
   return { success: true, data: undefined };
 }

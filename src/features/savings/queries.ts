@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { savingsFunds, savingsMovements, currencies, projectMembers } from '@/lib/db/schema';
 import { eq, and, sql, isNotNull, desc, gte, lte } from 'drizzle-orm';
+import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { SavingsFundWithProgress, SavingsSummary, SavingsMovement } from './types';
 
 /**
@@ -14,9 +15,9 @@ function getCurrentMonthRange(): { start: Date; end: Date } {
 }
 
 /**
- * Obtiene todos los fondos de ahorro del usuario con su progreso
+ * Query interna para obtener fondos de ahorro con progreso
  */
-export async function getSavingsFundsWithProgress(
+async function _getSavingsFundsWithProgress(
   userId: string,
   projectId?: string,
   includeArchived: boolean = false
@@ -148,7 +149,18 @@ export async function getSavingsFundsWithProgress(
 }
 
 /**
+ * Obtiene todos los fondos de ahorro del usuario con su progreso
+ * Cacheada por 30 segundos (más corto porque depende del mes actual)
+ */
+export const getSavingsFundsWithProgress = cachedQuery(
+  _getSavingsFundsWithProgress,
+  ['savings', 'funds-with-progress'],
+  { tags: [CACHE_TAGS.savings], revalidate: 30 }
+);
+
+/**
  * Obtiene un fondo por ID con progreso
+ * No cacheada porque es una consulta puntual
  */
 export async function getSavingsFundById(
   fundId: string,
@@ -231,6 +243,7 @@ export async function getSavingsFundById(
 
 /**
  * Obtiene todos los movimientos de un fondo
+ * No cacheada porque puede cambiar frecuentemente
  */
 export async function getMovementsByFund(
   fundId: string,
@@ -257,9 +270,9 @@ export async function getMovementsByFund(
 }
 
 /**
- * Obtiene todas las monedas disponibles
+ * Query interna para obtener monedas
  */
-export async function getAllCurrencies(): Promise<{ id: string; code: string; name: string }[]> {
+async function _getAllCurrencies(): Promise<{ id: string; code: string; name: string }[]> {
   return await db
     .select({
       id: currencies.id,
@@ -271,13 +284,23 @@ export async function getAllCurrencies(): Promise<{ id: string; code: string; na
 }
 
 /**
- * Obtiene resumen de fondos de ahorro
+ * Obtiene todas las monedas disponibles
+ * Cacheada por 5 minutos (raramente cambia)
  */
-export async function getSavingsSummary(
+export const getAllCurrencies = cachedQuery(
+  _getAllCurrencies,
+  ['currencies', 'all'],
+  { tags: [CACHE_TAGS.savings], revalidate: 300 }
+);
+
+/**
+ * Query interna para resumen de fondos de ahorro
+ */
+async function _getSavingsSummary(
   userId: string,
   projectId?: string
 ): Promise<SavingsSummary> {
-  const fundsWithProgress = await getSavingsFundsWithProgress(userId, projectId, false);
+  const fundsWithProgress = await _getSavingsFundsWithProgress(userId, projectId, false);
 
   let totalBalance = 0;
   let totalTargetAmount = 0;
@@ -308,3 +331,13 @@ export async function getSavingsSummary(
     overallProgress,
   };
 }
+
+/**
+ * Obtiene resumen de fondos de ahorro
+ * Cacheada por 30 segundos
+ */
+export const getSavingsSummary = cachedQuery(
+  _getSavingsSummary,
+  ['savings', 'summary'],
+  { tags: [CACHE_TAGS.savings, CACHE_TAGS.summary], revalidate: 30 }
+);

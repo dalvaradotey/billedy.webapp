@@ -1,16 +1,13 @@
 import { db } from '@/lib/db';
 import { budgets, categories, projectMembers } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
+import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { BudgetWithCategory } from './types';
 
 /**
- * Obtiene las plantillas de presupuesto del proyecto con información de categoría
+ * Verifica acceso al proyecto (helper interno)
  */
-export async function getBudgetsWithCategory(
-  projectId: string,
-  userId: string
-): Promise<BudgetWithCategory[]> {
-  // Verificar acceso al proyecto
+async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
   const hasAccess = await db
     .select({ id: projectMembers.id })
     .from(projectMembers)
@@ -23,11 +20,19 @@ export async function getBudgetsWithCategory(
     )
     .limit(1);
 
-  if (hasAccess.length === 0) {
-    return [];
-  }
+  return hasAccess.length > 0;
+}
 
-  // Obtener presupuestos con categoría (left join ya que categoryId es opcional)
+/**
+ * Query interna para obtener presupuestos con categoría
+ */
+async function _getBudgetsWithCategory(
+  projectId: string,
+  userId: string
+): Promise<BudgetWithCategory[]> {
+  const hasAccess = await verifyProjectAccess(projectId, userId);
+  if (!hasAccess) return [];
+
   const budgetsList = await db
     .select({
       id: budgets.id,
@@ -51,27 +56,24 @@ export async function getBudgetsWithCategory(
 }
 
 /**
- * Obtiene presupuestos activos del proyecto para selectores
+ * Obtiene las plantillas de presupuesto del proyecto con información de categoría
+ * Cacheada por 60 segundos
  */
-export async function getActiveBudgets(
+export const getBudgetsWithCategory = cachedQuery(
+  _getBudgetsWithCategory,
+  ['budgets', 'with-category'],
+  { tags: [CACHE_TAGS.budgets, CACHE_TAGS.categories] }
+);
+
+/**
+ * Query interna para obtener presupuestos activos
+ */
+async function _getActiveBudgets(
   projectId: string,
   userId: string
 ): Promise<{ id: string; name: string; categoryId: string | null }[]> {
-  const hasAccess = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (hasAccess.length === 0) {
-    return [];
-  }
+  const hasAccess = await verifyProjectAccess(projectId, userId);
+  if (!hasAccess) return [];
 
   const result = await db
     .select({
@@ -92,27 +94,24 @@ export async function getActiveBudgets(
 }
 
 /**
- * Obtiene categorías activas del proyecto
+ * Obtiene presupuestos activos del proyecto para selectores
+ * Cacheada por 60 segundos
  */
-export async function getProjectCategories(
+export const getActiveBudgets = cachedQuery(
+  _getActiveBudgets,
+  ['budgets', 'active'],
+  { tags: [CACHE_TAGS.budgets] }
+);
+
+/**
+ * Query interna para obtener categorías del proyecto
+ */
+async function _getProjectCategories(
   projectId: string,
   userId: string
 ): Promise<{ id: string; name: string; color: string }[]> {
-  const hasAccess = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (hasAccess.length === 0) {
-    return [];
-  }
+  const hasAccess = await verifyProjectAccess(projectId, userId);
+  if (!hasAccess) return [];
 
   const result = await db
     .select({
@@ -131,3 +130,13 @@ export async function getProjectCategories(
 
   return result;
 }
+
+/**
+ * Obtiene categorías activas del proyecto
+ * Cacheada por 60 segundos
+ */
+export const getProjectCategories = cachedQuery(
+  _getProjectCategories,
+  ['budgets', 'project-categories'],
+  { tags: [CACHE_TAGS.categories] }
+);

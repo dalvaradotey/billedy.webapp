@@ -10,8 +10,10 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  Target,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/empty-state';
 import {
   Dialog,
   DialogContent,
@@ -147,9 +149,11 @@ export function BudgetList({
 
       {/* Active Budgets */}
       {activeBudgets.length === 0 && inactiveBudgets.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground border rounded-lg">
-          No hay presupuestos configurados
-        </div>
+        <EmptyState
+          icon={Target}
+          title="No hay presupuestos configurados"
+          description="Crea un presupuesto para controlar tus gastos por categoría."
+        />
       ) : (
         <>
           {activeBudgets.length > 0 && (

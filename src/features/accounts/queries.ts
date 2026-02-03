@@ -1,12 +1,13 @@
 import { db } from '@/lib/db';
 import { accounts, entities } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { Account, AccountsSummary, AccountWithEntity } from './types';
 
 /**
- * Get all accounts for a user (with entity data)
+ * Query interna para obtener cuentas (sin caché)
  */
-export async function getAccounts(userId: string): Promise<AccountWithEntity[]> {
+async function _getAccounts(userId: string): Promise<AccountWithEntity[]> {
   const result = await db
     .select({
       account: accounts,
@@ -24,9 +25,19 @@ export async function getAccounts(userId: string): Promise<AccountWithEntity[]> 
 }
 
 /**
- * Get all accounts including archived (with entity data)
+ * Get all accounts for a user (with entity data)
+ * Cacheada por 60 segundos
  */
-export async function getAllAccounts(userId: string): Promise<AccountWithEntity[]> {
+export const getAccounts = cachedQuery(
+  _getAccounts,
+  ['accounts', 'list'],
+  { tags: [CACHE_TAGS.accounts] }
+);
+
+/**
+ * Query interna para obtener todas las cuentas (sin caché)
+ */
+async function _getAllAccounts(userId: string): Promise<AccountWithEntity[]> {
   const result = await db
     .select({
       account: accounts,
@@ -44,7 +55,18 @@ export async function getAllAccounts(userId: string): Promise<AccountWithEntity[
 }
 
 /**
+ * Get all accounts including archived (with entity data)
+ * Cacheada por 60 segundos
+ */
+export const getAllAccounts = cachedQuery(
+  _getAllAccounts,
+  ['accounts', 'all'],
+  { tags: [CACHE_TAGS.accounts] }
+);
+
+/**
  * Get account by ID (with entity data)
+ * No cacheada porque es una consulta puntual
  */
 export async function getAccountById(
   accountId: string,
@@ -70,6 +92,7 @@ export async function getAccountById(
 
 /**
  * Get default account for a user
+ * No cacheada porque se usa poco y puede cambiar frecuentemente
  */
 export async function getDefaultAccount(userId: string): Promise<Account | null> {
   const result = await db
@@ -88,10 +111,10 @@ export async function getDefaultAccount(userId: string): Promise<Account | null>
 }
 
 /**
- * Get accounts summary for a user
+ * Query interna para resumen de cuentas
  */
-export async function getAccountsSummary(userId: string): Promise<AccountsSummary> {
-  const userAccounts = await getAccounts(userId);
+async function _getAccountsSummary(userId: string): Promise<AccountsSummary> {
+  const userAccounts = await _getAccounts(userId);
 
   let totalDebitBalance = 0;
   let totalCreditBalance = 0;
@@ -115,3 +138,13 @@ export async function getAccountsSummary(userId: string): Promise<AccountsSummar
     netWorth: totalDebitBalance - totalCreditBalance,
   };
 }
+
+/**
+ * Get accounts summary for a user
+ * Cacheada por 60 segundos
+ */
+export const getAccountsSummary = cachedQuery(
+  _getAccountsSummary,
+  ['accounts', 'summary'],
+  { tags: [CACHE_TAGS.accounts, CACHE_TAGS.summary] }
+);

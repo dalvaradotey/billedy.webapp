@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { signOut } from 'next-auth/react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -11,10 +12,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { ProjectSelector } from '@/features/projects/components';
+import { ClientOnly } from '@/components/client-only';
 import { setCurrentProjectId } from '@/features/projects/actions';
 import type { Project, Currency } from '@/features/projects/types';
+
+// Dynamic import to avoid hydration mismatch with Radix UI IDs
+const ProjectSelector = dynamic(
+  () => import('@/features/projects/components').then((mod) => mod.ProjectSelector),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="w-[180px] h-9" />,
+  }
+);
 
 interface DashboardHeaderProps {
   user: {
@@ -116,45 +127,47 @@ export function DashboardHeader({ user, projects, currentProjectId, currencies, 
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={user.image ?? undefined} alt={user.name ?? ''} />
-                <AvatarFallback>{initials ?? 'U'}</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user.name}</p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user.email}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href="/dashboard/settings">Configuración</a>
-            </DropdownMenuItem>
-            {isAdmin && (
-              <>
+          <ClientOnly fallback={<Skeleton className="h-8 w-8 rounded-full" />}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.image ?? undefined} alt={user.name ?? ''} />
+                    <AvatarFallback>{initials ?? 'U'}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <a href="/admin/entities">Administrar entidades</a>
+                  <a href="/dashboard/settings">Configuración</a>
                 </DropdownMenuItem>
-              </>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="cursor-pointer text-red-600 focus:text-red-600"
-              onClick={() => signOut({ callbackUrl: '/login' })}
-            >
-              Cerrar sesión
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <a href="/admin/entities">Administrar entidades</a>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="cursor-pointer text-red-600 focus:text-red-600"
+                  onClick={() => signOut({ callbackUrl: '/login' })}
+                >
+                  Cerrar sesión
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ClientOnly>
         </div>
       </div>
     </header>

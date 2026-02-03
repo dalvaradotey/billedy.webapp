@@ -3,7 +3,7 @@
 import { db } from '@/lib/db';
 import { savingsFunds, savingsMovements, projectMembers } from '@/lib/db/schema';
 import { eq, and, isNotNull, sql } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
+import { invalidateRelatedCache } from '@/lib/cache';
 import {
   createSavingsFundSchema,
   updateSavingsFundSchema,
@@ -125,8 +125,7 @@ export async function createSavingsFund(
     });
   }
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/savings');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: { id: newFund.id } };
 }
@@ -173,8 +172,7 @@ export async function updateSavingsFund(
 
   await db.update(savingsFunds).set(updateData).where(eq(savingsFunds.id, fundId));
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/savings');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: undefined };
 }
@@ -205,8 +203,7 @@ export async function archiveSavingsFund(
     })
     .where(eq(savingsFunds.id, fundId));
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/savings');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: undefined };
 }
@@ -228,8 +225,7 @@ export async function deleteSavingsFund(fundId: string, userId: string): Promise
   // Los movimientos se eliminan en cascada por la FK
   await db.delete(savingsFunds).where(eq(savingsFunds.id, fundId));
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/savings');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: undefined };
 }
@@ -290,8 +286,7 @@ export async function createMovement(
   // Recalcular balance del fondo
   await recalculateFundBalance(parsed.data.savingsFundId);
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/savings');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: { id: newMovement.id } };
 }
@@ -339,8 +334,7 @@ export async function updateMovement(
   // Recalcular balance del fondo
   await recalculateFundBalance(existing[0].savingsFundId);
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/savings');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: undefined };
 }
@@ -371,8 +365,7 @@ export async function deleteMovement(movementId: string, userId: string): Promis
   // Recalcular balance del fondo
   await recalculateFundBalance(fundId);
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/savings');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: undefined };
 }

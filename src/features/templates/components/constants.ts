@@ -1,0 +1,1 @@
+export const CONFIRM_DELETE_TEXT = 'ELIMINAR';

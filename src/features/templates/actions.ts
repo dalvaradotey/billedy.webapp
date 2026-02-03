@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { invalidateCache, CACHE_TAGS } from '@/lib/cache';
 import { db } from '@/lib/db';
 import {
   templates,
@@ -57,7 +57,7 @@ export async function createTemplate(data: {
       })
       .returning();
 
-    revalidatePath('/dashboard/templates');
+    invalidateCache(CACHE_TAGS.templates);
 
     return { success: true, data: template };
   } catch (error) {
@@ -111,7 +111,7 @@ export async function updateTemplate(
       .where(eq(templates.id, templateId))
       .returning();
 
-    revalidatePath('/dashboard/templates');
+    invalidateCache(CACHE_TAGS.templates);
 
     return { success: true, data: updated };
   } catch (error) {
@@ -157,7 +157,7 @@ export async function archiveTemplate(
       })
       .where(eq(templates.id, templateId));
 
-    revalidatePath('/dashboard/templates');
+    invalidateCache(CACHE_TAGS.templates);
 
     return { success: true };
   } catch (error) {
@@ -197,7 +197,7 @@ export async function deleteTemplate(
     // Los items se eliminan automáticamente por CASCADE
     await db.delete(templates).where(eq(templates.id, templateId));
 
-    revalidatePath('/dashboard/templates');
+    invalidateCache(CACHE_TAGS.templates);
 
     return { success: true };
   } catch (error) {
@@ -267,7 +267,7 @@ export async function createTemplateItem(data: {
       })
       .returning();
 
-    revalidatePath('/dashboard/templates');
+    invalidateCache(CACHE_TAGS.templates);
 
     return { success: true, data: item };
   } catch (error) {
@@ -337,7 +337,7 @@ export async function updateTemplateItem(
       .where(eq(templateItems.id, itemId))
       .returning();
 
-    revalidatePath('/dashboard/templates');
+    invalidateCache(CACHE_TAGS.templates);
 
     return { success: true, data: updated };
   } catch (error) {
@@ -376,7 +376,7 @@ export async function deleteTemplateItem(
 
     await db.delete(templateItems).where(eq(templateItems.id, itemId));
 
-    revalidatePath('/dashboard/templates');
+    invalidateCache(CACHE_TAGS.templates);
 
     return { success: true };
   } catch (error) {
@@ -424,7 +424,7 @@ export async function toggleTemplateActive(
       })
       .where(eq(templates.id, templateId));
 
-    revalidatePath('/dashboard/templates');
+    invalidateCache(CACHE_TAGS.templates);
 
     return { success: true, isActive: newIsActive };
   } catch (error) {

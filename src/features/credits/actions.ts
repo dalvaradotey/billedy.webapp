@@ -3,7 +3,7 @@
 import { db } from '@/lib/db';
 import { credits, transactions, projects, projectMembers } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
-import { revalidatePath } from 'next/cache';
+import { invalidateRelatedCache } from '@/lib/cache';
 import { createCreditSchema, updateCreditSchema } from './schemas';
 import type { CreateCreditInput, UpdateCreditInput } from './schemas';
 
@@ -154,8 +154,7 @@ export async function createCredit(
     })
     .returning({ id: credits.id });
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/credits');
+  invalidateRelatedCache('credits');
 
   return { success: true, data: { id: newCredit.id } };
 }
@@ -200,8 +199,7 @@ export async function updateCredit(
     })
     .where(eq(credits.id, creditId));
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/credits');
+  invalidateRelatedCache('credits');
 
   return { success: true, data: undefined };
 }
@@ -240,8 +238,7 @@ export async function archiveCredit(
     })
     .where(eq(credits.id, creditId));
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/credits');
+  invalidateRelatedCache('credits');
 
   return { success: true, data: undefined };
 }
@@ -277,9 +274,8 @@ export async function deleteCredit(
   // Luego eliminar el crédito
   await db.delete(credits).where(eq(credits.id, creditId));
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/credits');
-  revalidatePath('/dashboard/transactions');
+  invalidateRelatedCache('credits');
+  invalidateRelatedCache('transactions');
 
   return { success: true, data: undefined };
 }
@@ -372,9 +368,8 @@ export async function generateCreditInstallment(
     })
     .returning({ id: transactions.id });
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/credits');
-  revalidatePath('/dashboard/transactions');
+  invalidateRelatedCache('credits');
+  invalidateRelatedCache('transactions');
 
   return { success: true, data: { transactionId: newTransaction.id } };
 }
@@ -470,9 +465,8 @@ export async function generateAllCreditInstallments(
     await db.insert(transactions).values(installmentsToCreate);
   }
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/credits');
-  revalidatePath('/dashboard/transactions');
+  invalidateRelatedCache('credits');
+  invalidateRelatedCache('transactions');
 
   return { success: true, data: { count: installmentsToCreate.length } };
 }

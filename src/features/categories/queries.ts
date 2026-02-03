@@ -1,13 +1,13 @@
 import { db } from '@/lib/db';
 import { categories, projectMembers } from '@/lib/db/schema';
 import { eq, and, asc, isNotNull } from 'drizzle-orm';
+import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { Category } from './types';
 
 /**
- * Obtiene todas las categorías del proyecto
+ * Verifica acceso al proyecto (helper interno)
  */
-export async function getCategories(projectId: string, userId: string): Promise<Category[]> {
-  // Verificar acceso al proyecto
+async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
   const hasAccess = await db
     .select({ id: projectMembers.id })
     .from(projectMembers)
@@ -20,9 +20,15 @@ export async function getCategories(projectId: string, userId: string): Promise<
     )
     .limit(1);
 
-  if (hasAccess.length === 0) {
-    return [];
-  }
+  return hasAccess.length > 0;
+}
+
+/**
+ * Query interna para obtener categorías
+ */
+async function _getCategories(projectId: string, userId: string): Promise<Category[]> {
+  const hasAccess = await verifyProjectAccess(projectId, userId);
+  if (!hasAccess) return [];
 
   return db
     .select()
@@ -32,24 +38,21 @@ export async function getCategories(projectId: string, userId: string): Promise<
 }
 
 /**
- * Obtiene categorías activas (no archivadas) del proyecto
+ * Obtiene todas las categorías del proyecto
+ * Cacheada por 60 segundos
  */
-export async function getActiveCategories(projectId: string, userId: string): Promise<Category[]> {
-  const hasAccess = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+export const getCategories = cachedQuery(
+  _getCategories,
+  ['categories', 'list'],
+  { tags: [CACHE_TAGS.categories] }
+);
 
-  if (hasAccess.length === 0) {
-    return [];
-  }
+/**
+ * Query interna para obtener categorías activas
+ */
+async function _getActiveCategories(projectId: string, userId: string): Promise<Category[]> {
+  const hasAccess = await verifyProjectAccess(projectId, userId);
+  if (!hasAccess) return [];
 
   return db
     .select()
@@ -59,7 +62,18 @@ export async function getActiveCategories(projectId: string, userId: string): Pr
 }
 
 /**
+ * Obtiene categorías activas (no archivadas) del proyecto
+ * Cacheada por 60 segundos
+ */
+export const getActiveCategories = cachedQuery(
+  _getActiveCategories,
+  ['categories', 'active'],
+  { tags: [CACHE_TAGS.categories] }
+);
+
+/**
  * Obtiene una categoría por ID
+ * No cacheada porque es una consulta puntual
  */
 export async function getCategoryById(
   categoryId: string,
