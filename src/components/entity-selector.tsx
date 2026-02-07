@@ -30,6 +30,7 @@ interface EntitySelectorProps {
   entities: EntityOption[];
   value: string | null | undefined;
   onValueChange: (value: string | null) => void;
+  label?: string;
   placeholder?: string;
   searchPlaceholder?: string;
   allowNone?: boolean;
@@ -42,6 +43,7 @@ export function EntitySelector({
   entities,
   value,
   onValueChange,
+  label,
   placeholder = 'Selecciona una entidad',
   searchPlaceholder = 'Buscar entidad...',
   allowNone = true,
@@ -90,20 +92,48 @@ export function EntitySelector({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full h-11 justify-between font-normal"
+          className={cn(
+            'w-full justify-between font-normal',
+            label ? 'h-14 py-1' : 'h-12'
+          )}
           disabled={disabled}
         >
-          {selectedEntity ? (
-            <div className="flex items-center gap-2 truncate">
-              <EntityImage
-                imageUrl={selectedEntity.imageUrl}
-                name={selectedEntity.name}
-                size="sm"
-              />
-              <span className="truncate">{selectedEntity.name}</span>
+          {label ? (
+            // Floating label layout
+            <div className="flex flex-col items-start gap-0.5 min-w-0">
+              <span
+                className={cn(
+                  'text-muted-foreground transition-all',
+                  selectedEntity ? 'text-xs' : 'text-base'
+                )}
+              >
+                {label}
+              </span>
+              {selectedEntity && (
+                <div className="flex items-center gap-2 truncate">
+                  <EntityImage
+                    imageUrl={selectedEntity.imageUrl}
+                    name={selectedEntity.name}
+                    size="sm"
+                  />
+                  <span className="truncate text-sm">{selectedEntity.name}</span>
+                </div>
+              )}
             </div>
           ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
+            // Original layout without label
+            selectedEntity ? (
+              <div className="flex items-center gap-2 truncate">
+                <EntityImage
+                  imageUrl={selectedEntity.imageUrl}
+                  name={selectedEntity.name}
+                  size="sm"
+                />
+                <span className="truncate">{selectedEntity.name}</span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground">{placeholder}</span>
+            )
           )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -122,7 +152,7 @@ export function EntitySelector({
                 <CommandItem
                   value="__none__"
                   onSelect={() => handleSelect('__none__')}
-                  className="py-3"
+                  className="py-4"
                 >
                   <Check
                     className={cn(
@@ -145,7 +175,7 @@ export function EntitySelector({
                     key={entity.id}
                     value={`${entity.name} ${entityTypeLabels[entity.type as EntityType]}`}
                     onSelect={() => handleSelect(entity.id)}
-                    className="py-3"
+                    className="py-4"
                   >
                     <Check
                       className={cn(

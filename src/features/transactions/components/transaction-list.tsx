@@ -44,6 +44,8 @@ interface Budget {
   id: string;
   name: string;
   categoryId: string | null;
+  categoryName?: string | null;
+  categoryColor?: string | null;
 }
 
 interface BillingCycleOption {

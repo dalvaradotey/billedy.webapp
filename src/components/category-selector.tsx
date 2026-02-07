@@ -120,12 +120,12 @@ export function CategorySelector({
         onValueChange={handleValueChange}
         disabled={disabled}
       >
-        <SelectTrigger className="h-11">
+        <SelectTrigger className="h-12">
           <SelectValue placeholder={placeholder}>
             {selectedCategory ? (
               <div className="flex items-center gap-2">
                 <div
-                  className="h-3 w-3 rounded-full shrink-0"
+                  className="h-3 w-3 rounded shrink-0"
                   style={{ backgroundColor: selectedCategory.color }}
                 />
                 <span className="truncate">{selectedCategory.name}</span>
@@ -139,20 +139,20 @@ export function CategorySelector({
         </SelectTrigger>
         <SelectContent>
           {allowNone && (
-            <SelectItem value="__none__" className="py-3">{noneLabel}</SelectItem>
+            <SelectItem value="__none__" className="py-4">{noneLabel}</SelectItem>
           )}
           {categories.map((cat) => (
-            <SelectItem key={cat.id} value={cat.id} className="py-3">
+            <SelectItem key={cat.id} value={cat.id} className="py-4">
               <div className="flex items-center gap-2">
                 <div
-                  className="h-3 w-3 rounded-full shrink-0"
+                  className="h-3 w-3 rounded shrink-0"
                   style={{ backgroundColor: cat.color }}
                 />
                 <span>{cat.name}</span>
               </div>
             </SelectItem>
           ))}
-          <SelectItem value="__create__" className="text-primary py-3">
+          <SelectItem value="__create__" className="text-primary py-4">
             <div className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               <span>Crear nueva categoría</span>

@@ -25,12 +25,59 @@ export interface SearchableSelectOption {
   group?: string;
   icon?: ReactNode;
   image?: string | null;
+  color?: string | null; // Color circle indicator
+}
+
+// Render the visual indicator for an option (image > color > icon)
+function OptionIndicator({
+  image,
+  color,
+  icon,
+  label,
+  size = 'md',
+  className,
+}: {
+  image?: string | null;
+  color?: string | null;
+  icon?: ReactNode;
+  label: string;
+  size?: 'sm' | 'md';
+  className?: string;
+}) {
+  const sizeClasses = size === 'sm' ? 'h-5 w-5' : 'h-6 w-6';
+  const colorSizeClasses = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';
+
+  if (image) {
+    return (
+      <img
+        src={image}
+        alt={label}
+        className={cn(sizeClasses, 'rounded object-contain bg-white shrink-0', className)}
+      />
+    );
+  }
+
+  if (color) {
+    return (
+      <span
+        className={cn(colorSizeClasses, 'rounded shrink-0', className)}
+        style={{ backgroundColor: color }}
+      />
+    );
+  }
+
+  if (icon) {
+    return <span className={cn('shrink-0', className)}>{icon}</span>;
+  }
+
+  return null;
 }
 
 interface SearchableSelectProps {
   options: SearchableSelectOption[];
   value: string | null | undefined;
   onValueChange: (value: string | null) => void;
+  label?: string;
   placeholder?: string;
   searchPlaceholder?: string;
   emptyMessage?: string;
@@ -46,6 +93,7 @@ export function SearchableSelect({
   options,
   value,
   onValueChange,
+  label,
   placeholder = 'Seleccionar...',
   searchPlaceholder = 'Buscar...',
   emptyMessage = 'No se encontraron resultados.',
@@ -87,28 +135,60 @@ export function SearchableSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full h-11 justify-between font-normal"
+          className={cn(
+            'w-full justify-between font-normal',
+            label ? 'h-14 py-1' : 'h-12'
+          )}
           disabled={disabled}
         >
-          {selectedOption ? (
-            renderSelected ? (
-              renderSelected(selectedOption)
-            ) : (
-              <div className="flex items-center gap-2 truncate">
-                {selectedOption.image ? (
-                  <img
-                    src={selectedOption.image}
-                    alt={selectedOption.label}
-                    className="h-6 w-6 rounded object-contain bg-white shrink-0"
-                  />
-                ) : selectedOption.icon ? (
-                  <span className="shrink-0">{selectedOption.icon}</span>
-                ) : null}
-                <span className="truncate">{selectedOption.label}</span>
-              </div>
-            )
+          {label ? (
+            // Floating label layout
+            <div className="flex flex-col items-start gap-0.5 min-w-0">
+              <span
+                className={cn(
+                  'text-muted-foreground transition-all',
+                  selectedOption ? 'text-xs' : 'text-base'
+                )}
+              >
+                {label}
+              </span>
+              {selectedOption && (
+                renderSelected ? (
+                  renderSelected(selectedOption)
+                ) : (
+                  <div className="flex items-center gap-2 truncate">
+                    <OptionIndicator
+                      image={selectedOption.image}
+                      color={selectedOption.color}
+                      icon={selectedOption.icon}
+                      label={selectedOption.label}
+                      size="sm"
+                    />
+                    <span className="truncate text-sm">{selectedOption.label}</span>
+                  </div>
+                )
+              )}
+            </div>
           ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
+            // Original layout without label
+            selectedOption ? (
+              renderSelected ? (
+                renderSelected(selectedOption)
+              ) : (
+                <div className="flex items-center gap-2 truncate">
+                  <OptionIndicator
+                    image={selectedOption.image}
+                    color={selectedOption.color}
+                    icon={selectedOption.icon}
+                    label={selectedOption.label}
+                    size="md"
+                  />
+                  <span className="truncate">{selectedOption.label}</span>
+                </div>
+              )
+            ) : (
+              <span className="text-muted-foreground">{placeholder}</span>
+            )
           )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -127,7 +207,7 @@ export function SearchableSelect({
                 <CommandItem
                   value="__none__"
                   onSelect={() => handleSelect('__none__')}
-                  className="py-3"
+                  className="py-4"
                 >
                   <Check
                     className={cn(
@@ -150,7 +230,7 @@ export function SearchableSelect({
                     key={option.id}
                     value={option.searchValue || option.label}
                     onSelect={() => handleSelect(option.id)}
-                    className="py-3"
+                    className="py-4"
                   >
                     <Check
                       className={cn(
@@ -158,15 +238,14 @@ export function SearchableSelect({
                         value === option.id ? 'opacity-100' : 'opacity-0'
                       )}
                     />
-                    {option.image ? (
-                      <img
-                        src={option.image}
-                        alt={option.label}
-                        className="mr-2 h-6 w-6 rounded object-contain bg-white shrink-0"
-                      />
-                    ) : option.icon ? (
-                      <span className="mr-2 shrink-0">{option.icon}</span>
-                    ) : null}
+                    <OptionIndicator
+                      image={option.image}
+                      color={option.color}
+                      icon={option.icon}
+                      label={option.label}
+                      size="md"
+                      className="mr-2"
+                    />
                     <span className="truncate">{option.label}</span>
                   </CommandItem>
                 ))}

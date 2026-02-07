@@ -23,6 +23,7 @@ interface BudgetSelectorProps {
   budgets: BudgetWithCategoryInfo[];
   value: string | null | undefined;
   onValueChange: (value: string | null) => void;
+  label?: string;
   placeholder?: string;
   searchPlaceholder?: string;
   allowNone?: boolean;
@@ -30,22 +31,11 @@ interface BudgetSelectorProps {
   disabled?: boolean;
 }
 
-function ColorDot({ color }: { color: string | null | undefined }) {
-  if (!color) {
-    return <PieChart className="h-4 w-4 text-muted-foreground" />;
-  }
-  return (
-    <span
-      className="h-3 w-3 rounded-full shrink-0"
-      style={{ backgroundColor: color }}
-    />
-  );
-}
-
 export function BudgetSelector({
   budgets,
   value,
   onValueChange,
+  label,
   placeholder = 'Selecciona un presupuesto',
   searchPlaceholder = 'Buscar presupuesto...',
   allowNone = true,
@@ -58,8 +48,11 @@ export function BudgetSelector({
       id: budget.id,
       label: budget.name,
       searchValue: `${budget.name} ${budget.categoryName ?? ''}`.trim(),
-      // Use color dot as icon if category has color
-      icon: <ColorDot color={budget.categoryColor} />,
+      // Use color if available, otherwise fallback to icon
+      color: budget.categoryColor,
+      icon: !budget.categoryColor ? (
+        <PieChart className="h-4 w-4 text-muted-foreground" />
+      ) : undefined,
     }));
   }, [budgets]);
 
@@ -68,6 +61,7 @@ export function BudgetSelector({
       options={options}
       value={value}
       onValueChange={onValueChange}
+      label={label}
       placeholder={placeholder}
       searchPlaceholder={searchPlaceholder}
       emptyMessage="No se encontraron presupuestos."

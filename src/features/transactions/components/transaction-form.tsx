@@ -62,6 +62,8 @@ interface Budget {
   id: string;
   name: string;
   categoryId: string | null;
+  categoryName?: string | null;
+  categoryColor?: string | null;
 }
 
 type FormMode = 'expense' | 'income' | 'transfer';
@@ -547,13 +549,12 @@ export function TransactionDialogContent({
               name="accountId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cuenta</FormLabel>
                   <FormControl>
                     <AccountSelector
                       accounts={activeAccounts}
                       value={field.value}
                       onValueChange={(value) => field.onChange(value ?? '')}
-                      placeholder="Selecciona una cuenta"
+                      label="Cuenta"
                       searchPlaceholder="Buscar cuenta..."
                     />
                   </FormControl>
@@ -570,7 +571,6 @@ export function TransactionDialogContent({
                   name="entityId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tienda</FormLabel>
                       <FormControl>
                         <EntitySelector
                           entities={entities}
@@ -584,7 +584,7 @@ export function TransactionDialogContent({
                               form.setValue('description', autoDescription);
                             }
                           }}
-                          placeholder="Selecciona una tienda"
+                          label="Tienda"
                           searchPlaceholder="Buscar tienda..."
                         />
                       </FormControl>
@@ -641,7 +641,6 @@ export function TransactionDialogContent({
                   name="budgetId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Presupuesto (opcional)</FormLabel>
                       <FormControl>
                         <BudgetSelector
                           budgets={budgets}
@@ -656,7 +655,7 @@ export function TransactionDialogContent({
                               }
                             }
                           }}
-                          placeholder="Sin presupuesto"
+                          label="Presupuesto (opcional)"
                           searchPlaceholder="Buscar presupuesto..."
                         />
                       </FormControl>

@@ -16,6 +16,7 @@ interface AccountSelectorProps {
   accounts: AccountWithEntity[];
   value: string | null | undefined;
   onValueChange: (value: string | null) => void;
+  label?: string;
   placeholder?: string;
   searchPlaceholder?: string;
   allowNone?: boolean;
@@ -44,6 +45,7 @@ export function AccountSelector({
   accounts,
   value,
   onValueChange,
+  label,
   placeholder = 'Selecciona una cuenta',
   searchPlaceholder = 'Buscar cuenta...',
   allowNone = false,
@@ -79,6 +81,7 @@ export function AccountSelector({
       options={options}
       value={value}
       onValueChange={onValueChange}
+      label={label}
       placeholder={placeholder}
       searchPlaceholder={searchPlaceholder}
       emptyMessage="No se encontraron cuentas."

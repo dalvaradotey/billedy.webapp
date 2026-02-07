@@ -66,12 +66,18 @@ export const getBudgetsWithCategory = cachedQuery(
 );
 
 /**
- * Query interna para obtener presupuestos activos
+ * Query interna para obtener presupuestos activos con info de categoría
  */
 async function _getActiveBudgets(
   projectId: string,
   userId: string
-): Promise<{ id: string; name: string; categoryId: string | null }[]> {
+): Promise<{
+  id: string;
+  name: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryColor: string | null;
+}[]> {
   const hasAccess = await verifyProjectAccess(projectId, userId);
   if (!hasAccess) return [];
 
@@ -80,8 +86,11 @@ async function _getActiveBudgets(
       id: budgets.id,
       name: budgets.name,
       categoryId: budgets.categoryId,
+      categoryName: categories.name,
+      categoryColor: categories.color,
     })
     .from(budgets)
+    .leftJoin(categories, eq(budgets.categoryId, categories.id))
     .where(
       and(
         eq(budgets.projectId, projectId),
@@ -94,13 +103,13 @@ async function _getActiveBudgets(
 }
 
 /**
- * Obtiene presupuestos activos del proyecto para selectores
+ * Obtiene presupuestos activos del proyecto para selectores (con info de categoría)
  * Cacheada por 60 segundos
  */
 export const getActiveBudgets = cachedQuery(
   _getActiveBudgets,
   ['budgets', 'active'],
-  { tags: [CACHE_TAGS.budgets] }
+  { tags: [CACHE_TAGS.budgets, CACHE_TAGS.categories] }
 );
 
 /**
