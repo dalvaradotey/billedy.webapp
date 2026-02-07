@@ -318,7 +318,7 @@ export function TransactionDialogContent({
 
   return (
     <DrawerContent>
-      <div className="mx-auto w-full max-w-lg flex flex-col max-h-[85vh]">
+      <div className="mx-auto w-full max-w-lg flex flex-col h-full">
         <DrawerHeader>
           <DrawerTitle>
             {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
