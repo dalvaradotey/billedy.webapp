@@ -90,7 +90,7 @@ export function EntitySelector({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between font-normal"
+          className="w-full h-11 justify-between font-normal"
           disabled={disabled}
         >
           {selectedEntity ? (
@@ -109,10 +109,9 @@ export function EntitySelector({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[300px] p-0"
+        className="w-[calc(100vw-2rem)] sm:w-[300px] p-0"
         align="start"
         sideOffset={4}
-        onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
@@ -120,14 +119,18 @@ export function EntitySelector({
             <CommandEmpty>No se encontraron entidades.</CommandEmpty>
             {allowNone && (
               <CommandGroup>
-                <CommandItem value="__none__" onSelect={() => handleSelect('__none__')}>
+                <CommandItem
+                  value="__none__"
+                  onSelect={() => handleSelect('__none__')}
+                  className="py-3"
+                >
                   <Check
                     className={cn(
                       'mr-2 h-4 w-4',
                       !value ? 'opacity-100' : 'opacity-0'
                     )}
                   />
-                  <Store className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <Store className="mr-2 h-5 w-5 text-muted-foreground" />
                   <span>{noneLabel}</span>
                 </CommandItem>
               </CommandGroup>
@@ -142,6 +145,7 @@ export function EntitySelector({
                     key={entity.id}
                     value={`${entity.name} ${entityTypeLabels[entity.type as EntityType]}`}
                     onSelect={() => handleSelect(entity.id)}
+                    className="py-3"
                   >
                     <Check
                       className={cn(
@@ -176,7 +180,7 @@ interface EntityImageProps {
 
 function EntityImage({ imageUrl, name, size = 'md', className }: EntityImageProps) {
   const sizeClasses = {
-    sm: 'h-5 w-5',
+    sm: 'h-6 w-6',
     md: 'h-8 w-8',
     lg: 'h-12 w-12',
   };

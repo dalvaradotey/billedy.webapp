@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { TransactionWithCategory, TransactionSummary } from '../types';
-import type { Account } from '@/features/accounts/types';
+import type { AccountWithEntity } from '@/features/accounts/types';
 import type { Category } from '@/features/categories/types';
 import type { Entity } from '@/features/entities/types';
 import { TransactionDialogContent } from './transaction-form';
@@ -57,7 +57,7 @@ interface BillingCycleOption {
 export interface TransactionListProps {
   transactions: TransactionWithCategory[];
   categories: Category[];
-  accounts: Account[];
+  accounts: AccountWithEntity[];
   budgets: Budget[];
   entities: Entity[];
   summary: TransactionSummary;

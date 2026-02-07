@@ -36,6 +36,8 @@ import {
 import { CategorySelector } from '@/components/category-selector';
 import { CurrencyInput } from '@/components/currency-input';
 import { EntitySelector } from '@/components/entity-selector';
+import { AccountSelector } from '@/components/account-selector';
+import { BudgetSelector } from '@/components/budget-selector';
 import {
   createTransaction,
   updateTransaction,
@@ -48,8 +50,7 @@ import {
 } from '../schemas';
 import type { TransactionWithCategory } from '../types';
 import type { Category } from '@/features/categories/types';
-import type { Account } from '@/features/accounts/types';
-import { type AccountType } from '@/features/accounts/types';
+import type { AccountWithEntity, AccountType } from '@/features/accounts/types';
 import type { Entity } from '@/features/entities/types';
 import { AccountTypeIcon } from '@/features/accounts/components/account-type-icon';
 
@@ -69,7 +70,7 @@ export interface TransactionDialogContentProps {
   projectId: string;
   userId: string;
   categories: Category[];
-  accounts: Account[];
+  accounts: AccountWithEntity[];
   budgets: Budget[];
   entities: Entity[];
   transaction: TransactionWithCategory | null;
@@ -130,7 +131,7 @@ export function TransactionDialogContent({
 
   // Mapa de cuentas para verificar tipo
   const accountsMap = useMemo(() => {
-    const map = new Map<string, Account>();
+    const map = new Map<string, AccountWithEntity>();
     accounts.forEach((acc) => map.set(acc.id, acc));
     return map;
   }, [accounts]);
@@ -547,23 +548,15 @@ export function TransactionDialogContent({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cuenta</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una cuenta" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {activeAccounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          <div className="flex items-center gap-2">
-                            <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
-                            {account.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <AccountSelector
+                      accounts={activeAccounts}
+                      value={field.value}
+                      onValueChange={(value) => field.onChange(value ?? '')}
+                      placeholder="Selecciona una cuenta"
+                      searchPlaceholder="Buscar cuenta..."
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -649,34 +642,24 @@ export function TransactionDialogContent({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Presupuesto (opcional)</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          const budgetId = value === '_none_' ? null : value;
-                          field.onChange(budgetId);
-                          // Auto-select category if budget has one
-                          if (budgetId) {
-                            const selectedBudget = budgets.find((b) => b.id === budgetId);
-                            if (selectedBudget?.categoryId) {
-                              form.setValue('categoryId', selectedBudget.categoryId);
+                      <FormControl>
+                        <BudgetSelector
+                          budgets={budgets}
+                          value={field.value}
+                          onValueChange={(budgetId) => {
+                            field.onChange(budgetId);
+                            // Auto-select category if budget has one
+                            if (budgetId) {
+                              const selectedBudget = budgets.find((b) => b.id === budgetId);
+                              if (selectedBudget?.categoryId) {
+                                form.setValue('categoryId', selectedBudget.categoryId);
+                              }
                             }
-                          }
-                        }}
-                        value={field.value ?? '_none_'}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Sin presupuesto" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="_none_">Sin presupuesto</SelectItem>
-                          {budgets.map((budget) => (
-                            <SelectItem key={budget.id} value={budget.id}>
-                              {budget.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          }}
+                          placeholder="Sin presupuesto"
+                          searchPlaceholder="Buscar presupuesto..."
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
