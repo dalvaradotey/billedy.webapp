@@ -13,7 +13,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog } from '@/components/ui/dialog';
+import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { Progress } from '@/components/ui/progress';
 import {
   DropdownMenu,
@@ -179,7 +179,7 @@ export function SavingsFundCard({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-green-600">
+          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
             {formatCurrency(currentBalance, fund.currencyCode)}
           </span>
 
@@ -204,14 +204,14 @@ export function SavingsFundCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => openMovementDialog('deposit')}>
-                <TrendingUp className="mr-2 h-4 w-4 text-green-600" />
+                <TrendingUp className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 Depositar
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => openMovementDialog('withdrawal')}
                 disabled={currentBalance <= 0}
               >
-                <TrendingDown className="mr-2 h-4 w-4 text-red-600" />
+                <TrendingDown className="mr-2 h-4 w-4 text-red-600 dark:text-red-400" />
                 Retirar
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -265,7 +265,7 @@ export function SavingsFundCard({
             </AlertDialogContent>
           </AlertDialog>
 
-          <Dialog open={showMovementDialog} onOpenChange={setShowMovementDialog}>
+          <ResponsiveDrawer open={showMovementDialog} onOpenChange={setShowMovementDialog}>
             <MovementDialogContent
               fundId={fund.id}
               fundName={fund.name}
@@ -278,7 +278,7 @@ export function SavingsFundCard({
               onMutationSuccess={onMutationSuccess}
               onMutationError={onMutationError}
             />
-          </Dialog>
+          </ResponsiveDrawer>
         </div>
       </div>
 

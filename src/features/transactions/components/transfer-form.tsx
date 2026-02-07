@@ -5,12 +5,12 @@ import { toast } from 'sonner';
 import { ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -118,15 +118,16 @@ export function TransferForm({
   };
 
   return (
-    <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
-      <DialogHeader>
-        <DialogTitle>Nueva transferencia</DialogTitle>
-        <DialogDescription>
-          Mueve dinero entre tus cuentas.
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>Nueva transferencia</DrawerTitle>
+          <DrawerDescription>
+            Mueve dinero entre tus cuentas.
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+        <div className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
         {/* Amount and Date */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -208,14 +209,15 @@ export function TransferForm({
           />
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <DialogFooter>
-          <Button type="button" onClick={handleSubmit} disabled={isPending} className="w-full sm:w-auto">
-            {isPending ? 'Creando...' : 'Crear transferencia'}
-          </Button>
-        </DialogFooter>
+          <DrawerFooter className="pt-4">
+            <Button type="button" onClick={handleSubmit} disabled={isPending} className="w-full">
+              {isPending ? 'Creando...' : 'Crear transferencia'}
+            </Button>
+          </DrawerFooter>
+        </div>
       </div>
-    </DialogContent>
+    </DrawerContent>
   );
 }

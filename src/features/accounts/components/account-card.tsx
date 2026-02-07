@@ -148,11 +148,11 @@ export function AccountCard({
             className={`text-lg font-semibold ${
               isCredit
                 ? balance > 0
-                  ? 'text-red-600'
+                  ? 'text-red-600 dark:text-red-400'
                   : 'text-muted-foreground'
                 : balance >= 0
-                  ? 'text-green-600'
-                  : 'text-red-600'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-red-600 dark:text-red-400'
             }`}
           >
             {isCredit && balance > 0 && '-'}

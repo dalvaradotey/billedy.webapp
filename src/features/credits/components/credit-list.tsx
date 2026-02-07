@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Plus, CreditCard as CreditCardIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
@@ -79,12 +79,12 @@ export function CreditList({
         <SummaryCard
           title="Deuda total"
           value={formatCurrency(summary.totalDebt)}
-          className="text-red-600"
+          className="text-red-600 dark:text-red-400"
         />
         <SummaryCard
           title="Total pagado"
           value={formatCurrency(summary.totalPaid)}
-          className="text-green-600"
+          className="text-emerald-600 dark:text-emerald-400"
         />
         <SummaryCard
           title="Cuota mensual"
@@ -100,13 +100,13 @@ export function CreditList({
           {showArchived ? 'Mostrando archivados' : `${credits.length} créditos`}
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DrawerTrigger asChild>
             <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
               <Plus className="h-4 w-4" />
               Nuevo crédito
             </Button>
-          </DialogTrigger>
+          </DrawerTrigger>
           <CreditDialogContent
             projectId={projectId}
             userId={userId}
@@ -119,7 +119,7 @@ export function CreditList({
             onMutationSuccess={onMutationSuccess}
             onMutationError={onMutationError}
           />
-        </Dialog>
+        </ResponsiveDrawer>
       </div>
 
       {/* Credit List */}

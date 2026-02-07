@@ -91,7 +91,7 @@ export async function createTransaction(
     .values({
       userId,
       projectId: parsed.data.projectId,
-      categoryId: parsed.data.categoryId,
+      categoryId: parsed.data.categoryId || null,
       accountId: parsed.data.accountId,
       entityId: parsed.data.entityId ?? null,
       budgetId: parsed.data.budgetId ?? null,
@@ -164,6 +164,11 @@ export async function updateTransaction(
     ...parsed.data,
     updatedAt: new Date(),
   };
+
+  // Convertir categoryId vacío a null
+  if ('categoryId' in updateData) {
+    updateData.categoryId = updateData.categoryId || null;
+  }
 
   // Si se actualiza el monto, convertir a string
   if (parsed.data.originalAmount !== undefined) {

@@ -9,12 +9,12 @@ import { Building2, PiggyBank, Wallet, CreditCard, AlertTriangle } from 'lucide-
 
 import { Button } from '@/components/ui/button';
 import {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/currency-input';
 import {
@@ -154,18 +154,19 @@ export function AccountDialogContent({
   const watchType = form.watch('type');
 
   return (
-    <DialogContent className="sm:max-w-[500px]">
-      <DialogHeader>
-        <DialogTitle>{isEditing ? 'Editar cuenta' : 'Nueva cuenta'}</DialogTitle>
-        <DialogDescription>
-          {isEditing
-            ? 'Modifica los detalles de la cuenta.'
-            : 'Agrega una cuenta bancaria, efectivo o tarjeta de crédito.'}
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>{isEditing ? 'Editar cuenta' : 'Nueva cuenta'}</DrawerTitle>
+          <DrawerDescription>
+            {isEditing
+              ? 'Modifica los detalles de la cuenta.'
+              : 'Agrega una cuenta bancaria, efectivo o tarjeta de crédito.'}
+          </DrawerDescription>
+        </DrawerHeader>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           {/* Type */}
           <FormField
             control={form.control}
@@ -453,13 +454,14 @@ export function AccountDialogContent({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
+          <DrawerFooter className="pt-4">
+            <Button type="submit" disabled={isPending} className="w-full">
               {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear cuenta'}
             </Button>
-          </DialogFooter>
+          </DrawerFooter>
         </form>
       </Form>
-    </DialogContent>
+      </div>
+    </DrawerContent>
   );
 }

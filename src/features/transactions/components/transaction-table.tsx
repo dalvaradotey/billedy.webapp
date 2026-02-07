@@ -323,7 +323,7 @@ export function TransactionTable({
                 {isCC ? (
                   // Para transacciones de TC: mostrar badge de estado
                   transaction.paidByTransferId ? (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                       Liq.
                     </span>
                   ) : transaction.isHistoricallyPaid ? (
@@ -334,7 +334,7 @@ export function TransactionTable({
                 ) : (
                   // Para transacciones normales: mostrar estado pagado
                   transaction.isPaid && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                       Pagado
                     </span>
                   )
@@ -387,7 +387,7 @@ export function TransactionTable({
               <TableCell className="text-right">
                 <span
                   className={`font-medium ${
-                    transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                    transaction.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
                   }`}
                 >
                   {transaction.type === 'income' ? '+' : '-'}

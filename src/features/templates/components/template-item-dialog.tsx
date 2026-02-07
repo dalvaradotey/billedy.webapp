@@ -8,12 +8,12 @@ import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CurrencyInput } from '@/components/currency-input';
@@ -161,18 +161,19 @@ export function TemplateItemDialogContent({
   };
 
   return (
-    <DialogContent className="sm:max-w-[500px]">
-      <DialogHeader>
-        <DialogTitle>{isEditing ? 'Editar item' : 'Nuevo item'}</DialogTitle>
-        <DialogDescription>
-          {isEditing
-            ? 'Modifica los detalles del item.'
-            : 'Agrega un nuevo item a la plantilla.'}
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>{isEditing ? 'Editar item' : 'Nuevo item'}</DrawerTitle>
+          <DrawerDescription>
+            {isEditing
+              ? 'Modifica los detalles del item.'
+              : 'Agrega un nuevo item a la plantilla.'}
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           {/* Type */}
           {!isEditing && (
             <FormField
@@ -328,13 +329,14 @@ export function TemplateItemDialogContent({
             )}
           />
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Agregar item'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Form>
-    </DialogContent>
+            <DrawerFooter className="pt-4">
+              <Button type="submit" disabled={isPending} className="w-full">
+                {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Agregar item'}
+              </Button>
+            </DrawerFooter>
+          </form>
+        </Form>
+      </div>
+    </DrawerContent>
   );
 }

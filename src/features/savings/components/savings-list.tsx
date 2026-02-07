@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Plus, PiggyBank } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
@@ -110,7 +110,7 @@ export function SavingsList({
               ? `${summary.overallProgress}% de ${formatCurrency(summary.totalTargetAmount)}`
               : undefined
           }
-          className="text-green-600"
+          className="text-emerald-600 dark:text-emerald-400"
         />
         <SummaryCard
           title="Meta mensual"
@@ -135,13 +135,13 @@ export function SavingsList({
           {showArchived ? 'Mostrando archivados' : `${funds.length} fondos de ahorro`}
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DrawerTrigger asChild>
             <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
               <Plus className="h-4 w-4" />
               Nuevo fondo
             </Button>
-          </DialogTrigger>
+          </DrawerTrigger>
           <SavingsFundDialogContent
             projectId={projectId}
             userId={userId}
@@ -153,7 +153,7 @@ export function SavingsList({
             onMutationSuccess={onMutationSuccess}
             onMutationError={onMutationError}
           />
-        </Dialog>
+        </ResponsiveDrawer>
       </div>
 
       {/* Funds List */}

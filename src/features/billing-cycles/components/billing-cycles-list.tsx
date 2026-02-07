@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Plus, Calendar } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
@@ -76,19 +76,19 @@ export function BillingCyclesList({
             <SummaryCard
               title="Ingresos del ciclo"
               value={formatCurrency(summary.currentCycle.currentIncome)}
-              className="text-green-600"
+              className="text-emerald-600 dark:text-emerald-400"
             />
             <SummaryCard
               title="Gastos del ciclo"
               value={formatCurrency(summary.currentCycle.currentExpenses)}
-              className="text-red-600"
+              className="text-red-600 dark:text-red-400"
             />
             <SummaryCard
               title="Balance"
               value={formatCurrency(summary.currentCycle.currentBalance)}
               subtitle={`${summary.currentCycle.daysRemaining} días restantes`}
               className={
-                summary.currentCycle.currentBalance >= 0 ? 'text-green-600' : 'text-red-600'
+                summary.currentCycle.currentBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
               }
             />
           </>
@@ -104,8 +104,8 @@ export function BillingCyclesList({
       <div className="flex justify-between items-center">
         <div className="text-sm text-muted-foreground">{cycles.length} ciclos</div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DrawerTrigger asChild>
             <Button
               size="sm"
               className="gap-2"
@@ -115,7 +115,7 @@ export function BillingCyclesList({
               <Plus className="h-4 w-4" />
               Nuevo ciclo
             </Button>
-          </DialogTrigger>
+          </DrawerTrigger>
           <BillingCycleDialogContent
             projectId={projectId}
             userId={userId}
@@ -126,7 +126,7 @@ export function BillingCyclesList({
             onMutationSuccess={onMutationSuccess}
             onMutationError={onMutationError}
           />
-        </Dialog>
+        </ResponsiveDrawer>
       </div>
 
       {/* Cycles List */}

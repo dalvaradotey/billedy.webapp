@@ -9,14 +9,14 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
 import { toastActions } from '@/lib/toast-messages';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  ResponsiveDrawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -112,20 +112,20 @@ export function CategoryList({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Categorías</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DrawerTrigger asChild>
             <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
               <Plus className="h-4 w-4" />
               Nueva categoría
             </Button>
-          </DialogTrigger>
+          </DrawerTrigger>
           <CategoryDialogContent
             projectId={projectId}
             userId={userId}
             category={editingCategory}
             onSuccess={handleDialogClose}
           />
-        </Dialog>
+        </ResponsiveDrawer>
       </div>
 
       {displayCategories.length === 0 ? (
@@ -321,18 +321,19 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
   const isEditing = !!category;
 
   return (
-    <DialogContent className="sm:max-w-[425px]">
-      <DialogHeader>
-        <DialogTitle>{isEditing ? 'Editar categoría' : 'Nueva categoría'}</DialogTitle>
-        <DialogDescription>
-          {isEditing
-            ? 'Modifica los datos de la categoría.'
-            : 'Crea una nueva categoría para organizar tus transacciones.'}
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>{isEditing ? 'Editar categoría' : 'Nueva categoría'}</DrawerTitle>
+          <DrawerDescription>
+            {isEditing
+              ? 'Modifica los datos de la categoría.'
+              : 'Crea una nueva categoría para organizar tus transacciones.'}
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           <FormField
             control={form.control}
             name="name"
@@ -383,16 +384,17 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
             )}
           />
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
-              {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear categoría'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Form>
-    </DialogContent>
+            <DrawerFooter className="pt-4">
+              <Button type="submit" disabled={isPending} className="w-full">
+                {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear categoría'}
+              </Button>
+            </DrawerFooter>
+          </form>
+        </Form>
+      </div>
+    </DrawerContent>
   );
 }
 

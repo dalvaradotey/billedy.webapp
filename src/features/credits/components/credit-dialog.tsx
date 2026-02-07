@@ -7,12 +7,12 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/currency-input';
 import { InstallmentSelector } from '@/components/installment-selector';
@@ -149,18 +149,19 @@ export function CreditDialogContent({
   };
 
   return (
-    <DialogContent className="sm:max-w-[600px]">
-      <DialogHeader>
-        <DialogTitle>{isEditing ? 'Editar crédito' : 'Nuevo crédito'}</DialogTitle>
-        <DialogDescription>
-          {isEditing
-            ? 'Modifica los detalles del crédito.'
-            : 'Registra un nuevo crédito o préstamo.'}
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>{isEditing ? 'Editar crédito' : 'Nuevo crédito'}</DrawerTitle>
+          <DrawerDescription>
+            {isEditing
+              ? 'Modifica los detalles del crédito.'
+              : 'Registra un nuevo crédito o préstamo.'}
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           {/* Name */}
           <FormField
             control={form.control}
@@ -323,7 +324,7 @@ export function CreditDialogContent({
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total intereses:</span>
                       <span
-                        className={`font-medium ${calculatedInterest > 0 ? 'text-red-500' : 'text-green-500'}`}
+                        className={`font-medium ${calculatedInterest > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}
                       >
                         {formatCurrency(calculatedInterest)}
                       </span>
@@ -424,13 +425,14 @@ export function CreditDialogContent({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
-              {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear crédito'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Form>
-    </DialogContent>
+            <DrawerFooter className="pt-4">
+              <Button type="submit" disabled={isPending} className="w-full">
+                {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear crédito'}
+              </Button>
+            </DrawerFooter>
+          </form>
+        </Form>
+      </div>
+    </DrawerContent>
   );
 }

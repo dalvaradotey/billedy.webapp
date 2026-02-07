@@ -15,14 +15,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  ResponsiveDrawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 import {
   Card,
   CardContent,
@@ -51,13 +51,13 @@ export function EntitiesList({ entities, userId }: EntitiesListProps) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveDrawer open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DrawerTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Nueva entidad
             </Button>
-          </DialogTrigger>
+          </DrawerTrigger>
           {isCreateOpen && (
             <EntityFormDialog
               userId={userId}
@@ -67,7 +67,7 @@ export function EntitiesList({ entities, userId }: EntitiesListProps) {
               }}
             />
           )}
-        </Dialog>
+        </ResponsiveDrawer>
       </div>
 
       {entities.length === 0 ? (
@@ -90,7 +90,7 @@ export function EntitiesList({ entities, userId }: EntitiesListProps) {
       )}
 
       {editingEntity && (
-        <Dialog open={!!editingEntity} onOpenChange={() => setEditingEntity(null)}>
+        <ResponsiveDrawer open={!!editingEntity} onOpenChange={() => setEditingEntity(null)}>
           <EntityFormDialog
             userId={userId}
             entity={editingEntity}
@@ -99,7 +99,7 @@ export function EntitiesList({ entities, userId }: EntitiesListProps) {
               router.refresh();
             }}
           />
-        </Dialog>
+        </ResponsiveDrawer>
       )}
     </div>
   );
@@ -285,17 +285,18 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
   ];
 
   return (
-    <DialogContent className="sm:max-w-[425px]">
-      <DialogHeader>
-        <DialogTitle>{entity ? 'Editar entidad' : 'Nueva entidad'}</DialogTitle>
-        <DialogDescription>
-          {entity
-            ? 'Modifica los datos de la entidad.'
-            : 'Agrega una nueva entidad al sistema.'}
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>{entity ? 'Editar entidad' : 'Nueva entidad'}</DrawerTitle>
+          <DrawerDescription>
+            {entity
+              ? 'Modifica los datos de la entidad.'
+              : 'Agrega una nueva entidad al sistema.'}
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
         <div className="flex justify-center">
           <div
             className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden cursor-pointer border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 transition-colors"
@@ -351,22 +352,23 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
           </Select>
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <DialogFooter>
-          <Button
-            type="submit"
-            disabled={!name.trim() || isPending}
-            className="w-full h-12"
-          >
-            {isPending
-              ? 'Guardando...'
-              : entity
-              ? 'Guardar cambios'
-              : 'Crear entidad'}
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
+          <DrawerFooter className="pt-4">
+            <Button
+              type="submit"
+              disabled={!name.trim() || isPending}
+              className="w-full h-12"
+            >
+              {isPending
+                ? 'Guardando...'
+                : entity
+                ? 'Guardar cambios'
+                : 'Crear entidad'}
+            </Button>
+          </DrawerFooter>
+        </form>
+      </div>
+    </DrawerContent>
   );
 }

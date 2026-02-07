@@ -5,14 +5,14 @@ import { toast } from 'sonner';
 import { CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  ResponsiveDrawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 import {
   Select,
   SelectContent,
@@ -99,7 +99,7 @@ function TransactionSelector({
                     {t.categoryName}
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-medium text-red-600">
+                <TableCell className="text-right font-medium text-red-600 dark:text-red-400">
                   {formatCurrency(t.baseAmount, t.baseCurrency)}
                 </TableCell>
               </TableRow>
@@ -218,22 +218,23 @@ export function PayCreditCardDialog({
   if (unpaidTransactions.length === 0) return null;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <ResponsiveDrawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild>
         <Button variant="outline" size="sm">
           <CreditCard className="mr-2 h-4 w-4" />
           Pagar tarjeta
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Pagar {creditCardAccount.name}</DialogTitle>
-          <DialogDescription>
-            Selecciona las transacciones a pagar y la cuenta de origen.
-          </DialogDescription>
-        </DialogHeader>
+      </DrawerTrigger>
+      <DrawerContent>
+        <div className="mx-auto w-full max-w-lg">
+          <DrawerHeader>
+            <DrawerTitle>Pagar {creditCardAccount.name}</DrawerTitle>
+            <DrawerDescription>
+              Selecciona las transacciones a pagar y la cuenta de origen.
+            </DrawerDescription>
+          </DrawerHeader>
 
-        <div className="space-y-4 overflow-y-auto flex-1">
+          <div className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           {/* Source Account */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Pagar desde</label>
@@ -274,19 +275,17 @@ export function PayCreditCardDialog({
             </div>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={isPending || selectedIds.size === 0 || !sourceAccountId}>
-            {isPending ? 'Procesando...' : `Pagar ${formatCurrency(selectedTotal, defaultCurrency)}`}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <DrawerFooter className="pt-4">
+              <Button onClick={handleSubmit} disabled={isPending || selectedIds.size === 0 || !sourceAccountId} className="w-full">
+                {isPending ? 'Procesando...' : `Pagar ${formatCurrency(selectedTotal, defaultCurrency)}`}
+              </Button>
+            </DrawerFooter>
+          </div>
+        </div>
+      </DrawerContent>
+    </ResponsiveDrawer>
   );
 }
 
@@ -398,32 +397,33 @@ export function PayCreditCardButton({
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <ResponsiveDrawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild>
         <Button variant="outline" size="sm">
           <CreditCard className="mr-2 h-4 w-4" />
           Pagar tarjeta
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Pagar {creditCardAccount.name}</DialogTitle>
-          <DialogDescription>
-            Selecciona las transacciones a pagar y la cuenta de origen.
-          </DialogDescription>
-        </DialogHeader>
+      </DrawerTrigger>
+      <DrawerContent>
+        <div className="mx-auto w-full max-w-lg">
+          <DrawerHeader>
+            <DrawerTitle>Pagar {creditCardAccount.name}</DrawerTitle>
+            <DrawerDescription>
+              Selecciona las transacciones a pagar y la cuenta de origen.
+            </DrawerDescription>
+          </DrawerHeader>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : unpaidTransactions.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No hay transacciones pendientes de pago</p>
-          </div>
-        ) : (
-          <div className="space-y-4 overflow-y-auto flex-1">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8 px-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : unpaidTransactions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground px-4">
+              <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No hay transacciones pendientes de pago</p>
+            </div>
+          ) : (
+            <div className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
             {/* Source Account */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Pagar desde</label>
@@ -464,22 +464,21 @@ export function PayCreditCardButton({
               </div>
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </div>
-        )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isPending || selectedIds.size === 0 || !sourceAccountId || isLoading}
-          >
-            {isPending ? 'Procesando...' : `Pagar ${formatCurrency(selectedTotal, defaultCurrency)}`}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+              <DrawerFooter className="pt-4">
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isPending || selectedIds.size === 0 || !sourceAccountId || isLoading}
+                  className="w-full"
+                >
+                  {isPending ? 'Procesando...' : `Pagar ${formatCurrency(selectedTotal, defaultCurrency)}`}
+                </Button>
+              </DrawerFooter>
+            </div>
+          )}
+        </div>
+      </DrawerContent>
+    </ResponsiveDrawer>
   );
 }

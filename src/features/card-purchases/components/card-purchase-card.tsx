@@ -205,7 +205,7 @@ export function CardPurchaseCard({ purchase, userId, onUpdate }: CardPurchaseCar
                   )}
                 </span>
               ) : (
-                <span className="font-medium text-green-600">Sin interés</span>
+                <span className="font-medium text-emerald-600 dark:text-emerald-400">Sin interés</span>
               )}
             </div>
             <div>

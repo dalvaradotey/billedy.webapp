@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Plus, Wallet } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
@@ -122,19 +122,19 @@ export function AccountsList({
           title="Total Disponible"
           value={formatCurrency(summary.totalDebitBalance)}
           subtitle="En cuentas de débito"
-          className="text-green-600"
+          className="text-emerald-600 dark:text-emerald-400"
         />
         <SummaryCard
           title="Deuda TC"
           value={formatCurrency(summary.totalCreditBalance)}
           subtitle="En tarjetas de crédito"
-          className="text-red-600"
+          className="text-red-600 dark:text-red-400"
         />
         <SummaryCard
           title="Patrimonio Neto"
           value={formatCurrency(summary.netWorth)}
           subtitle="Disponible - Deuda"
-          className={summary.netWorth >= 0 ? 'text-green-600' : 'text-red-600'}
+          className={summary.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
         />
         <SummaryCard title="Cuentas" value={String(summary.totalAccounts)} subtitle="Activas" />
       </div>
@@ -150,13 +150,13 @@ export function AccountsList({
             onMutationSuccess={onMutationSuccess}
             onMutationError={onMutationError}
           />
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
+          <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DrawerTrigger asChild>
               <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
                 <Plus className="h-4 w-4" />
                 Nueva cuenta
               </Button>
-            </DialogTrigger>
+            </DrawerTrigger>
             <AccountDialogContent
               userId={userId}
               account={editingAccount}
@@ -167,7 +167,7 @@ export function AccountsList({
               onMutationSuccess={onMutationSuccess}
               onMutationError={onMutationError}
             />
-          </Dialog>
+          </ResponsiveDrawer>
         </div>
       </div>
 

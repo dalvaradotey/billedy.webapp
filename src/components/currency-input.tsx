@@ -11,6 +11,7 @@ interface CurrencyInputProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  size?: 'default' | 'lg';
 }
 
 // Currency configuration
@@ -30,7 +31,9 @@ export function CurrencyInput({
   placeholder = '0',
   disabled = false,
   className,
+  size = 'default',
 }: CurrencyInputProps) {
+  const isLarge = size === 'lg';
   const config = currencyConfig[currency] ?? defaultConfig;
   const inputRef = useRef<HTMLInputElement>(null);
   const [displayValue, setDisplayValue] = useState('');
@@ -146,7 +149,10 @@ export function CurrencyInput({
 
   return (
     <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+      <span className={cn(
+        "absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground",
+        isLarge ? "text-2xl left-4" : "text-sm"
+      )}>
         {config.symbol}
       </span>
       <Input
@@ -159,7 +165,12 @@ export function CurrencyInput({
         onBlur={handleBlur}
         placeholder={placeholder}
         disabled={disabled}
-        className={cn('pl-7', className)}
+        className={cn(
+          isLarge
+            ? 'pl-10 h-16 text-3xl font-semibold text-center'
+            : 'pl-7',
+          className
+        )}
       />
     </div>
   );

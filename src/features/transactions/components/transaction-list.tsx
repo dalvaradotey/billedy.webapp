@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -206,19 +206,19 @@ export function TransactionList({
         <SummaryCard
           title="Ingresos"
           value={formatCurrency(summary.totalIncome, defaultCurrency)}
-          icon={<ArrowUpCircle className="h-4 w-4 text-green-600" />}
-          className="text-green-600"
+          icon={<ArrowUpCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+          className="text-emerald-600 dark:text-emerald-400"
         />
         <SummaryCard
           title="Gastos"
           value={formatCurrency(summary.totalExpense, defaultCurrency)}
-          icon={<ArrowDownCircle className="h-4 w-4 text-red-600" />}
-          className="text-red-600"
+          icon={<ArrowDownCircle className="h-4 w-4 text-red-600 dark:text-red-400" />}
+          className="text-red-600 dark:text-red-400"
         />
         <SummaryCard
           title="Balance"
           value={formatCurrency(summary.balance, defaultCurrency)}
-          className={summary.balance >= 0 ? 'text-green-600' : 'text-red-600'}
+          className={summary.balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
         />
         <SummaryCard
           title="Pendientes"
@@ -304,13 +304,13 @@ export function TransactionList({
             </Select>
           </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DrawerTrigger asChild>
             <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
               <Plus className="h-4 w-4" />
               Nueva transacción
             </Button>
-          </DialogTrigger>
+          </DrawerTrigger>
           <TransactionDialogContent
             projectId={projectId}
             userId={userId}
@@ -325,7 +325,7 @@ export function TransactionList({
             onMutationSuccess={onMutationSuccess}
             onMutationError={onMutationError}
           />
-        </Dialog>
+        </ResponsiveDrawer>
         </div>
       </div>
 

@@ -65,7 +65,7 @@ export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: Template
       <div className="flex items-center gap-2">
         <span
           className={`text-sm font-medium ${
-            item.type === 'income' ? 'text-green-600' : 'text-red-600'
+            item.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
           }`}
         >
           {item.type === 'income' ? '+' : '-'}

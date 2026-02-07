@@ -4,16 +4,19 @@ import { useState, useTransition, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, StickyNote, X, Calendar, ArrowRight, Check, ArrowRightLeft } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -29,7 +32,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Switch } from '@/components/ui/switch';
 import { CategorySelector } from '@/components/category-selector';
 import { CurrencyInput } from '@/components/currency-input';
 import { EntitySelector } from '@/components/entity-selector';
@@ -99,6 +101,10 @@ export function TransactionDialogContent({
   const [error, setError] = useState<string | null>(null);
   const [localCategories, setLocalCategories] = useState(categories);
   const [formMode, setFormMode] = useState<FormMode>('expense');
+  const [useManualDescription, setUseManualDescription] = useState(false);
+  const [showManualCategory, setShowManualCategory] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [showDate, setShowDate] = useState(false);
 
   // Transfer form state (separate from main form)
   const [transferFromAccountId, setTransferFromAccountId] = useState('');
@@ -128,6 +134,25 @@ export function TransactionDialogContent({
     return map;
   }, [accounts]);
 
+  // Mapa de entidades para obtener nombres
+  const entitiesMap = useMemo(() => {
+    const map = new Map<string, Entity>();
+    entities.forEach((e) => map.set(e.id, e));
+    return map;
+  }, [entities]);
+
+  // Genera descripción automática basada en tipo y entidad
+  const generateDescription = useCallback((entityId: string, type: 'expense' | 'income') => {
+    const entity = entitiesMap.get(entityId);
+    if (!entity) return '';
+
+    if (type === 'expense') {
+      return `Compra ${entity.name}`;
+    } else {
+      return `Pago ${entity.name}`;
+    }
+  }, [entitiesMap]);
+
   const getDefaultValues = useCallback(() => {
     if (transaction) {
       return {
@@ -136,7 +161,7 @@ export function TransactionDialogContent({
         originalAmount: parseFloat(transaction.originalAmount),
         date: transaction.date,
         type: transaction.type as 'income' | 'expense',
-        categoryId: transaction.categoryId,
+        categoryId: transaction.categoryId ?? undefined,
         budgetId: transaction.budgetId ?? undefined,
         entityId: transaction.entityId ?? undefined,
         isPaid: transaction.isPaid,
@@ -150,7 +175,7 @@ export function TransactionDialogContent({
       originalAmount: undefined as unknown as number,
       date: new Date(),
       type: 'expense' as const,
-      categoryId: '',
+      categoryId: undefined as string | undefined,
       budgetId: undefined as string | undefined,
       entityId: undefined as string | undefined,
       isPaid: false,
@@ -174,6 +199,14 @@ export function TransactionDialogContent({
     setTransferDate(new Date());
     setTransferDescription('');
     setTransferNotes('');
+    // Reset manual description toggle
+    setUseManualDescription(false);
+    // Reset manual category toggle
+    setShowManualCategory(false);
+    // Reset notes toggle
+    setShowNotes(false);
+    // Reset date toggle (show if editing, hide if new)
+    setShowDate(!!transaction);
     // Reset form mode when editing
     if (transaction) {
       setFormMode(transaction.type as FormMode);
@@ -274,79 +307,65 @@ export function TransactionDialogContent({
     setError(null);
     if (mode !== 'transfer') {
       form.setValue('type', mode);
+      // Si hay una entidad seleccionada y no está en modo manual, actualizar descripción
+      const currentEntityId = form.getValues('entityId');
+      if (currentEntityId && !useManualDescription) {
+        const autoDescription = generateDescription(currentEntityId, mode);
+        form.setValue('description', autoDescription);
+      }
     }
   };
 
   return (
-    <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
-      <DialogHeader>
-        <DialogTitle>
-          {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
-        </DialogTitle>
-        <DialogDescription>
-          {isEditing
-            ? 'Modifica los datos de la transacción.'
-            : isTransferMode
-            ? 'Mueve dinero entre tus cuentas.'
-            : 'Registra un nuevo ingreso o gasto.'}
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>
+            {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
+          </DrawerTitle>
+          <DrawerDescription>
+            {isEditing
+              ? 'Modifica los datos de la transacción.'
+              : isTransferMode
+              ? 'Mueve dinero entre tus cuentas.'
+              : 'Registra un nuevo ingreso o gasto.'}
+          </DrawerDescription>
+        </DrawerHeader>
 
-      {/* Type Selector - 3 buttons */}
+      {/* Type Selector - Tabs */}
       {!isEditing && (
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={formMode === 'expense' ? 'default' : 'outline'}
-            className="flex-1"
-            onClick={() => handleModeChange('expense')}
-          >
-            <ArrowDownCircle className="mr-2 h-4 w-4" />
-            Gasto
-          </Button>
-          <Button
-            type="button"
-            variant={formMode === 'income' ? 'default' : 'outline'}
-            className="flex-1"
-            onClick={() => handleModeChange('income')}
-          >
-            <ArrowUpCircle className="mr-2 h-4 w-4" />
-            Ingreso
-          </Button>
-          <Button
-            type="button"
-            variant={formMode === 'transfer' ? 'default' : 'outline'}
-            className="flex-1"
-            onClick={() => handleModeChange('transfer')}
-          >
-            <ArrowLeftRight className="mr-2 h-4 w-4" />
-            Transferencia
-          </Button>
+        <div className="px-4 pb-4">
+          <Tabs value={formMode} onValueChange={(v) => handleModeChange(v as FormMode)}>
+            <TabsList className="w-full">
+              <TabsTrigger value="expense" className="flex-1 gap-2">
+                <ArrowDownCircle className="h-4 w-4" />
+                Gasto
+              </TabsTrigger>
+              <TabsTrigger value="income" className="flex-1 gap-2">
+                <ArrowUpCircle className="h-4 w-4" />
+                Ingreso
+              </TabsTrigger>
+              <TabsTrigger value="transfer" className="flex-1 gap-2">
+                <ArrowLeftRight className="h-4 w-4" />
+                Transferencia
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       )}
 
-      {/* Transfer Form */}
-      {isTransferMode && !isEditing ? (
-        <div className="space-y-4 overflow-y-auto flex-1 pr-2">
-          {/* Amount and Date */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Monto</label>
-              <CurrencyInput
-                value={transferAmount}
-                onChange={setTransferAmount}
-                currency={defaultCurrency}
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fecha</label>
-              <Input
-                type="date"
-                value={transferDate.toISOString().split('T')[0]}
-                onChange={(e) => setTransferDate(new Date(e.target.value + 'T12:00:00'))}
-              />
-            </div>
+        {/* Transfer Form */}
+        {isTransferMode && !isEditing ? (
+          <div className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+          {/* Amount - Hero section */}
+          <div className="pb-2">
+            <CurrencyInput
+              value={transferAmount}
+              onChange={setTransferAmount}
+              currency={defaultCurrency}
+              placeholder="0"
+              size="lg"
+            />
           </div>
 
           {/* From Account */}
@@ -354,17 +373,19 @@ export function TransactionDialogContent({
             <label className="text-sm font-medium">Cuenta origen</label>
             <Select value={transferFromAccountId} onValueChange={setTransferFromAccountId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona cuenta de origen" />
+                <SelectValue placeholder="Selecciona cuenta origen" />
               </SelectTrigger>
               <SelectContent>
-                {activeAccounts.map((acc) => (
-                  <SelectItem key={acc.id} value={acc.id} disabled={acc.id === transferToAccountId}>
-                    <div className="flex items-center gap-2">
-                      <AccountTypeIcon type={acc.type as AccountType} className="h-4 w-4" />
-                      {acc.name}
-                    </div>
-                  </SelectItem>
-                ))}
+                {activeAccounts
+                  .filter((acc) => acc.id !== transferToAccountId)
+                  .map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <div className="flex items-center gap-2">
+                        <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
+                        {account.name}
+                      </div>
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -374,17 +395,19 @@ export function TransactionDialogContent({
             <label className="text-sm font-medium">Cuenta destino</label>
             <Select value={transferToAccountId} onValueChange={setTransferToAccountId}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecciona cuenta de destino" />
+                <SelectValue placeholder="Selecciona cuenta destino" />
               </SelectTrigger>
               <SelectContent>
-                {activeAccounts.map((acc) => (
-                  <SelectItem key={acc.id} value={acc.id} disabled={acc.id === transferFromAccountId}>
-                    <div className="flex items-center gap-2">
-                      <AccountTypeIcon type={acc.type as AccountType} className="h-4 w-4" />
-                      {acc.name}
-                    </div>
-                  </SelectItem>
-                ))}
+                {activeAccounts
+                  .filter((acc) => acc.id !== transferFromAccountId)
+                  .map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      <div className="flex items-center gap-2">
+                        <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
+                        {account.name}
+                      </div>
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -399,28 +422,74 @@ export function TransactionDialogContent({
             />
           </div>
 
+          {/* Date (optional) */}
+          {showDate && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fecha</label>
+              <Input
+                type="date"
+                value={transferDate.toISOString().split('T')[0]}
+                onChange={(e) => setTransferDate(new Date(e.target.value + 'T12:00:00'))}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground h-auto p-0"
+                onClick={() => {
+                  setTransferDate(new Date());
+                  setShowDate(false);
+                }}
+              >
+                <X className="mr-1.5 h-3 w-3" />
+                Usar fecha de hoy
+              </Button>
+            </div>
+          )}
+
           {/* Notes (optional) */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Notas (opcional)</label>
-            <Input
+            <Textarea
               placeholder="Notas adicionales..."
+              className="resize-none"
+              rows={3}
               value={transferNotes}
               onChange={(e) => setTransferNotes(e.target.value)}
             />
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
-
-          <DialogFooter>
-            <Button type="button" onClick={onSubmitTransfer} disabled={isPending} className="w-full sm:w-auto">
-              {isPending ? 'Creando...' : 'Crear transferencia'}
+          {/* Toggle for date */}
+          {!showDate && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground h-auto py-1 px-2"
+              onClick={() => setShowDate(true)}
+            >
+              <Calendar className="mr-1.5 h-3 w-3" />
+              Cambiar fecha
             </Button>
-          </DialogFooter>
-        </div>
-      ) : (
-        /* Regular Transaction Form */
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 overflow-y-auto flex-1 pr-2">
+          )}
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
+
+            <DrawerFooter className="pt-4 px-0">
+              <Button type="button" variant="cta" onClick={onSubmitTransfer} disabled={isPending} className="w-full">
+                {isPending ? 'Creando...' : (
+                  <>
+                    Crear transferencia
+                    <ArrowRightLeft className="h-5 w-5" />
+                  </>
+                )}
+              </Button>
+            </DrawerFooter>
+          </div>
+        ) : (
+          /* Regular Transaction Form */
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
             {/* Type Selector for editing */}
             {isEditing && (
               <FormField
@@ -429,151 +498,40 @@ export function TransactionDialogContent({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo</FormLabel>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant={field.value === 'expense' ? 'default' : 'outline'}
-                        className="flex-1"
-                        onClick={() => field.onChange('expense')}
-                      >
-                        <ArrowDownCircle className="mr-2 h-4 w-4" />
-                        Gasto
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={field.value === 'income' ? 'default' : 'outline'}
-                        className="flex-1"
-                        onClick={() => field.onChange('income')}
-                      >
-                        <ArrowUpCircle className="mr-2 h-4 w-4" />
-                        Ingreso
-                      </Button>
-                    </div>
+                    <Tabs value={field.value} onValueChange={field.onChange}>
+                      <TabsList className="w-full">
+                        <TabsTrigger value="expense" className="flex-1 gap-2">
+                          <ArrowDownCircle className="h-4 w-4" />
+                          Gasto
+                        </TabsTrigger>
+                        <TabsTrigger value="income" className="flex-1 gap-2">
+                          <ArrowUpCircle className="h-4 w-4" />
+                          Ingreso
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             )}
 
-            {/* Amount and Date */}
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="originalAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monto</FormLabel>
-                    <FormControl>
-                      <CurrencyInput
-                        value={field.value}
-                        onChange={field.onChange}
-                        currency={defaultCurrency}
-                        placeholder="0"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        {...field}
-                        value={field.value instanceof Date
-                          ? field.value.toISOString().split('T')[0]
-                          : String(field.value).split('T')[0]}
-                        onChange={(e) => field.onChange(new Date(e.target.value + 'T12:00:00'))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Description */}
+            {/* Amount - Hero section */}
             <FormField
               control={form.control}
-              name="description"
+              name="originalAmount"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descripción</FormLabel>
+                <FormItem className="pb-2">
                   <FormControl>
-                    <Input placeholder="Ej: Supermercado Jumbo" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Budget (optional) */}
-            {budgets.length > 0 && (
-              <FormField
-                control={form.control}
-                name="budgetId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Presupuesto (opcional)</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        const budgetId = value === '_none_' ? null : value;
-                        field.onChange(budgetId);
-                        // Auto-select category if budget has one
-                        if (budgetId) {
-                          const selectedBudget = budgets.find((b) => b.id === budgetId);
-                          if (selectedBudget?.categoryId) {
-                            form.setValue('categoryId', selectedBudget.categoryId);
-                          }
-                        }
-                      }}
-                      value={field.value ?? '_none_'}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sin presupuesto" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="_none_">Sin presupuesto</SelectItem>
-                        {budgets.map((budget) => (
-                          <SelectItem key={budget.id} value={budget.id}>
-                            {budget.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {/* Category */}
-            <FormField
-              control={form.control}
-              name="categoryId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <FormControl>
-                    <CategorySelector
-                      categories={activeCategories}
+                    <CurrencyInput
                       value={field.value}
-                      onValueChange={(value) => field.onChange(value ?? '')}
-                      projectId={projectId}
-                      userId={userId}
-                      placeholder="Selecciona una categoría"
-                      onCategoryCreated={handleCategoryCreated}
+                      onChange={field.onChange}
+                      currency={defaultCurrency}
+                      placeholder="0"
+                      size="lg"
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-center" />
                 </FormItem>
               )}
             />
@@ -592,11 +550,11 @@ export function TransactionDialogContent({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {activeAccounts.map((acc) => (
-                        <SelectItem key={acc.id} value={acc.id}>
+                      {activeAccounts.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
                           <div className="flex items-center gap-2">
-                            <AccountTypeIcon type={acc.type as AccountType} className="h-4 w-4" />
-                            {acc.name}
+                            <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
+                            {account.name}
                           </div>
                         </SelectItem>
                       ))}
@@ -607,78 +565,315 @@ export function TransactionDialogContent({
               )}
             />
 
-            {/* Entity (optional) */}
-            {entities.length > 0 && (
-              <FormField
-                control={form.control}
-                name="entityId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Entidad (opcional)</FormLabel>
-                    <FormControl>
-                      <EntitySelector
-                        entities={entities}
-                        value={field.value}
-                        onValueChange={(value) => field.onChange(value)}
-                        placeholder="Selecciona una entidad"
-                        searchPlaceholder="Buscar entidad..."
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+            {/* Entity or Manual Description toggle */}
+            {entities.length > 0 && !useManualDescription ? (
+              <div className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="entityId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tienda</FormLabel>
+                      <FormControl>
+                        <EntitySelector
+                          entities={entities}
+                          value={field.value}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            // Auto-generar descripción basada en la entidad y tipo
+                            if (value) {
+                              const currentType = form.getValues('type');
+                              const autoDescription = generateDescription(value, currentType);
+                              form.setValue('description', autoDescription);
+                            }
+                          }}
+                          placeholder="Selecciona una tienda"
+                          searchPlaceholder="Buscar tienda..."
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-auto p-0"
+                  onClick={() => setUseManualDescription(true)}
+                >
+                  <Pencil className="mr-1.5 h-3 w-3" />
+                  Escribir tienda manualmente
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descripción</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ej: Supermercado Jumbo" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {entities.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto p-0"
+                    onClick={() => setUseManualDescription(false)}
+                  >
+                    <Store className="mr-1.5 h-3 w-3" />
+                    Seleccionar tienda
+                  </Button>
                 )}
-              />
+              </div>
             )}
 
-            {/* Notes */}
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notas (opcional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Notas adicionales..." {...field} value={field.value ?? ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Paid Switch - oculto para gastos en TC (siempre se marcan como pagados automáticamente) */}
-            {!isCreditCardExpense && (
-              <FormField
-                control={form.control}
-                name="isPaid"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                    <div className="space-y-0.5">
-                      <FormLabel>Marcar como pagado</FormLabel>
-                      <p className="text-[0.8rem] text-muted-foreground">
-                        Indica si esta transacción ya fue pagada
-                      </p>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
+            {/* Budget or Category toggle */}
+            {budgets.length > 0 && !showManualCategory ? (
+              <div className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="budgetId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Presupuesto (opcional)</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          const budgetId = value === '_none_' ? null : value;
+                          field.onChange(budgetId);
+                          // Auto-select category if budget has one
+                          if (budgetId) {
+                            const selectedBudget = budgets.find((b) => b.id === budgetId);
+                            if (selectedBudget?.categoryId) {
+                              form.setValue('categoryId', selectedBudget.categoryId);
+                            }
+                          }
+                        }}
+                        value={field.value ?? '_none_'}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sin presupuesto" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="_none_">Sin presupuesto</SelectItem>
+                          {budgets.map((budget) => (
+                            <SelectItem key={budget.id} value={budget.id}>
+                              {budget.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-auto p-0"
+                  onClick={() => setShowManualCategory(true)}
+                >
+                  <Tag className="mr-1.5 h-3 w-3" />
+                  Seleccionar categoría manualmente
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="categoryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categoría (opcional)</FormLabel>
+                      <FormControl>
+                        <CategorySelector
+                          categories={activeCategories}
+                          value={field.value ?? undefined}
+                          onValueChange={(value) => field.onChange(value ?? null)}
+                          projectId={projectId}
+                          userId={userId}
+                          placeholder="Sin categoría"
+                          onCategoryCreated={handleCategoryCreated}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {budgets.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto p-0"
+                    onClick={() => setShowManualCategory(false)}
+                  >
+                    <Wallet className="mr-1.5 h-3 w-3" />
+                    Usar presupuesto
+                  </Button>
                 )}
-              />
+              </div>
             )}
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {/* Date (optional) */}
+            {showDate && (
+              <div className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fecha</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          value={field.value instanceof Date
+                            ? field.value.toISOString().split('T')[0]
+                            : String(field.value).split('T')[0]}
+                          onChange={(e) => field.onChange(new Date(e.target.value + 'T12:00:00'))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-auto p-0"
+                  onClick={() => {
+                    form.setValue('date', new Date());
+                    setShowDate(false);
+                  }}
+                >
+                  <X className="mr-1.5 h-3 w-3" />
+                  Usar fecha de hoy
+                </Button>
+              </div>
+            )}
 
-            <DialogFooter>
-              <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
-                {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear transacción'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      )}
-    </DialogContent>
+            {/* Notes (optional) */}
+            {showNotes && (
+              <div className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notas</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Notas adicionales..."
+                          className="resize-none"
+                          rows={3}
+                          {...field}
+                          value={field.value ?? ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-auto p-0"
+                  onClick={() => {
+                    form.setValue('notes', '');
+                    setShowNotes(false);
+                  }}
+                >
+                  <X className="mr-1.5 h-3 w-3" />
+                  Ocultar notas
+                </Button>
+              </div>
+            )}
+
+            {/* Optional toggles row */}
+            {(!showDate || !showNotes || !isCreditCardExpense) && (
+              <div className="flex flex-wrap gap-3 pt-2 border-t">
+                {!showDate && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto py-1 px-2"
+                    onClick={() => setShowDate(true)}
+                  >
+                    <Calendar className="mr-1.5 h-3 w-3" />
+                    Fecha
+                  </Button>
+                )}
+                {!showNotes && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto py-1 px-2"
+                    onClick={() => setShowNotes(true)}
+                  >
+                    <StickyNote className="mr-1.5 h-3 w-3" />
+                    Notas
+                  </Button>
+                )}
+                {!isCreditCardExpense && (
+                  <FormField
+                    control={form.control}
+                    name="isPaid"
+                    render={({ field }) => (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "h-auto py-1 px-2",
+                          field.value ? "text-emerald-600" : "text-muted-foreground"
+                        )}
+                        onClick={() => field.onChange(!field.value)}
+                      >
+                        {field.value ? "✓ Pagado" : "Marcar pagado"}
+                      </Button>
+                    )}
+                  />
+                )}
+              </div>
+            )}
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <DrawerFooter className="pt-4 px-0">
+                <Button type="submit" variant="cta" disabled={isPending} className="w-full">
+                  {isPending ? 'Guardando...' : isEditing ? (
+                    <>
+                      Guardar cambios
+                      <Check className="h-5 w-5" />
+                    </>
+                  ) : (
+                    <>
+                      Crear transacción
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </Button>
+              </DrawerFooter>
+            </form>
+          </Form>
+        )}
+      </div>
+    </DrawerContent>
   );
 }

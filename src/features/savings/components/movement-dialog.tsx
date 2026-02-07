@@ -7,12 +7,12 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/currency-input';
 import { Textarea } from '@/components/ui/textarea';
@@ -96,20 +96,21 @@ export function MovementDialogContent({
   };
 
   return (
-    <DialogContent className="sm:max-w-[400px]">
-      <DialogHeader>
-        <DialogTitle>{isDeposit ? 'Depositar' : 'Retirar'}</DialogTitle>
-        <DialogDescription>
-          {isDeposit ? 'Registra un depósito en' : 'Registra un retiro de'} {fundName}
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>{isDeposit ? 'Depositar' : 'Retirar'}</DrawerTitle>
+          <DrawerDescription>
+            {isDeposit ? 'Registra un depósito en' : 'Registra un retiro de'} {fundName}
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           <div className="rounded-lg border bg-muted/50 p-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Balance actual</span>
-              <span className="font-bold text-green-600">
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">
                 {formatCurrency(currentBalance, currencyCode)}
               </span>
             </div>
@@ -178,21 +179,22 @@ export function MovementDialogContent({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <DialogFooter>
-            <Button
-              type="submit"
-              disabled={isPending}
-              className={`w-full sm:w-auto ${isDeposit ? '' : 'bg-red-600 hover:bg-red-700'}`}
-            >
-              {isPending
-                ? 'Guardando...'
-                : isDeposit
-                  ? 'Registrar depósito'
-                  : 'Registrar retiro'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Form>
-    </DialogContent>
+            <DrawerFooter className="pt-4">
+              <Button
+                type="submit"
+                disabled={isPending}
+                className={`w-full ${isDeposit ? '' : 'bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'}`}
+              >
+                {isPending
+                  ? 'Guardando...'
+                  : isDeposit
+                    ? 'Registrar depósito'
+                    : 'Registrar retiro'}
+              </Button>
+            </DrawerFooter>
+          </form>
+        </Form>
+      </div>
+    </DrawerContent>
   );
 }

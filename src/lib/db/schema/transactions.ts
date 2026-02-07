@@ -108,9 +108,9 @@ export const transactions = pgTable('n1n4_transactions', {
   projectId: uuid('project_id')
     .notNull()
     .references(() => projects.id, { onDelete: 'cascade' }),
-  categoryId: uuid('category_id')
-    .notNull()
-    .references(() => categories.id),
+  categoryId: uuid('category_id').references(() => categories.id, {
+    onDelete: 'set null',
+  }),
   accountId: uuid('account_id').references(() => accounts.id),
   entityId: uuid('entity_id').references(() => entities.id, {
     onDelete: 'set null',

@@ -172,7 +172,7 @@ export default async function DashboardPage() {
             <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {formatCurrency(currentCycle?.currentIncome ?? 0)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -186,7 +186,7 @@ export default async function DashboardPage() {
             <CardTitle className="text-sm font-medium">Gastos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               {formatCurrency(currentCycle?.currentExpenses ?? 0)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -216,7 +216,7 @@ export default async function DashboardPage() {
           <CardContent>
             <div
               className={`text-2xl font-bold ${
-                (currentCycle?.currentBalance ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                (currentCycle?.currentBalance ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
               }`}
             >
               {formatCurrency(currentCycle?.currentBalance ?? 0)}
@@ -257,19 +257,19 @@ export default async function DashboardPage() {
               <div className="grid grid-cols-3 gap-4 pb-4 border-b">
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">Disponible</p>
-                  <p className="text-lg font-semibold text-green-600">
+                  <p className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(accountsSummary.totalDebitBalance)}
                   </p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">Deuda TC</p>
-                  <p className="text-lg font-semibold text-red-600">
+                  <p className="text-lg font-semibold text-red-600 dark:text-red-400">
                     {formatCurrency(accountsSummary.totalCreditBalance)}
                   </p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground">Patrimonio</p>
-                  <p className={`text-lg font-semibold ${accountsSummary.netWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <p className={`text-lg font-semibold ${accountsSummary.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                     {formatCurrency(accountsSummary.netWorth)}
                   </p>
                 </div>
@@ -306,11 +306,11 @@ export default async function DashboardPage() {
                         className={`font-semibold ${
                           isCredit
                             ? balance > 0
-                              ? 'text-red-600'
+                              ? 'text-red-600 dark:text-red-400'
                               : 'text-muted-foreground'
                             : balance >= 0
-                              ? 'text-green-600'
-                              : 'text-red-600'
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-red-600 dark:text-red-400'
                         }`}
                       >
                         {isCredit && balance > 0 && '-'}

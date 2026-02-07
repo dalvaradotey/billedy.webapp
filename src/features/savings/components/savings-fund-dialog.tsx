@@ -7,12 +7,12 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import {
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/currency-input';
 import {
@@ -111,18 +111,19 @@ export function SavingsFundDialogContent({
   };
 
   return (
-    <DialogContent className="sm:max-w-[500px]">
-      <DialogHeader>
-        <DialogTitle>{isEditing ? 'Editar fondo' : 'Nuevo fondo de ahorro'}</DialogTitle>
-        <DialogDescription>
-          {isEditing
-            ? 'Modifica los detalles del fondo de ahorro.'
-            : 'Crea un nuevo fondo para organizar tus ahorros.'}
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>{isEditing ? 'Editar fondo' : 'Nuevo fondo de ahorro'}</DrawerTitle>
+          <DrawerDescription>
+            {isEditing
+              ? 'Modifica los detalles del fondo de ahorro.'
+              : 'Crea un nuevo fondo para organizar tus ahorros.'}
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           <FormField
             control={form.control}
             name="name"
@@ -269,13 +270,14 @@ export function SavingsFundDialogContent({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
-              {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear fondo'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Form>
-    </DialogContent>
+            <DrawerFooter className="pt-4">
+              <Button type="submit" disabled={isPending} className="w-full">
+                {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear fondo'}
+              </Button>
+            </DrawerFooter>
+          </form>
+        </Form>
+      </div>
+    </DrawerContent>
   );
 }

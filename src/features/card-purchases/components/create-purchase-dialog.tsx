@@ -9,13 +9,14 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  ResponsiveDrawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+  DrawerFooter,
+} from '@/components/ui/drawer';
 import {
   Form,
   FormControl,
@@ -166,24 +167,25 @@ export function CreatePurchaseDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <ResponsiveDrawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
           Nueva compra en cuotas
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Registrar compra en cuotas</DialogTitle>
-          <DialogDescription>
-            Registra una compra con tarjeta de crédito en cuotas para hacer
-            seguimiento del pago y los intereses.
-          </DialogDescription>
-        </DialogHeader>
+      </DrawerTrigger>
+      <DrawerContent>
+        <div className="mx-auto w-full max-w-lg">
+          <DrawerHeader>
+            <DrawerTitle>Registrar compra en cuotas</DrawerTitle>
+            <DrawerDescription>
+              Registra una compra con tarjeta de crédito en cuotas para hacer
+              seguimiento del pago y los intereses.
+            </DrawerDescription>
+          </DrawerHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
             <FormField
               control={form.control}
               name="accountId"
@@ -499,21 +501,15 @@ export function CreatePurchaseDialog({
               )}
             />
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'Guardando...' : 'Guardar compra'}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              <DrawerFooter className="pt-4">
+                <Button type="submit" disabled={isLoading} className="w-full">
+                  {isLoading ? 'Guardando...' : 'Guardar compra'}
+                </Button>
+              </DrawerFooter>
+            </form>
+          </Form>
+        </div>
+      </DrawerContent>
+    </ResponsiveDrawer>
   );
 }

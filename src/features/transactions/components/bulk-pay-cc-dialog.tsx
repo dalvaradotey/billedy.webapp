@@ -5,13 +5,13 @@ import { toast } from 'sonner';
 import { CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  ResponsiveDrawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -197,18 +197,19 @@ export function BulkPayCreditCardDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[650px] max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Pagar tarjeta de crédito</DialogTitle>
-          <DialogDescription>
-            {groupedByCard.length === 1
-              ? `Pagando ${transactions.length} transacción${transactions.length > 1 ? 'es' : ''} de ${groupedByCard[0]?.accountName}`
-              : `Pagando ${transactions.length} transacciones de ${groupedByCard.length} tarjetas`}
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveDrawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent>
+        <div className="mx-auto w-full max-w-lg">
+          <DrawerHeader>
+            <DrawerTitle>Pagar tarjeta de crédito</DrawerTitle>
+            <DrawerDescription>
+              {groupedByCard.length === 1
+                ? `Pagando ${transactions.length} transacción${transactions.length > 1 ? 'es' : ''} de ${groupedByCard[0]?.accountName}`
+                : `Pagando ${transactions.length} transacciones de ${groupedByCard.length} tarjetas`}
+            </DrawerDescription>
+          </DrawerHeader>
 
-        <div className="space-y-4 overflow-y-auto flex-1 pr-2">
+          <div className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           {/* Source account and date */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -262,7 +263,7 @@ export function BulkPayCreditCardDialog({
                         <TableCell className="py-1.5">
                           <div className="truncate max-w-[200px]">{t.description}</div>
                         </TableCell>
-                        <TableCell className="py-1.5 text-right font-medium text-red-600 w-[100px]">
+                        <TableCell className="py-1.5 text-right font-medium text-red-600 dark:text-red-400 w-[100px]">
                           {formatCurrency(t.baseAmount, t.baseCurrency)}
                         </TableCell>
                       </TableRow>
@@ -309,18 +310,16 @@ export function BulkPayCreditCardDialog({
             </div>
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !sourceAccountId}>
-            {isPending ? 'Procesando...' : `Pagar ${formatCurrency(totals.grandTotal, defaultCurrency)}`}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <DrawerFooter className="pt-4">
+              <Button onClick={handleSubmit} disabled={isPending || !sourceAccountId} className="w-full">
+                {isPending ? 'Procesando...' : `Pagar ${formatCurrency(totals.grandTotal, defaultCurrency)}`}
+              </Button>
+            </DrawerFooter>
+          </div>
+        </div>
+      </DrawerContent>
+    </ResponsiveDrawer>
   );
 }

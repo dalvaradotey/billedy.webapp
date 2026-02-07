@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Plus, FileText } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogTrigger } from '@/components/ui/dialog';
+import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
 
@@ -91,7 +91,7 @@ export function TemplateList({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {formatCurrency(summary.totalMonthlyIncome, baseCurrency)}
             </div>
           </CardContent>
@@ -103,7 +103,7 @@ export function TemplateList({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               {formatCurrency(summary.totalMonthlyExpense, baseCurrency)}
             </div>
           </CardContent>
@@ -119,20 +119,20 @@ export function TemplateList({
           </p>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DrawerTrigger asChild>
             <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
               <Plus className="h-4 w-4" />
               Nueva plantilla
             </Button>
-          </DialogTrigger>
+          </DrawerTrigger>
           <TemplateDialogContent
             projectId={projectId}
             userId={userId}
             template={editingTemplate}
             onSuccess={handleDialogClose}
           />
-        </Dialog>
+        </ResponsiveDrawer>
       </div>
 
       {/* Templates List */}

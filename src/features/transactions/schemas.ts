@@ -2,12 +2,12 @@ import { z } from 'zod';
 
 export const createTransactionSchema = z.object({
   projectId: z.string().uuid('El proyecto es requerido'),
-  categoryId: z.string().uuid('La categoría es requerida'),
+  categoryId: z.union([z.string().uuid(), z.literal('')]).nullable().optional(),
   accountId: z.string().uuid('La cuenta es requerida'),
   entityId: z.string().uuid().optional().nullable(),
   budgetId: z.string().uuid().optional().nullable(),
   type: z.enum(['income', 'expense'], { message: 'El tipo es requerido' }),
-  originalAmount: z.number().positive('El monto debe ser mayor a 0'),
+  originalAmount: z.number({ message: 'Ingresa un monto' }).positive('El monto debe ser mayor a 0'),
   date: z.date({ message: 'La fecha es requerida' }),
   description: z.string().min(1, 'La descripción es requerida').max(500),
   notes: z.string().max(1000).optional().nullable(),

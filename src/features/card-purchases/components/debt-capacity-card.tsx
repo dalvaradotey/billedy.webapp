@@ -17,8 +17,8 @@ export function DebtCapacityCard({ report }: DebtCapacityCardProps) {
 
   const getStatusColor = () => {
     if (report.isOverLimit) return 'text-destructive';
-    if (report.usedPercentage >= 80) return 'text-amber-500';
-    return 'text-green-500';
+    if (report.usedPercentage >= 80) return 'text-amber-600 dark:text-amber-400';
+    return 'text-emerald-600 dark:text-emerald-400';
   };
 
   return (
@@ -51,7 +51,7 @@ export function DebtCapacityCard({ report }: DebtCapacityCardProps) {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-muted-foreground block">Disponible</span>
-            <span className={`font-medium ${report.isOverLimit ? 'text-destructive' : 'text-green-500'}`}>
+            <span className={`font-medium ${report.isOverLimit ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}>
               {report.isOverLimit
                 ? `-${formatCurrency(report.personalDebt - report.maxInstallmentAmount)}`
                 : formatCurrency(report.availableCapacity)}

@@ -15,16 +15,16 @@ export function MovementRow({ movement, currencyCode }: MovementRowProps) {
     <div className="flex items-center justify-between text-sm">
       <div className="flex items-center gap-2">
         {isDeposit ? (
-          <TrendingUp className="h-3 w-3 text-green-600" />
+          <TrendingUp className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
         ) : (
-          <TrendingDown className="h-3 w-3 text-red-600" />
+          <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />
         )}
         <span className="text-muted-foreground">{formatDate(movement.date)}</span>
         {movement.description && (
           <span className="text-muted-foreground">• {movement.description}</span>
         )}
       </div>
-      <span className={isDeposit ? 'text-green-600' : 'text-red-600'}>
+      <span className={isDeposit ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
         {isDeposit ? '+' : '-'}
         {formatCurrency(movement.amount, currencyCode)}
       </span>

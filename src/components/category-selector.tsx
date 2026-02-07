@@ -8,13 +8,13 @@ import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  ResponsiveDrawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import {
   Select,
   SelectContent,
@@ -239,17 +239,18 @@ function CreateCategoryDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[400px]">
-        <DialogHeader>
-          <DialogTitle>Nueva categoría</DialogTitle>
-          <DialogDescription>
-            Crea una nueva categoría para organizar tus transacciones.
-          </DialogDescription>
-        </DialogHeader>
+    <ResponsiveDrawer open={open} onOpenChange={handleOpenChange}>
+      <DrawerContent>
+        <div className="mx-auto w-full max-w-lg">
+          <DrawerHeader>
+            <DrawerTitle>Nueva categoría</DrawerTitle>
+            <DrawerDescription>
+              Crea una nueva categoría para organizar tus transacciones.
+            </DrawerDescription>
+          </DrawerHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
             <FormField
               control={form.control}
               name="name"
@@ -304,24 +305,17 @@ function CreateCategoryDialog({
               )}
             />
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleOpenChange(false)}
-                disabled={isPending}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending ? 'Creando...' : 'Crear categoría'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              <DrawerFooter className="pt-4">
+                <Button type="submit" disabled={isPending} className="w-full">
+                  {isPending ? 'Creando...' : 'Crear categoría'}
+                </Button>
+              </DrawerFooter>
+            </form>
+          </Form>
+        </div>
+      </DrawerContent>
+    </ResponsiveDrawer>
   );
 }

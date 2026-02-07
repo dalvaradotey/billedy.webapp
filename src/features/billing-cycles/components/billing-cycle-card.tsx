@@ -14,13 +14,13 @@ import {
 
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  ResponsiveDrawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -145,7 +145,7 @@ export function BillingCycleCard({
           {isOpen ? (
             <Clock className="h-5 w-5 text-blue-600" />
           ) : (
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           )}
           <div>
             <div className="flex items-center gap-2">
@@ -215,48 +215,43 @@ export function BillingCycleCard({
         </DropdownMenu>
 
         {/* Close Confirmation */}
-        <Dialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>Cerrar ciclo</DialogTitle>
-              <DialogDescription>
-                Ajusta la fecha de cierre si es necesario. Se guardará un snapshot de los
-                totales.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Fecha de cierre</label>
-                <Input
-                  type="date"
-                  value={formatDateInput(closeEndDate)}
-                  onChange={(e) =>
-                    setCloseEndDate(
-                      e.target.value
-                        ? new Date(e.target.value + 'T12:00:00')
-                        : new Date(cycle.endDate)
-                    )
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  Fecha original: {formatDate(cycle.endDate)}
-                </p>
+        <ResponsiveDrawer open={showCloseDialog} onOpenChange={setShowCloseDialog}>
+          <DrawerContent>
+            <div className="mx-auto w-full max-w-lg">
+              <DrawerHeader>
+                <DrawerTitle>Cerrar ciclo</DrawerTitle>
+                <DrawerDescription>
+                  Ajusta la fecha de cierre si es necesario. Se guardará un snapshot de los
+                  totales.
+                </DrawerDescription>
+              </DrawerHeader>
+              <div className="space-y-4 px-4 pb-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Fecha de cierre</label>
+                  <Input
+                    type="date"
+                    value={formatDateInput(closeEndDate)}
+                    onChange={(e) =>
+                      setCloseEndDate(
+                        e.target.value
+                          ? new Date(e.target.value + 'T12:00:00')
+                          : new Date(cycle.endDate)
+                      )
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Fecha original: {formatDate(cycle.endDate)}
+                  </p>
+                </div>
+                <DrawerFooter className="pt-4">
+                  <Button onClick={handleClose} disabled={isPending} className="w-full">
+                    {isPending ? 'Cerrando...' : 'Cerrar ciclo'}
+                  </Button>
+                </DrawerFooter>
               </div>
             </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setShowCloseDialog(false)}
-                disabled={isPending}
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleClose} disabled={isPending}>
-                {isPending ? 'Cerrando...' : 'Cerrar ciclo'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </DrawerContent>
+        </ResponsiveDrawer>
 
         {/* Delete Confirmation */}
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -296,13 +291,13 @@ export function BillingCycleCard({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
         <div className="text-center p-2 rounded-md bg-muted/50">
           <p className="text-xs text-muted-foreground">Ingresos</p>
-          <p className="font-semibold text-green-600">
+          <p className="font-semibold text-emerald-600 dark:text-emerald-400">
             {formatCurrency(cycle.currentIncome)}
           </p>
         </div>
         <div className="text-center p-2 rounded-md bg-muted/50">
           <p className="text-xs text-muted-foreground">Gastos</p>
-          <p className="font-semibold text-red-600">
+          <p className="font-semibold text-red-600 dark:text-red-400">
             {formatCurrency(cycle.currentExpenses)}
           </p>
         </div>
@@ -315,7 +310,7 @@ export function BillingCycleCard({
         <div className="text-center p-2 rounded-md bg-muted/50">
           <p className="text-xs text-muted-foreground">Balance</p>
           <p
-            className={`font-semibold ${cycle.currentBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}
+            className={`font-semibold ${cycle.currentBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
           >
             {formatCurrency(cycle.currentBalance)}
           </p>

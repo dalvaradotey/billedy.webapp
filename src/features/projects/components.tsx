@@ -12,14 +12,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  ResponsiveDrawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/currency-input';
 import { Label } from '@/components/ui/label';
@@ -64,13 +64,13 @@ export function ProjectSelector({
           ))}
           <div className="border-t mt-1 pt-1 space-y-1">
             {currentProject && (
-              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogTrigger asChild>
+              <ResponsiveDrawer open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DrawerTrigger asChild>
                   <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm">
                     <Settings className="h-4 w-4" />
                     Editar proyecto
                   </button>
-                </DialogTrigger>
+                </DrawerTrigger>
                 <EditProjectDialogContent
                   project={currentProject}
                   userId={userId}
@@ -79,15 +79,15 @@ export function ProjectSelector({
                     router.refresh();
                   }}
                 />
-              </Dialog>
+              </ResponsiveDrawer>
             )}
-            <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>
-              <DialogTrigger asChild>
+            <ResponsiveDrawer open={isNewOpen} onOpenChange={setIsNewOpen}>
+              <DrawerTrigger asChild>
                 <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm">
                   <Plus className="h-4 w-4" />
                   Nuevo proyecto
                 </button>
-              </DialogTrigger>
+              </DrawerTrigger>
               <NewProjectDialogContent
                 userId={userId}
                 currencies={currencies}
@@ -96,7 +96,7 @@ export function ProjectSelector({
                   setIsNewOpen(false);
                 }}
               />
-            </Dialog>
+            </ResponsiveDrawer>
           </div>
         </SelectContent>
       </Select>
@@ -148,51 +148,53 @@ function NewProjectDialogContent({
   };
 
   return (
-    <DialogContent className="sm:max-w-[425px]">
-      <DialogHeader>
-        <DialogTitle>Nuevo proyecto</DialogTitle>
-        <DialogDescription>
-          Un proyecto agrupa tus finanzas por contexto: personal, familia, negocio, etc.
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>Nuevo proyecto</DrawerTitle>
+          <DrawerDescription>
+            Un proyecto agrupa tus finanzas por contexto: personal, familia, negocio, etc.
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <form onSubmit={handleSubmit} className="space-y-4 py-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Nombre del proyecto</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ej: Finanzas personales, Casa, Negocio"
-            className="h-12"
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+          <div className="space-y-2">
+            <Label htmlFor="name">Nombre del proyecto</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Finanzas personales, Casa, Negocio"
+              className="h-12"
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="dialog-currency">Moneda base</Label>
-          <Select value={currencyId} onValueChange={setCurrencyId}>
-            <SelectTrigger id="dialog-currency" className="h-12">
-              <SelectValue placeholder="Selecciona una moneda" />
-            </SelectTrigger>
-            <SelectContent>
-              {currencies.map((currency) => (
-                <SelectItem key={currency.id} value={currency.id}>
-                  {currency.code} - {currency.name} ({currency.symbol})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="dialog-currency">Moneda base</Label>
+            <Select value={currencyId} onValueChange={setCurrencyId}>
+              <SelectTrigger id="dialog-currency" className="h-12">
+                <SelectValue placeholder="Selecciona una moneda" />
+              </SelectTrigger>
+              <SelectContent>
+                {currencies.map((currency) => (
+                  <SelectItem key={currency.id} value={currency.id}>
+                    {currency.code} - {currency.name} ({currency.symbol})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <DialogFooter>
-          <Button type="submit" disabled={!name.trim() || !currencyId || isSubmitting} className="w-full h-12">
-            {isSubmitting ? 'Creando...' : 'Crear proyecto'}
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
+          <DrawerFooter className="pt-4">
+            <Button type="submit" disabled={!name.trim() || !currencyId || isSubmitting} className="w-full h-12">
+              {isSubmitting ? 'Creando...' : 'Crear proyecto'}
+            </Button>
+          </DrawerFooter>
+        </form>
+      </div>
+    </DrawerContent>
   );
 }
 
@@ -237,64 +239,66 @@ function EditProjectDialogContent({
   };
 
   return (
-    <DialogContent className="sm:max-w-[425px]">
-      <DialogHeader>
-        <DialogTitle>Editar proyecto</DialogTitle>
-        <DialogDescription>
-          Modifica la configuración de tu proyecto.
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>Editar proyecto</DrawerTitle>
+          <DrawerDescription>
+            Modifica la configuración de tu proyecto.
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <form onSubmit={handleSubmit} className="space-y-4 py-4">
-        <div className="space-y-2">
-          <Label htmlFor="edit-name">Nombre del proyecto</Label>
-          <Input
-            id="edit-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ej: Finanzas personales, Casa, Negocio"
-            className="h-12"
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+          <div className="space-y-2">
+            <Label htmlFor="edit-name">Nombre del proyecto</Label>
+            <Input
+              id="edit-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ej: Finanzas personales, Casa, Negocio"
+              className="h-12"
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="edit-description">Descripción (opcional)</Label>
-          <Textarea
-            id="edit-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe el propósito de este proyecto"
-            rows={3}
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-description">Descripción (opcional)</Label>
+            <Textarea
+              id="edit-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe el propósito de este proyecto"
+              rows={3}
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="edit-max-installment">
-            Límite de cuotas mensuales (opcional)
-          </Label>
-          <CurrencyInput
-            value={maxInstallmentAmount}
-            onChange={setMaxInstallmentAmount}
-            placeholder="Ej: 500.000"
-            className="h-12"
-          />
-          <p className="text-xs text-muted-foreground">
-            Monto máximo que puedes comprometer en cuotas mensuales
-          </p>
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-max-installment">
+              Límite de cuotas mensuales (opcional)
+            </Label>
+            <CurrencyInput
+              value={maxInstallmentAmount}
+              onChange={setMaxInstallmentAmount}
+              placeholder="Ej: 500.000"
+              className="h-12"
+            />
+            <p className="text-xs text-muted-foreground">
+              Monto máximo que puedes comprometer en cuotas mensuales
+            </p>
+          </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <DialogFooter>
-          <Button
-            type="submit"
-            disabled={!name.trim() || isSubmitting}
-            className="w-full h-12"
-          >
-            {isSubmitting ? 'Guardando...' : 'Guardar cambios'}
-          </Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
+          <DrawerFooter className="pt-4">
+            <Button
+              type="submit"
+              disabled={!name.trim() || isSubmitting}
+              className="w-full h-12"
+            >
+              {isSubmitting ? 'Guardando...' : 'Guardar cambios'}
+            </Button>
+          </DrawerFooter>
+        </form>
+      </div>
+    </DrawerContent>
   );
 }

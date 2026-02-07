@@ -15,14 +15,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+  ResponsiveDrawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/currency-input';
 import {
@@ -128,13 +128,13 @@ export function BudgetList({
           </p>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
+        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DrawerTrigger asChild>
             <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
               <Plus className="h-4 w-4" />
               Nuevo presupuesto
             </Button>
-          </DialogTrigger>
+          </DrawerTrigger>
           <BudgetDialogContent
             projectId={projectId}
             userId={userId}
@@ -144,7 +144,7 @@ export function BudgetList({
             onSuccess={handleDialogClose}
             defaultCurrency={defaultCurrency}
           />
-        </Dialog>
+        </ResponsiveDrawer>
       </div>
 
       {/* Active Budgets */}
@@ -397,18 +397,19 @@ function BudgetDialogContent({
   };
 
   return (
-    <DialogContent className="sm:max-w-[425px]">
-      <DialogHeader>
-        <DialogTitle>{isEditing ? 'Editar presupuesto' : 'Nuevo presupuesto'}</DialogTitle>
-        <DialogDescription>
-          {isEditing
-            ? 'Modifica los datos del presupuesto.'
-            : 'Crea una plantilla de presupuesto que podrás asignar a cada ciclo.'}
-        </DialogDescription>
-      </DialogHeader>
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-lg">
+        <DrawerHeader>
+          <DrawerTitle>{isEditing ? 'Editar presupuesto' : 'Nuevo presupuesto'}</DrawerTitle>
+          <DrawerDescription>
+            {isEditing
+              ? 'Modifica los datos del presupuesto.'
+              : 'Crea una plantilla de presupuesto que podrás asignar a cada ciclo.'}
+          </DrawerDescription>
+        </DrawerHeader>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           {/* Name */}
           <FormField
             control={form.control}
@@ -519,15 +520,16 @@ function BudgetDialogContent({
             )}
           </div>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
-          <DialogFooter>
-            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
-              {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear presupuesto'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </Form>
-    </DialogContent>
+            <DrawerFooter className="pt-4">
+              <Button type="submit" disabled={isPending} className="w-full">
+                {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear presupuesto'}
+              </Button>
+            </DrawerFooter>
+          </form>
+        </Form>
+      </div>
+    </DrawerContent>
   );
 }

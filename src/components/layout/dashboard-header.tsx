@@ -163,7 +163,7 @@ export function DashboardHeader({ user, projects, currentProjectId, currencies, 
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="cursor-pointer text-red-600 focus:text-red-600"
+                  className="cursor-pointer text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                   onClick={() => signOut({ callbackUrl: '/login' })}
                 >
                   Cerrar sesión

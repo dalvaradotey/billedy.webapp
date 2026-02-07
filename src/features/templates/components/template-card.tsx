@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog } from '@/components/ui/dialog';
+import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -180,17 +180,17 @@ export function TemplateCard({
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-sm">
-                <span className="text-green-600">
+                <span className="text-emerald-600 dark:text-emerald-400">
                   +{formatCurrency(template.totalIncome, baseCurrency)}
                 </span>
                 {' / '}
-                <span className="text-red-600">
+                <span className="text-red-600 dark:text-red-400">
                   -{formatCurrency(template.totalExpense, baseCurrency)}
                 </span>
               </p>
               <p
                 className={`text-sm font-medium ${
-                  netAmount >= 0 ? 'text-green-600' : 'text-red-600'
+                  netAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
                 }`}
               >
                 Neto: {formatCurrency(netAmount, baseCurrency)}
@@ -311,7 +311,7 @@ export function TemplateCard({
       </AlertDialog>
 
       {/* Item Dialog */}
-      <Dialog open={showItemDialog} onOpenChange={setShowItemDialog}>
+      <ResponsiveDrawer open={showItemDialog} onOpenChange={setShowItemDialog}>
         <TemplateItemDialogContent
           templateId={template.id}
           projectId={projectId}
@@ -323,7 +323,7 @@ export function TemplateCard({
           item={editingItem}
           onSuccess={handleItemDialogClose}
         />
-      </Dialog>
+      </ResponsiveDrawer>
     </>
   );
 }
