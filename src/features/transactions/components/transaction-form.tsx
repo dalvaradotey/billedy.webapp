@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, StickyNote, X, Calendar, ArrowRight, Check, ArrowRightLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DrawerContent,
@@ -318,7 +319,7 @@ export function TransactionDialogContent({
 
   return (
     <DrawerContent>
-      <div className="mx-auto w-full max-w-lg flex flex-col h-full">
+      <div className="mx-auto w-full max-w-lg">
         <DrawerHeader>
           <DrawerTitle>
             {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
@@ -356,8 +357,8 @@ export function TransactionDialogContent({
 
         {/* Transfer Form */}
         {isTransferMode && !isEditing ? (
-          <>
-            <div className="flex-1 overflow-y-auto px-4 space-y-4">
+          <ScrollArea className="h-[50vh]">
+            <div className="px-4 space-y-4 pb-4">
               {/* Amount - Hero section */}
               <div className="pb-2">
                 <CurrencyInput
@@ -475,23 +476,24 @@ export function TransactionDialogContent({
               )}
 
               {error && <p className="text-sm text-destructive">{error}</p>}
-            </div>
 
-            <DrawerFooter className="px-4 pb-4">
-              <Button type="button" variant="cta" onClick={onSubmitTransfer} disabled={isPending} className="w-full">
-                {isPending ? 'Creando...' : (
-                  <>
-                    Crear transferencia
-                    <ArrowRightLeft className="h-5 w-5" />
-                  </>
-                )}
-              </Button>
-            </DrawerFooter>
-          </>
+              <DrawerFooter className="px-0 pb-0">
+                <Button type="button" variant="cta" onClick={onSubmitTransfer} disabled={isPending} className="w-full">
+                  {isPending ? 'Creando...' : (
+                    <>
+                      Crear transferencia
+                      <ArrowRightLeft className="h-5 w-5" />
+                    </>
+                  )}
+                </Button>
+              </DrawerFooter>
+            </div>
+          </ScrollArea>
         ) : (
           /* Regular Transaction Form */
-          <Form {...form}>
-            <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit)} className="flex-1 overflow-y-auto px-4 space-y-4">
+          <ScrollArea className="h-[50vh]">
+            <Form {...form}>
+              <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit)} className="px-4 space-y-4 pb-4">
             {/* Type Selector for editing */}
             {isEditing && (
               <FormField
@@ -856,24 +858,25 @@ export function TransactionDialogContent({
             )}
 
               {error && <p className="text-sm text-destructive">{error}</p>}
-            </form>
 
-            <DrawerFooter className="px-4 pb-4">
-              <Button type="submit" form="transaction-form" variant="cta" disabled={isPending} className="w-full">
-                {isPending ? 'Guardando...' : isEditing ? (
-                  <>
-                    Guardar cambios
-                    <Check className="h-5 w-5" />
-                  </>
-                ) : (
-                  <>
-                    Crear transacción
-                    <ArrowRight className="h-5 w-5" />
-                  </>
-                )}
-              </Button>
-            </DrawerFooter>
-          </Form>
+              <DrawerFooter className="px-0 pb-0">
+                <Button type="submit" variant="cta" disabled={isPending} className="w-full">
+                  {isPending ? 'Guardando...' : isEditing ? (
+                    <>
+                      Guardar cambios
+                      <Check className="h-5 w-5" />
+                    </>
+                  ) : (
+                    <>
+                      Crear transacción
+                      <ArrowRight className="h-5 w-5" />
+                    </>
+                  )}
+                </Button>
+              </DrawerFooter>
+              </form>
+            </Form>
+          </ScrollArea>
         )}
       </div>
     </DrawerContent>
