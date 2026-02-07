@@ -318,7 +318,7 @@ export function TransactionDialogContent({
 
   return (
     <DrawerContent>
-      <div className="mx-auto w-full max-w-lg">
+      <div className="mx-auto w-full max-w-lg flex flex-col max-h-[85vh]">
         <DrawerHeader>
           <DrawerTitle>
             {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
@@ -356,126 +356,128 @@ export function TransactionDialogContent({
 
         {/* Transfer Form */}
         {isTransferMode && !isEditing ? (
-          <div className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
-          {/* Amount - Hero section */}
-          <div className="pb-2">
-            <CurrencyInput
-              value={transferAmount}
-              onChange={setTransferAmount}
-              currency={defaultCurrency}
-              placeholder="0"
-              size="lg"
-            />
-          </div>
+          <>
+            <div className="flex-1 overflow-y-auto px-4 space-y-4">
+              {/* Amount - Hero section */}
+              <div className="pb-2">
+                <CurrencyInput
+                  value={transferAmount}
+                  onChange={setTransferAmount}
+                  currency={defaultCurrency}
+                  placeholder="0"
+                  size="lg"
+                />
+              </div>
 
-          {/* From Account */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Cuenta origen</label>
-            <Select value={transferFromAccountId} onValueChange={setTransferFromAccountId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona cuenta origen" />
-              </SelectTrigger>
-              <SelectContent>
-                {activeAccounts
-                  .filter((acc) => acc.id !== transferToAccountId)
-                  .map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      <div className="flex items-center gap-2">
-                        <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
-                        {account.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {/* From Account */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Cuenta origen</label>
+                <Select value={transferFromAccountId} onValueChange={setTransferFromAccountId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona cuenta origen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeAccounts
+                      .filter((acc) => acc.id !== transferToAccountId)
+                      .map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          <div className="flex items-center gap-2">
+                            <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
+                            {account.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* To Account */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Cuenta destino</label>
-            <Select value={transferToAccountId} onValueChange={setTransferToAccountId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona cuenta destino" />
-              </SelectTrigger>
-              <SelectContent>
-                {activeAccounts
-                  .filter((acc) => acc.id !== transferFromAccountId)
-                  .map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      <div className="flex items-center gap-2">
-                        <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
-                        {account.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {/* To Account */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Cuenta destino</label>
+                <Select value={transferToAccountId} onValueChange={setTransferToAccountId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona cuenta destino" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeAccounts
+                      .filter((acc) => acc.id !== transferFromAccountId)
+                      .map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          <div className="flex items-center gap-2">
+                            <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
+                            {account.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {/* Description (optional) */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Descripción (opcional)</label>
-            <Input
-              placeholder="Ej: Ahorro mensual"
-              value={transferDescription}
-              onChange={(e) => setTransferDescription(e.target.value)}
-            />
-          </div>
+              {/* Description (optional) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Descripción (opcional)</label>
+                <Input
+                  placeholder="Ej: Ahorro mensual"
+                  value={transferDescription}
+                  onChange={(e) => setTransferDescription(e.target.value)}
+                />
+              </div>
 
-          {/* Date (optional) */}
-          {showDate && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fecha</label>
-              <Input
-                type="date"
-                value={transferDate.toISOString().split('T')[0]}
-                onChange={(e) => setTransferDate(new Date(e.target.value + 'T12:00:00'))}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground h-auto p-0"
-                onClick={() => {
-                  setTransferDate(new Date());
-                  setShowDate(false);
-                }}
-              >
-                <X className="mr-1.5 h-3 w-3" />
-                Usar fecha de hoy
-              </Button>
+              {/* Date (optional) */}
+              {showDate && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Fecha</label>
+                  <Input
+                    type="date"
+                    value={transferDate.toISOString().split('T')[0]}
+                    onChange={(e) => setTransferDate(new Date(e.target.value + 'T12:00:00'))}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto p-0"
+                    onClick={() => {
+                      setTransferDate(new Date());
+                      setShowDate(false);
+                    }}
+                  >
+                    <X className="mr-1.5 h-3 w-3" />
+                    Usar fecha de hoy
+                  </Button>
+                </div>
+              )}
+
+              {/* Notes (optional) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Notas (opcional)</label>
+                <Textarea
+                  placeholder="Notas adicionales..."
+                  className="resize-none"
+                  rows={3}
+                  value={transferNotes}
+                  onChange={(e) => setTransferNotes(e.target.value)}
+                />
+              </div>
+
+              {/* Toggle for date */}
+              {!showDate && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-auto py-1 px-2"
+                  onClick={() => setShowDate(true)}
+                >
+                  <Calendar className="mr-1.5 h-3 w-3" />
+                  Cambiar fecha
+                </Button>
+              )}
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
-          )}
 
-          {/* Notes (optional) */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Notas (opcional)</label>
-            <Textarea
-              placeholder="Notas adicionales..."
-              className="resize-none"
-              rows={3}
-              value={transferNotes}
-              onChange={(e) => setTransferNotes(e.target.value)}
-            />
-          </div>
-
-          {/* Toggle for date */}
-          {!showDate && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground h-auto py-1 px-2"
-              onClick={() => setShowDate(true)}
-            >
-              <Calendar className="mr-1.5 h-3 w-3" />
-              Cambiar fecha
-            </Button>
-          )}
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
-
-            <DrawerFooter className="pt-4 px-0">
+            <DrawerFooter className="px-4 pb-4">
               <Button type="button" variant="cta" onClick={onSubmitTransfer} disabled={isPending} className="w-full">
                 {isPending ? 'Creando...' : (
                   <>
@@ -485,11 +487,11 @@ export function TransactionDialogContent({
                 )}
               </Button>
             </DrawerFooter>
-          </div>
+          </>
         ) : (
           /* Regular Transaction Form */
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+            <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit)} className="flex-1 overflow-y-auto px-4 space-y-4">
             {/* Type Selector for editing */}
             {isEditing && (
               <FormField
@@ -854,23 +856,23 @@ export function TransactionDialogContent({
             )}
 
               {error && <p className="text-sm text-destructive">{error}</p>}
-
-              <DrawerFooter className="pt-4 px-0">
-                <Button type="submit" variant="cta" disabled={isPending} className="w-full">
-                  {isPending ? 'Guardando...' : isEditing ? (
-                    <>
-                      Guardar cambios
-                      <Check className="h-5 w-5" />
-                    </>
-                  ) : (
-                    <>
-                      Crear transacción
-                      <ArrowRight className="h-5 w-5" />
-                    </>
-                  )}
-                </Button>
-              </DrawerFooter>
             </form>
+
+            <DrawerFooter className="px-4 pb-4">
+              <Button type="submit" form="transaction-form" variant="cta" disabled={isPending} className="w-full">
+                {isPending ? 'Guardando...' : isEditing ? (
+                  <>
+                    Guardar cambios
+                    <Check className="h-5 w-5" />
+                  </>
+                ) : (
+                  <>
+                    Crear transacción
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+              </Button>
+            </DrawerFooter>
           </Form>
         )}
       </div>
