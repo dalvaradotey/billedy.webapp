@@ -15,6 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ClientOnly } from '@/components/client-only';
+import { Logo } from '@/components/logo';
 import { setCurrentProjectId } from '@/features/projects/actions';
 import type { Project, Currency } from '@/features/projects/types';
 
@@ -55,8 +56,10 @@ export function DashboardHeader({ user, projects, currentProjectId, currencies, 
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 flex h-14 items-center justify-between">
         <div className="flex items-center gap-4 md:gap-6">
-          <a href="/dashboard" className="font-bold text-xl">
-            Billedy
+          <a href="/dashboard" className="flex items-center">
+            <div className="p-1 rounded-lg bg-gradient-to-tl from-emerald-500 to-blue-600 [color:white]">
+              <Logo className="h-9 w-auto" />
+            </div>
           </a>
           {projects.length > 0 && currentProjectId && (
             <ProjectSelector
