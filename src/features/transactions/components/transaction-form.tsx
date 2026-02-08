@@ -5,6 +5,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, StickyNote, X, Calendar, ArrowRight, Check, ArrowRightLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { useFormValidation, useSuccessAnimation } from '@/hooks';
+import { SuccessOverlay } from '@/components/success-overlay';
+import { SubmitButton } from '@/components/submit-button';
+import { ProgressIndicator } from '@/components/progress-indicator';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -104,6 +108,10 @@ export function TransactionDialogContent({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [localCategories, setLocalCategories] = useState(categories);
+
+  // Form UX hooks
+  const { onInvalid } = useFormValidation();
+  const { showSuccess, triggerSuccess } = useSuccessAnimation({ onComplete: onSuccess });
   const [formMode, setFormMode] = useState<FormMode>('expense');
   const [useManualDescription, setUseManualDescription] = useState(false);
   const [showManualCategory, setShowManualCategory] = useState(false);
@@ -225,20 +233,30 @@ export function TransactionDialogContent({
   // Detectar si es un gasto en tarjeta de crédito para ocultar el switch de isPaid
   const watchedAccountId = form.watch('accountId');
   const watchedType = form.watch('type');
+  const watchedAmount = form.watch('originalAmount');
+  const watchedDescription = form.watch('description');
   const selectedAccount = accountsMap.get(watchedAccountId);
   const isCreditCardExpense = selectedAccount?.type === 'credit_card' && watchedType === 'expense';
 
-  // Scroll to first error field when form validation fails
-  const onInvalid = (errors: Record<string, unknown>) => {
-    const firstErrorKey = Object.keys(errors)[0];
-    if (firstErrorKey) {
-      // Find element by data-field attribute and scroll to it
-      const element = document.querySelector(`[data-field="${firstErrorKey}"]`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  };
+  // Calculate form progress for transaction form
+  const transactionProgress = useMemo(() => {
+    const fields = [
+      watchedAmount !== undefined && watchedAmount > 0,
+      !!watchedAccountId,
+      !!watchedDescription,
+    ];
+    return fields.filter(Boolean).length;
+  }, [watchedAmount, watchedAccountId, watchedDescription]);
+
+  // Calculate form progress for transfer form
+  const transferProgress = useMemo(() => {
+    const fields = [
+      transferAmount !== undefined && transferAmount > 0,
+      !!transferFromAccountId,
+      !!transferToAccountId,
+    ];
+    return fields.filter(Boolean).length;
+  }, [transferAmount, transferFromAccountId, transferToAccountId]);
 
   const onSubmit = (data: CreateTransactionInput) => {
     setError(null);
@@ -252,8 +270,8 @@ export function TransactionDialogContent({
 
       if (result.success) {
         form.reset();
-        onSuccess();
         onMutationSuccess?.(toastId, transaction ? 'Transacción actualizada' : 'Transacción creada');
+        triggerSuccess();
       } else {
         setError(result.error);
         onMutationError?.(toastId, result.error);
@@ -306,8 +324,8 @@ export function TransactionDialogContent({
         setTransferDate(new Date());
         setTransferDescription('');
         setTransferNotes('');
-        onSuccess();
         onMutationSuccess?.(toastId, 'Transferencia creada');
+        triggerSuccess();
       } else {
         setError(result.error);
         onMutationError?.(toastId, result.error);
@@ -335,11 +353,18 @@ export function TransactionDialogContent({
 
   return (
     <DrawerContent>
+      <SuccessOverlay show={showSuccess} />
       <div className="mx-auto w-full max-w-lg md:flex md:flex-col md:h-full">
         <DrawerHeader>
-          <DrawerTitle>
-            {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
-          </DrawerTitle>
+          <div className="md:flex md:items-center md:justify-between">
+            <DrawerTitle>
+              {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
+            </DrawerTitle>
+            {/* Progress indicator - desktop only */}
+            {!isEditing && (
+              <ProgressIndicator current={isTransferMode ? transferProgress : transactionProgress} />
+            )}
+          </div>
           <DrawerDescription>
             {isEditing
               ? 'Modifica los datos de la transacción.'
@@ -373,7 +398,7 @@ export function TransactionDialogContent({
 
         {/* Transfer Form */}
         {isTransferMode && !isEditing ? (
-          <ScrollArea className="h-[50vh] md:flex-1">
+          <ScrollArea key="transfer" className="h-[50vh] md:flex-1 animate-fade-in">
             <div className="px-4 pt-2 space-y-4 pb-4">
               {/* Amount - Hero section */}
               <div className="pb-2">
@@ -385,6 +410,7 @@ export function TransactionDialogContent({
                   size="lg"
                   label="Monto"
                   valid={transferAmount !== undefined && transferAmount > 0}
+                  autoFocus
                 />
               </div>
 
@@ -496,20 +522,21 @@ export function TransactionDialogContent({
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <DrawerFooter className="px-0 pb-0">
-                <Button type="button" variant="cta" onClick={onSubmitTransfer} disabled={isPending} className="w-full relative">
-                  {isPending ? 'Creando...' : (
-                    <>
-                      Crear transferencia
-                      <ArrowRightLeft className="size-7 absolute right-4" />
-                    </>
-                  )}
-                </Button>
+                <SubmitButton
+                  type="button"
+                  isPending={isPending}
+                  pendingText="Creando..."
+                  icon={<ArrowRightLeft className="size-7" />}
+                  onClick={onSubmitTransfer}
+                >
+                  Crear transferencia
+                </SubmitButton>
               </DrawerFooter>
             </div>
           </ScrollArea>
         ) : (
           /* Regular Transaction Form */
-          <ScrollArea className="h-[50vh] md:flex-1">
+          <ScrollArea key="transaction" className="h-[50vh] md:flex-1 animate-fade-in">
             <Form {...form}>
               <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="px-4 pt-2 space-y-4 pb-4">
             {/* Type Selector for editing */}
@@ -554,6 +581,7 @@ export function TransactionDialogContent({
                       label="Monto"
                       valid={field.value !== undefined && field.value > 0}
                       invalid={!!fieldState.error}
+                      autoFocus={!isEditing}
                     />
                   </FormControl>
                   <FormMessage />
@@ -919,19 +947,13 @@ export function TransactionDialogContent({
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <DrawerFooter className="px-0 pb-0">
-                <Button type="submit" variant="cta" disabled={isPending} className="w-full relative">
-                  {isPending ? 'Guardando...' : isEditing ? (
-                    <>
-                      Guardar cambios
-                      <Check className="size-7 absolute right-4" />
-                    </>
-                  ) : (
-                    <>
-                      Crear transacción
-                      <ArrowRight className="size-7 absolute right-4" />
-                    </>
-                  )}
-                </Button>
+                <SubmitButton
+                  isPending={isPending}
+                  pendingText="Guardando..."
+                  icon={isEditing ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
+                >
+                  {isEditing ? 'Guardar cambios' : 'Crear transacción'}
+                </SubmitButton>
               </DrawerFooter>
               </form>
             </Form>

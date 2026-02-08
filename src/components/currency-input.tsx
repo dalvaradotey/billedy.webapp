@@ -16,6 +16,7 @@ interface CurrencyInputProps {
   label?: string;
   valid?: boolean;
   invalid?: boolean;
+  autoFocus?: boolean;
 }
 
 // Currency configuration
@@ -39,12 +40,23 @@ export function CurrencyInput({
   label,
   valid,
   invalid,
+  autoFocus = false,
 }: CurrencyInputProps) {
   const isLarge = size === 'lg';
   const config = currencyConfig[currency] ?? defaultConfig;
   const inputRef = useRef<HTMLInputElement>(null);
   const [displayValue, setDisplayValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+
+  // Auto-focus with delay for drawer animation
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocus]);
 
   // Format number for display
   const formatForDisplay = (num: number | undefined): string => {
