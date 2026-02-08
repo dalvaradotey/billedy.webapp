@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, StickyNote, X, Calendar, ArrowRight, Check, ArrowRightLeft } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, StickyNote, X, Calendar, ArrowRight, Check, ArrowRightLeft, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -109,6 +109,7 @@ export function TransactionDialogContent({
   const [showManualCategory, setShowManualCategory] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showDate, setShowDate] = useState(false);
+  const [descriptionFocused, setDescriptionFocused] = useState(false);
 
   // Transfer form state (separate from main form)
   const [transferFromAccountId, setTransferFromAccountId] = useState('');
@@ -227,6 +228,18 @@ export function TransactionDialogContent({
   const selectedAccount = accountsMap.get(watchedAccountId);
   const isCreditCardExpense = selectedAccount?.type === 'credit_card' && watchedType === 'expense';
 
+  // Scroll to first error field when form validation fails
+  const onInvalid = (errors: Record<string, unknown>) => {
+    const firstErrorKey = Object.keys(errors)[0];
+    if (firstErrorKey) {
+      // Find element by data-field attribute and scroll to it
+      const element = document.querySelector(`[data-field="${firstErrorKey}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  };
+
   const onSubmit = (data: CreateTransactionInput) => {
     setError(null);
     const toastId = toast.loading(transaction ? 'Actualizando transacción...' : 'Creando transacción...');
@@ -322,7 +335,7 @@ export function TransactionDialogContent({
 
   return (
     <DrawerContent>
-      <div className="mx-auto w-full max-w-lg">
+      <div className="mx-auto w-full max-w-lg md:flex md:flex-col md:h-full">
         <DrawerHeader>
           <DrawerTitle>
             {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
@@ -360,8 +373,8 @@ export function TransactionDialogContent({
 
         {/* Transfer Form */}
         {isTransferMode && !isEditing ? (
-          <ScrollArea className="h-[50vh]">
-            <div className="px-4 space-y-4 pb-4">
+          <ScrollArea className="h-[50vh] md:flex-1">
+            <div className="px-4 pt-2 space-y-4 pb-4">
               {/* Amount - Hero section */}
               <div className="pb-2">
                 <CurrencyInput
@@ -370,6 +383,8 @@ export function TransactionDialogContent({
                   currency={defaultCurrency}
                   placeholder="0"
                   size="lg"
+                  label="Monto"
+                  valid={transferAmount !== undefined && transferAmount > 0}
                 />
               </div>
 
@@ -377,7 +392,7 @@ export function TransactionDialogContent({
               <div className="space-y-2">
                 <label className="text-sm font-medium">Cuenta origen</label>
                 <Select value={transferFromAccountId} onValueChange={setTransferFromAccountId}>
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(transferFromAccountId && "ring-1 ring-emerald-500")}>
                     <SelectValue placeholder="Selecciona cuenta origen" />
                   </SelectTrigger>
                   <SelectContent>
@@ -399,7 +414,7 @@ export function TransactionDialogContent({
               <div className="space-y-2">
                 <label className="text-sm font-medium">Cuenta destino</label>
                 <Select value={transferToAccountId} onValueChange={setTransferToAccountId}>
-                  <SelectTrigger>
+                  <SelectTrigger className={cn(transferToAccountId && "ring-1 ring-emerald-500")}>
                     <SelectValue placeholder="Selecciona cuenta destino" />
                   </SelectTrigger>
                   <SelectContent>
@@ -481,11 +496,11 @@ export function TransactionDialogContent({
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <DrawerFooter className="px-0 pb-0">
-                <Button type="button" variant="cta" onClick={onSubmitTransfer} disabled={isPending} className="w-full">
+                <Button type="button" variant="cta" onClick={onSubmitTransfer} disabled={isPending} className="w-full relative">
                   {isPending ? 'Creando...' : (
                     <>
                       Crear transferencia
-                      <ArrowRightLeft className="h-5 w-5" />
+                      <ArrowRightLeft className="size-7 absolute right-4" />
                     </>
                   )}
                 </Button>
@@ -494,16 +509,16 @@ export function TransactionDialogContent({
           </ScrollArea>
         ) : (
           /* Regular Transaction Form */
-          <ScrollArea className="h-[50vh]">
+          <ScrollArea className="h-[50vh] md:flex-1">
             <Form {...form}>
-              <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit)} className="px-4 space-y-4 pb-4">
+              <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="px-4 pt-2 space-y-4 pb-4">
             {/* Type Selector for editing */}
             {isEditing && (
               <FormField
                 control={form.control}
                 name="type"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem data-field="type">
                     <FormLabel>Tipo</FormLabel>
                     <Tabs value={field.value} onValueChange={field.onChange}>
                       <TabsList className="w-full">
@@ -527,8 +542,8 @@ export function TransactionDialogContent({
             <FormField
               control={form.control}
               name="originalAmount"
-              render={({ field }) => (
-                <FormItem className="pb-2">
+              render={({ field, fieldState }) => (
+                <FormItem className="pb-2" data-field="originalAmount">
                   <FormControl>
                     <CurrencyInput
                       value={field.value}
@@ -536,9 +551,12 @@ export function TransactionDialogContent({
                       currency={defaultCurrency}
                       placeholder="0"
                       size="lg"
+                      label="Monto"
+                      valid={field.value !== undefined && field.value > 0}
+                      invalid={!!fieldState.error}
                     />
                   </FormControl>
-                  <FormMessage className="text-center" />
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -547,8 +565,8 @@ export function TransactionDialogContent({
             <FormField
               control={form.control}
               name="accountId"
-              render={({ field }) => (
-                <FormItem>
+              render={({ field, fieldState }) => (
+                <FormItem data-field="accountId">
                   <FormControl>
                     <AccountSelector
                       accounts={activeAccounts}
@@ -556,6 +574,8 @@ export function TransactionDialogContent({
                       onValueChange={(value) => field.onChange(value ?? '')}
                       label="Cuenta"
                       searchPlaceholder="Buscar cuenta..."
+                      valid={!!field.value}
+                      invalid={!!fieldState.error}
                     />
                   </FormControl>
                   <FormMessage />
@@ -569,8 +589,8 @@ export function TransactionDialogContent({
                 <FormField
                   control={form.control}
                   name="entityId"
-                  render={({ field }) => (
-                    <FormItem>
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="entityId">
                       <FormControl>
                         <EntitySelector
                           entities={entities}
@@ -586,6 +606,8 @@ export function TransactionDialogContent({
                           }}
                           label="Tienda"
                           searchPlaceholder="Buscar tienda..."
+                          valid={!!field.value}
+                          invalid={!!fieldState.error}
                         />
                       </FormControl>
                       <FormMessage />
@@ -608,15 +630,46 @@ export function TransactionDialogContent({
                 <FormField
                   control={form.control}
                   name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descripción</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ej: Supermercado Jumbo" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field, fieldState }) => {
+                    const isActive = descriptionFocused || !!field.value;
+                    const hasError = !!fieldState.error;
+                    return (
+                      <FormItem data-field="description">
+                        <FormControl>
+                          <div className="relative">
+                            <span
+                              className={cn(
+                                "absolute left-3 transition-all flex items-center gap-1 pointer-events-none",
+                                isActive
+                                  ? "top-1.5 text-xs"
+                                  : "top-1/2 -translate-y-1/2 text-base",
+                                field.value ? "text-emerald-600" : hasError ? "text-destructive" : "text-muted-foreground"
+                              )}
+                            >
+                              Descripción
+                              {field.value && <CheckCircle2 className="h-3.5 w-3.5" />}
+                              {hasError && !field.value && <XCircle className="h-3.5 w-3.5" />}
+                            </span>
+                            <Input
+                              placeholder=""
+                              className={cn(
+                                "h-14 pt-5 pb-1",
+                                field.value && "ring-1 ring-emerald-500",
+                                hasError && "ring-1 ring-destructive"
+                              )}
+                              {...field}
+                              onFocus={() => setDescriptionFocused(true)}
+                              onBlur={() => {
+                                setDescriptionFocused(false);
+                                field.onBlur?.();
+                              }}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
                 {entities.length > 0 && (
                   <Button
@@ -639,8 +692,8 @@ export function TransactionDialogContent({
                 <FormField
                   control={form.control}
                   name="budgetId"
-                  render={({ field }) => (
-                    <FormItem>
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="budgetId">
                       <FormControl>
                         <BudgetSelector
                           budgets={budgets}
@@ -657,6 +710,8 @@ export function TransactionDialogContent({
                           }}
                           label="Presupuesto (opcional)"
                           searchPlaceholder="Buscar presupuesto..."
+                          valid={!!field.value}
+                          invalid={!!fieldState.error}
                         />
                       </FormControl>
                       <FormMessage />
@@ -679,8 +734,8 @@ export function TransactionDialogContent({
                 <FormField
                   control={form.control}
                   name="categoryId"
-                  render={({ field }) => (
-                    <FormItem>
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="categoryId">
                       <FormLabel>Categoría (opcional)</FormLabel>
                       <FormControl>
                         <CategorySelector
@@ -691,6 +746,8 @@ export function TransactionDialogContent({
                           userId={userId}
                           placeholder="Sin categoría"
                           onCategoryCreated={handleCategoryCreated}
+                          valid={!!field.value}
+                          invalid={!!fieldState.error}
                         />
                       </FormControl>
                       <FormMessage />
@@ -718,22 +775,42 @@ export function TransactionDialogContent({
                 <FormField
                   control={form.control}
                   name="date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fecha</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="date"
-                          {...field}
-                          value={field.value instanceof Date
-                            ? field.value.toISOString().split('T')[0]
-                            : String(field.value).split('T')[0]}
-                          onChange={(e) => field.onChange(new Date(e.target.value + 'T12:00:00'))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field, fieldState }) => {
+                    const hasValue = !!field.value;
+                    const hasError = !!fieldState.error;
+                    return (
+                      <FormItem data-field="date">
+                        <FormControl>
+                          <div className="relative">
+                            <span
+                              className={cn(
+                                "absolute left-3 top-1.5 text-xs flex items-center gap-1 pointer-events-none",
+                                hasValue ? "text-emerald-600" : hasError ? "text-destructive" : "text-muted-foreground"
+                              )}
+                            >
+                              Fecha
+                              {hasValue && <CheckCircle2 className="h-3.5 w-3.5" />}
+                              {hasError && !hasValue && <XCircle className="h-3.5 w-3.5" />}
+                            </span>
+                            <Input
+                              type="date"
+                              {...field}
+                              value={field.value instanceof Date
+                                ? field.value.toISOString().split('T')[0]
+                                : String(field.value).split('T')[0]}
+                              onChange={(e) => field.onChange(new Date(e.target.value + 'T12:00:00'))}
+                              className={cn(
+                                "h-14 pt-5 pb-1",
+                                hasValue && "ring-1 ring-emerald-500",
+                                hasError && "ring-1 ring-destructive"
+                              )}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
                 <Button
                   type="button"
@@ -758,7 +835,7 @@ export function TransactionDialogContent({
                   control={form.control}
                   name="notes"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem data-field="notes">
                       <FormLabel>Notas</FormLabel>
                       <FormControl>
                         <Textarea
@@ -842,16 +919,16 @@ export function TransactionDialogContent({
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <DrawerFooter className="px-0 pb-0">
-                <Button type="submit" variant="cta" disabled={isPending} className="w-full">
+                <Button type="submit" variant="cta" disabled={isPending} className="w-full relative">
                   {isPending ? 'Guardando...' : isEditing ? (
                     <>
                       Guardar cambios
-                      <Check className="h-5 w-5" />
+                      <Check className="size-7 absolute right-4" />
                     </>
                   ) : (
                     <>
                       Crear transacción
-                      <ArrowRight className="h-5 w-5" />
+                      <ArrowRight className="size-7 absolute right-4" />
                     </>
                   )}
                 </Button>

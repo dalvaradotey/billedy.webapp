@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +13,9 @@ interface CurrencyInputProps {
   disabled?: boolean;
   className?: string;
   size?: 'default' | 'lg';
+  label?: string;
+  valid?: boolean;
+  invalid?: boolean;
 }
 
 // Currency configuration
@@ -32,6 +36,9 @@ export function CurrencyInput({
   disabled = false,
   className,
   size = 'default',
+  label,
+  valid,
+  invalid,
 }: CurrencyInputProps) {
   const isLarge = size === 'lg';
   const config = currencyConfig[currency] ?? defaultConfig;
@@ -149,9 +156,21 @@ export function CurrencyInput({
 
   return (
     <div className="relative">
+      {label && (
+        <span className={cn(
+          "absolute flex items-center gap-1 text-xs md:text-sm",
+          isLarge ? "left-4 top-2 md:top-3" : "left-3 top-1",
+          valid ? "text-emerald-600" : invalid ? "text-destructive" : "text-muted-foreground"
+        )}>
+          {label}
+          {valid && <CheckCircle2 className="h-4 w-4" />}
+          {invalid && <XCircle className="h-4 w-4" />}
+        </span>
+      )}
       <span className={cn(
-        "absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground",
-        isLarge ? "text-2xl left-4" : "text-sm"
+        "absolute left-3 text-muted-foreground",
+        isLarge ? "text-2xl md:text-3xl left-4" : "text-sm",
+        label ? "top-1/2 -translate-y-1/4" : "top-1/2 -translate-y-1/2"
       )}>
         {config.symbol}
       </span>
@@ -167,8 +186,11 @@ export function CurrencyInput({
         disabled={disabled}
         className={cn(
           isLarge
-            ? 'pl-10 h-16 text-3xl font-semibold text-center'
+            ? 'pl-10 md:pl-12 text-3xl md:text-4xl font-semibold text-center'
             : 'pl-7',
+          label && isLarge ? 'h-20 md:h-24 pt-6 md:pt-7 pb-2' : isLarge ? 'h-16 md:h-20' : '',
+          valid && 'ring-1 ring-emerald-500',
+          invalid && 'ring-1 ring-destructive',
           className
         )}
       />

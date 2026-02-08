@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Check, ChevronsUpDown, Store } from 'lucide-react';
+import { Check, CheckCircle2, ChevronsUpDown, Store, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +37,8 @@ interface EntitySelectorProps {
   noneLabel?: string;
   filterByType?: EntityType[];
   disabled?: boolean;
+  valid?: boolean;
+  invalid?: boolean;
 }
 
 export function EntitySelector({
@@ -50,6 +52,8 @@ export function EntitySelector({
   noneLabel = 'Sin entidad',
   filterByType,
   disabled = false,
+  valid,
+  invalid,
 }: EntitySelectorProps) {
   const [open, setOpen] = useState(false);
 
@@ -94,7 +98,9 @@ export function EntitySelector({
           aria-expanded={open}
           className={cn(
             'w-full justify-between font-normal',
-            label ? 'h-14 py-1' : 'h-12'
+            label ? 'h-14 py-1' : 'h-12',
+            valid && 'ring-1 ring-emerald-500',
+            invalid && 'ring-1 ring-destructive'
           )}
           disabled={disabled}
         >
@@ -103,11 +109,14 @@ export function EntitySelector({
             <div className="flex flex-col items-start gap-0.5 min-w-0">
               <span
                 className={cn(
-                  'text-muted-foreground transition-all',
-                  selectedEntity ? 'text-xs' : 'text-base'
+                  'transition-all flex items-center gap-1',
+                  selectedEntity ? 'text-xs' : 'text-base',
+                  valid ? 'text-emerald-600' : invalid ? 'text-destructive' : 'text-muted-foreground'
                 )}
               >
                 {label}
+                {valid && <CheckCircle2 className="h-3.5 w-3.5" />}
+                {invalid && <XCircle className="h-3.5 w-3.5" />}
               </span>
               {selectedEntity && (
                 <div className="flex items-center gap-2 truncate">

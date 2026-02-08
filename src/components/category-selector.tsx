@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Plus } from 'lucide-react';
+import { Plus, CheckCircle2, XCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   ResponsiveDrawer,
@@ -77,6 +78,8 @@ interface CategorySelectorProps {
   noneLabel?: string;
   disabled?: boolean;
   onCategoryCreated?: (category: { id: string; name: string; color: string }) => void;
+  valid?: boolean;
+  invalid?: boolean;
 }
 
 export function CategorySelector({
@@ -90,6 +93,8 @@ export function CategorySelector({
   noneLabel = 'Sin categoría',
   disabled = false,
   onCategoryCreated,
+  valid,
+  invalid,
 }: CategorySelectorProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
@@ -120,7 +125,7 @@ export function CategorySelector({
         onValueChange={handleValueChange}
         disabled={disabled}
       >
-        <SelectTrigger className="h-12">
+        <SelectTrigger className={cn("h-12", valid && "ring-1 ring-emerald-500", invalid && "ring-1 ring-destructive")}>
           <SelectValue placeholder={placeholder}>
             {selectedCategory ? (
               <div className="flex items-center gap-2">

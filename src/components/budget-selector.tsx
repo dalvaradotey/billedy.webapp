@@ -29,6 +29,8 @@ interface BudgetSelectorProps {
   allowNone?: boolean;
   noneLabel?: string;
   disabled?: boolean;
+  valid?: boolean;
+  invalid?: boolean;
 }
 
 export function BudgetSelector({
@@ -41,6 +43,8 @@ export function BudgetSelector({
   allowNone = true,
   noneLabel = 'Sin presupuesto',
   disabled = false,
+  valid,
+  invalid,
 }: BudgetSelectorProps) {
   // Convert budgets to SearchableSelect options
   const options: SearchableSelectOption[] = useMemo(() => {
@@ -69,6 +73,8 @@ export function BudgetSelector({
       noneLabel={noneLabel}
       noneIcon={<PieChart className="h-4 w-4 text-muted-foreground" />}
       disabled={disabled}
+      valid={valid}
+      invalid={invalid}
     />
   );
 }

@@ -23,6 +23,8 @@ interface AccountSelectorProps {
   noneLabel?: string;
   filterByType?: AccountType[];
   disabled?: boolean;
+  valid?: boolean;
+  invalid?: boolean;
 }
 
 function getAccountTypeIcon(type: AccountType) {
@@ -52,6 +54,8 @@ export function AccountSelector({
   noneLabel = 'Sin cuenta',
   filterByType,
   disabled = false,
+  valid,
+  invalid,
 }: AccountSelectorProps) {
   // Filter accounts by type if specified
   const filteredAccounts = useMemo(() => {
@@ -90,6 +94,8 @@ export function AccountSelector({
       noneIcon={<Wallet className="h-4 w-4 text-muted-foreground" />}
       disabled={disabled}
       groupLabels={ACCOUNT_TYPE_LABELS}
+      valid={valid}
+      invalid={invalid}
     />
   );
 }
