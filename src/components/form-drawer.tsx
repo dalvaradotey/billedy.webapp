@@ -134,7 +134,7 @@ export function FormDrawerBody(props: FormDrawerBodyProps) {
             const viewportRect = viewport.getBoundingClientRect();
             const itemRect = formItem.getBoundingClientRect();
             // Scroll so the item has more space above it
-            const scrollTop = viewport.scrollTop + (itemRect.top - viewportRect.top) - 120;
+            const scrollTop = viewport.scrollTop + (itemRect.top - viewportRect.top) - 25;
             viewport.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
           }
         }
