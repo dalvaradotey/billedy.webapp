@@ -1,35 +1,38 @@
 'use client';
 
-import { useState, useTransition, useCallback } from 'react';
+import { useState, useTransition, useCallback, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Plus, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Check, CheckCircle2, XCircle, ChevronsUpDown, Tag, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFormValidation, useSuccessAnimation } from '@/hooks';
+import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-drawer';
+import { SubmitButton } from '@/components/submit-button';
+import { FloatingLabelInput } from '@/components/floating-label-input';
 import { Button } from '@/components/ui/button';
 import {
   ResponsiveDrawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
 } from '@/components/ui/drawer';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import { createCategory } from '@/features/categories/actions';
@@ -73,7 +76,9 @@ interface CategorySelectorProps {
   onValueChange: (value: string | null) => void;
   projectId: string;
   userId: string;
+  label?: string;
   placeholder?: string;
+  searchPlaceholder?: string;
   allowNone?: boolean;
   noneLabel?: string;
   disabled?: boolean;
@@ -88,7 +93,9 @@ export function CategorySelector({
   onValueChange,
   projectId,
   userId,
+  label,
   placeholder = 'Selecciona una categoría',
+  searchPlaceholder = 'Buscar categoría...',
   allowNone = false,
   noneLabel = 'Sin categoría',
   disabled = false,
@@ -96,18 +103,22 @@ export function CategorySelector({
   valid,
   invalid,
 }: CategorySelectorProps) {
+  const [open, setOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  const handleValueChange = (newValue: string) => {
-    if (newValue === '__create__') {
+  const selectedCategory = categories.find((c) => c.id === value);
+
+  const handleSelect = (categoryId: string) => {
+    if (categoryId === '__none__') {
+      onValueChange(null);
+    } else if (categoryId === '__create__') {
+      setOpen(false);
       setIsCreateDialogOpen(true);
       return;
+    } else {
+      onValueChange(categoryId === value ? null : categoryId);
     }
-    if (newValue === '__none__') {
-      onValueChange(null);
-      return;
-    }
-    onValueChange(newValue);
+    setOpen(false);
   };
 
   const handleCategoryCreated = (newCategory: { id: string; name: string; color: string }) => {
@@ -116,55 +127,126 @@ export function CategorySelector({
     onCategoryCreated?.(newCategory);
   };
 
-  const selectedCategory = categories.find((c) => c.id === value);
-
   return (
     <>
-      <Select
-        value={value ?? (allowNone ? '__none__' : '')}
-        onValueChange={handleValueChange}
-        disabled={disabled}
-      >
-        <SelectTrigger className={cn("h-12", valid && "ring-1 ring-emerald-500", invalid && "ring-1 ring-destructive")}>
-          <SelectValue placeholder={placeholder}>
-            {selectedCategory ? (
-              <div className="flex items-center gap-2">
-                <div
-                  className="h-3 w-3 rounded shrink-0"
-                  style={{ backgroundColor: selectedCategory.color }}
-                />
-                <span className="truncate">{selectedCategory.name}</span>
-              </div>
-            ) : allowNone && !value ? (
-              noneLabel
-            ) : (
-              placeholder
+      <Popover open={open} onOpenChange={setOpen} modal={true}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn(
+              'w-full justify-between font-normal',
+              label ? 'h-14 py-1' : 'h-12',
+              valid && 'ring-1 ring-emerald-500',
+              invalid && 'ring-1 ring-destructive'
             )}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {allowNone && (
-            <SelectItem value="__none__" className="py-4">{noneLabel}</SelectItem>
-          )}
-          {categories.map((cat) => (
-            <SelectItem key={cat.id} value={cat.id} className="py-4">
-              <div className="flex items-center gap-2">
-                <div
-                  className="h-3 w-3 rounded shrink-0"
-                  style={{ backgroundColor: cat.color }}
-                />
-                <span>{cat.name}</span>
+            disabled={disabled}
+          >
+            {label ? (
+              // Floating label layout
+              <div className="flex flex-col items-start gap-0.5 min-w-0">
+                <span
+                  className={cn(
+                    'transition-all flex items-center gap-1',
+                    selectedCategory ? 'text-xs' : 'text-base',
+                    valid ? 'text-emerald-600' : invalid ? 'text-destructive' : 'text-muted-foreground'
+                  )}
+                >
+                  {label}
+                  {valid && <CheckCircle2 className="h-3.5 w-3.5" />}
+                  {invalid && <XCircle className="h-3.5 w-3.5" />}
+                </span>
+                {selectedCategory && (
+                  <div className="flex items-center gap-2 truncate">
+                    <span
+                      className="h-3 w-3 rounded shrink-0"
+                      style={{ backgroundColor: selectedCategory.color }}
+                    />
+                    <span className="truncate text-sm">{selectedCategory.name}</span>
+                  </div>
+                )}
               </div>
-            </SelectItem>
-          ))}
-          <SelectItem value="__create__" className="text-primary py-4">
-            <div className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              <span>Crear nueva categoría</span>
-            </div>
-          </SelectItem>
-        </SelectContent>
-      </Select>
+            ) : (
+              // Original layout without label
+              selectedCategory ? (
+                <div className="flex items-center gap-2 truncate">
+                  <span
+                    className="h-3 w-3 rounded shrink-0"
+                    style={{ backgroundColor: selectedCategory.color }}
+                  />
+                  <span className="truncate">{selectedCategory.name}</span>
+                </div>
+              ) : (
+                <span className="text-muted-foreground">{placeholder}</span>
+              )
+            )}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[calc(100vw-2rem)] sm:w-[300px] p-0"
+          align="start"
+          sideOffset={4}
+        >
+          <Command>
+            <CommandInput placeholder={searchPlaceholder} />
+            <CommandList className="max-h-[200px] overflow-y-auto overscroll-contain">
+              <CommandEmpty>No se encontraron categorías.</CommandEmpty>
+              {allowNone && (
+                <CommandGroup>
+                  <CommandItem
+                    value="__none__"
+                    onSelect={() => handleSelect('__none__')}
+                    className="py-4"
+                  >
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        !value ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                    <Tag className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>{noneLabel}</span>
+                  </CommandItem>
+                </CommandGroup>
+              )}
+              <CommandGroup heading="Categorías">
+                {categories.map((category) => (
+                  <CommandItem
+                    key={category.id}
+                    value={category.name}
+                    onSelect={() => handleSelect(category.id)}
+                    className="py-4"
+                  >
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4 shrink-0',
+                        value === category.id ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                    <span
+                      className="mr-2 h-3 w-3 rounded shrink-0"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    <span className="truncate">{category.name}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              <CommandGroup>
+                <CommandItem
+                  value="__create__ crear nueva categoría"
+                  onSelect={() => handleSelect('__create__')}
+                  className="py-4 text-primary"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span>Crear nueva categoría</span>
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
 
       <CreateCategoryDialog
         open={isCreateDialogOpen}
@@ -194,6 +276,18 @@ function CreateCategoryDialog({
 }: CreateCategoryDialogProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const pendingCategoryRef = useRef<{ id: string; name: string; color: string } | null>(null);
+
+  // Form UX hooks
+  const { onInvalid } = useFormValidation();
+  const { showSuccess, triggerSuccess } = useSuccessAnimation({
+    onComplete: () => {
+      if (pendingCategoryRef.current) {
+        onSuccess(pendingCategoryRef.current);
+        pendingCategoryRef.current = null;
+      }
+    },
+  });
 
   const getDefaultValues = useCallback(
     () => ({
@@ -221,13 +315,13 @@ function CreateCategoryDialog({
 
       if (result.success) {
         toast.success('Categoría creada', { id: toastId });
-        const newCategory = {
+        pendingCategoryRef.current = {
           id: result.data.id,
           name: data.name,
           color: data.color,
         };
         form.reset(getDefaultValues());
-        onSuccess(newCategory);
+        triggerSuccess();
       } else {
         toast.error(result.error, { id: toastId });
         setError(result.error);
@@ -245,28 +339,28 @@ function CreateCategoryDialog({
 
   return (
     <ResponsiveDrawer open={open} onOpenChange={handleOpenChange}>
-      <DrawerContent>
-        <div className="mx-auto w-full max-w-lg">
-          <DrawerHeader>
-            <DrawerTitle>Nueva categoría</DrawerTitle>
-            <DrawerDescription>
-              Crea una nueva categoría para organizar tus transacciones.
-            </DrawerDescription>
-          </DrawerHeader>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+      <FormDrawer
+        title="Nueva categoría"
+        description="Crea una nueva categoría para organizar tus transacciones."
+        showSuccess={showSuccess}
+      >
+        <Form {...form}>
+          <FormDrawerBody as="form" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
             <FormField
               control={form.control}
               name="name"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>Nombre</FormLabel>
                   <FormControl>
-                    <Input
+                    <FloatingLabelInput
+                      label="Nombre"
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
                       placeholder="Ej: Comida, Transporte"
                       autoFocus
-                      {...field}
+                      valid={fieldState.isDirty && !fieldState.invalid}
+                      invalid={fieldState.invalid}
                     />
                   </FormControl>
                   <FormMessage />
@@ -277,9 +371,24 @@ function CreateCategoryDialog({
             <FormField
               control={form.control}
               name="color"
-              render={({ field }) => (
+              render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>Color</FormLabel>
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 text-sm font-medium',
+                      fieldState.isDirty && !fieldState.invalid
+                        ? 'text-emerald-600'
+                        : fieldState.invalid
+                          ? 'text-destructive'
+                          : 'text-foreground'
+                    )}
+                  >
+                    Color
+                    {fieldState.isDirty && !fieldState.invalid && (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    )}
+                    {fieldState.invalid && <XCircle className="h-3.5 w-3.5" />}
+                  </div>
                   <FormControl>
                     <div className="space-y-3">
                       <div className="flex flex-wrap gap-2">
@@ -287,21 +396,29 @@ function CreateCategoryDialog({
                           <button
                             key={color}
                             type="button"
-                            className={`h-6 w-6 rounded-full border-2 transition-all ${
+                            className={cn(
+                              'relative h-7 w-7 rounded-full border-2 transition-all',
                               field.value === color
                                 ? 'border-foreground scale-110'
                                 : 'border-transparent hover:scale-105'
-                            }`}
+                            )}
                             style={{ backgroundColor: color }}
                             onClick={() => field.onChange(color)}
-                          />
+                          >
+                            {field.value === color && (
+                              <Check className="absolute inset-0 m-auto h-4 w-4 text-white drop-shadow" />
+                            )}
+                          </button>
                         ))}
                       </div>
-                      <Input
-                        type="text"
+                      <FloatingLabelInput
+                        label="Código de color"
+                        value={field.value}
+                        onChange={field.onChange}
                         placeholder="#3b82f6"
-                        {...field}
                         className="font-mono"
+                        valid={fieldState.isDirty && !fieldState.invalid}
+                        invalid={fieldState.invalid}
                       />
                     </div>
                   </FormControl>
@@ -310,17 +427,20 @@ function CreateCategoryDialog({
               )}
             />
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
-              <DrawerFooter className="pt-4">
-                <Button type="submit" disabled={isPending} className="w-full">
-                  {isPending ? 'Creando...' : 'Crear categoría'}
-                </Button>
-              </DrawerFooter>
-            </form>
-          </Form>
-        </div>
-      </DrawerContent>
+            <FormDrawerFooter>
+              <SubmitButton
+                isPending={isPending}
+                pendingText="Creando..."
+                icon={<ArrowRight className="size-7" />}
+              >
+                Crear categoría
+              </SubmitButton>
+            </FormDrawerFooter>
+          </FormDrawerBody>
+        </Form>
+      </FormDrawer>
     </ResponsiveDrawer>
   );
 }

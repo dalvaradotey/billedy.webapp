@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
 import type { Entity } from '@/features/entities/types';
+import type { AccountWithEntity } from '@/features/accounts/types';
 import type { CreditWithProgress, CreditSummary } from '../types';
 import { SummaryCard } from './summary-card';
 import { CreditCard } from './credit-card';
@@ -19,7 +20,7 @@ interface CreditListProps {
   credits: CreditWithProgress[];
   categories: { id: string; name: string; color: string }[];
   entities: Entity[];
-  accounts: { id: string; name: string; type: string }[];
+  accounts: AccountWithEntity[];
   summary: CreditSummary;
   projectId: string;
   userId: string;
@@ -95,14 +96,14 @@ export function CreditList({
       </div>
 
       {/* Actions */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
           {showArchived ? 'Mostrando archivados' : `${credits.length} créditos`}
         </div>
 
         <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DrawerTrigger asChild>
-            <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
+            <Button size="sm" className="gap-2 w-full sm:w-auto" onClick={handleOpenDialog}>
               <Plus className="h-4 w-4" />
               Nuevo crédito
             </Button>

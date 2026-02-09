@@ -120,7 +120,7 @@ export function MovementDialogContent({
             control={form.control}
             name="amount"
             render={({ field }) => (
-              <FormItem>
+              <FormItem data-field="amount">
                 <FormLabel>Monto</FormLabel>
                 <FormControl>
                   <CurrencyInput
@@ -139,7 +139,7 @@ export function MovementDialogContent({
             control={form.control}
             name="date"
             render={({ field }) => (
-              <FormItem>
+              <FormItem data-field="date">
                 <FormLabel>Fecha</FormLabel>
                 <FormControl>
                   <Input
@@ -162,7 +162,7 @@ export function MovementDialogContent({
             control={form.control}
             name="description"
             render={({ field }) => (
-              <FormItem>
+              <FormItem data-field="description">
                 <FormLabel>Descripción (opcional)</FormLabel>
                 <FormControl>
                   <Textarea

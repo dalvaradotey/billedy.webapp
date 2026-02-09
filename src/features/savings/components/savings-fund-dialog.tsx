@@ -1,33 +1,25 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { Check, ArrowRight, Settings } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import {
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
+import { useFormValidation, useSuccessAnimation } from '@/hooks';
+import { SubmitButton } from '@/components/submit-button';
+import { FloatingLabelInput } from '@/components/floating-label-input';
+import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-drawer';
+import { ProgressIndicator } from '@/components/progress-indicator';
 import { CurrencyInput } from '@/components/currency-input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/searchable-select';
+import { SwitchCard } from '@/components/switch-card';
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 
@@ -64,6 +56,11 @@ export function SavingsFundDialogContent({
   const [selectedCurrencyId, setSelectedCurrencyId] = useState(
     fund?.currencyId ?? defaultCurrencyId
   );
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
+  // Form UX hooks
+  const { onInvalid } = useFormValidation();
+  const { showSuccess, triggerSuccess } = useSuccessAnimation({ onComplete: onSuccess });
 
   const selectedCurrencyCode = currencies.find((c) => c.id === selectedCurrencyId)?.code ?? 'CLP';
 
@@ -83,6 +80,27 @@ export function SavingsFundDialogContent({
     },
   });
 
+  // Track form progress with subscription pattern
+  const calculateProgress = useCallback((values: Partial<CreateSavingsFundInput>) => {
+    return [
+      !!values.name,
+      values.monthlyTarget !== undefined && values.monthlyTarget > 0,
+    ].filter(Boolean).length;
+  }, []);
+
+  const [formProgress, setFormProgress] = useState(() => calculateProgress(form.getValues()));
+
+  useEffect(() => {
+    // Calculate initial progress
+    setFormProgress(calculateProgress(form.getValues()));
+
+    // Subscribe to changes
+    const subscription = form.watch((values) => {
+      setFormProgress(calculateProgress(values));
+    });
+    return () => subscription.unsubscribe();
+  }, [form, calculateProgress]);
+
   const onSubmit = (data: CreateSavingsFundInput) => {
     setError(null);
     const toastId = toast.loading(isEditing ? 'Actualizando fondo...' : 'Creando fondo...');
@@ -101,8 +119,8 @@ export function SavingsFundDialogContent({
 
       if (result.success) {
         form.reset();
-        onSuccess();
         onMutationSuccess?.(toastId, isEditing ? 'Fondo actualizado' : 'Fondo creado');
+        triggerSuccess();
       } else {
         setError(result.error);
         onMutationError?.(toastId, result.error);
@@ -110,54 +128,80 @@ export function SavingsFundDialogContent({
     });
   };
 
-  return (
-    <DrawerContent>
-      <div className="mx-auto w-full max-w-lg">
-        <DrawerHeader>
-          <DrawerTitle>{isEditing ? 'Editar fondo' : 'Nuevo fondo de ahorro'}</DrawerTitle>
-          <DrawerDescription>
-            {isEditing
-              ? 'Modifica los detalles del fondo de ahorro.'
-              : 'Crea un nuevo fondo para organizar tus ahorros.'}
-          </DrawerDescription>
-        </DrawerHeader>
+  // Fund type options
+  const fundTypeOptions = [
+    { id: 'emergency', label: 'Emergencia' },
+    { id: 'investment', label: 'Inversión' },
+    { id: 'goal', label: 'Meta específica' },
+    { id: 'other', label: 'Otro' },
+  ];
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+  // Account type options
+  const accountTypeOptions = ACCOUNT_TYPE_OPTIONS.map((type) => ({
+    id: type,
+    label: type,
+  }));
+
+  // Currency options
+  const currencyOptions = currencies.map((c) => ({
+    id: c.id,
+    label: c.code,
+  }));
+
+  return (
+    <FormDrawer
+      title={isEditing ? 'Editar fondo' : 'Nuevo fondo de ahorro'}
+      description={
+        isEditing
+          ? 'Modifica los detalles del fondo de ahorro.'
+          : 'Crea un nuevo fondo para organizar tus ahorros.'
+      }
+      showSuccess={showSuccess}
+      headerExtra={!isEditing ? <ProgressIndicator current={formProgress} total={2} /> : undefined}
+    >
+      <Form {...form}>
+        <FormDrawerBody as="form" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
+          {/* Name */}
           <FormField
             control={form.control}
             name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombre</FormLabel>
+            render={({ field, fieldState }) => (
+              <FormItem data-field="name">
                 <FormControl>
-                  <Input placeholder="Ej: Fondo de emergencia" {...field} />
+                  <FloatingLabelInput
+                    label="Nombre"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Ej: Fondo de emergencia"
+                    valid={fieldState.isDirty && !fieldState.invalid}
+                    invalid={fieldState.invalid}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
 
+          {/* Type and Account Type */}
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               control={form.control}
               name="type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de fondo</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un tipo" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="emergency">Emergencia</SelectItem>
-                      <SelectItem value="investment">Inversión</SelectItem>
-                      <SelectItem value="goal">Meta específica</SelectItem>
-                      <SelectItem value="other">Otro</SelectItem>
-                    </SelectContent>
-                  </Select>
+              render={({ field, fieldState }) => (
+                <FormItem data-field="type">
+                  <FormControl>
+                    <SearchableSelect
+                      options={fundTypeOptions}
+                      value={field.value}
+                      onValueChange={(value) => field.onChange(value ?? 'goal')}
+                      label="Tipo de fondo"
+                      searchPlaceholder="Buscar tipo..."
+                      emptyMessage="No se encontraron tipos."
+                      valid={!!field.value}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -166,118 +210,176 @@ export function SavingsFundDialogContent({
             <FormField
               control={form.control}
               name="accountType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de cuenta</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {ACCOUNT_TYPE_OPTIONS.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              render={({ field, fieldState }) => (
+                <FormItem data-field="accountType">
+                  <FormControl>
+                    <SearchableSelect
+                      options={accountTypeOptions}
+                      value={field.value}
+                      onValueChange={(value) => field.onChange(value ?? 'Cuenta de ahorro')}
+                      label="Tipo de cuenta"
+                      searchPlaceholder="Buscar tipo..."
+                      emptyMessage="No se encontraron tipos."
+                      valid={!!field.value}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
 
-          {!isEditing && currencies.length > 1 && (
-            <div>
-              <label className="text-sm font-medium">Moneda</label>
-              <Select value={selectedCurrencyId} onValueChange={setSelectedCurrencyId}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencies.map((currency) => (
-                    <SelectItem key={currency.id} value={currency.id}>
-                      {currency.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Monthly Target */}
+          <FormField
+            control={form.control}
+            name="monthlyTarget"
+            render={({ field, fieldState }) => (
+              <FormItem data-field="monthlyTarget">
+                <FormControl>
+                  <CurrencyInput
+                    size="lg"
+                    label="Meta mensual"
+                    value={field.value}
+                    onChange={field.onChange}
+                    currency={selectedCurrencyCode}
+                    placeholder="0"
+                    valid={fieldState.isDirty && !fieldState.invalid && field.value != null && field.value > 0}
+                    invalid={fieldState.invalid}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Advanced Options Toggle */}
+          {!showAdvancedOptions && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground h-auto p-0"
+              onClick={() => setShowAdvancedOptions(true)}
+            >
+              <Settings className="mr-1.5 h-3 w-3" />
+              Otras opciones
+            </Button>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="targetAmount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Meta total (opcional)</FormLabel>
-                  <FormControl>
-                    <CurrencyInput
-                      value={field.value ?? undefined}
-                      onChange={field.onChange}
-                      currency={selectedCurrencyCode}
-                      placeholder="0"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {/* Advanced Options */}
+          {showAdvancedOptions && (
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-muted-foreground">Otras opciones</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-auto p-0"
+                  onClick={() => setShowAdvancedOptions(false)}
+                >
+                  Ocultar
+                </Button>
+              </div>
 
-            <FormField
-              control={form.control}
-              name="monthlyTarget"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Meta mensual</FormLabel>
-                  <FormControl>
-                    <CurrencyInput
-                      value={field.value}
-                      onChange={field.onChange}
-                      currency={selectedCurrencyCode}
-                      placeholder="0"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+              {/* Target Amount */}
+              <FormField
+                control={form.control}
+                name="targetAmount"
+                render={({ field, fieldState }) => (
+                  <FormItem data-field="targetAmount">
+                    <FormControl>
+                      <CurrencyInput
+                        size="lg"
+                        label="Meta total (opcional)"
+                        value={field.value ?? undefined}
+                        onChange={field.onChange}
+                        currency={selectedCurrencyCode}
+                        placeholder="0"
+                        valid={fieldState.isDirty && !fieldState.invalid && field.value != null && field.value > 0}
+                        invalid={fieldState.invalid}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {!isEditing && (
-            <FormField
-              control={form.control}
-              name="currentBalance"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Balance inicial (opcional)</FormLabel>
-                  <FormControl>
-                    <CurrencyInput
-                      value={field.value}
-                      onChange={(value) => field.onChange(value ?? 0)}
-                      currency={selectedCurrencyCode}
-                      placeholder="0"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              {/* Initial Balance - Only when creating */}
+              {!isEditing && (
+                <FormField
+                  control={form.control}
+                  name="currentBalance"
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="currentBalance">
+                      <FormControl>
+                        <CurrencyInput
+                          size="lg"
+                          label="Balance inicial (opcional)"
+                          value={field.value}
+                          onChange={(value) => field.onChange(value ?? 0)}
+                          currency={selectedCurrencyCode}
+                          placeholder="0"
+                          valid={fieldState.isDirty && !fieldState.invalid && field.value != null && field.value > 0}
+                          invalid={fieldState.invalid}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            />
+
+              {/* Currency Selector - Only when creating and multiple currencies */}
+              {!isEditing && currencies.length > 1 && (
+                <div className="space-y-3">
+                  <SwitchCard
+                    title="Moneda diferente"
+                    description={`Por defecto se usa ${currencies.find((c) => c.id === defaultCurrencyId)?.code ?? 'CLP'}`}
+                    checked={selectedCurrencyId !== defaultCurrencyId}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        // Select first non-default currency
+                        const otherCurrency = currencies.find((c) => c.id !== defaultCurrencyId);
+                        if (otherCurrency) {
+                          setSelectedCurrencyId(otherCurrency.id);
+                        }
+                      } else {
+                        setSelectedCurrencyId(defaultCurrencyId);
+                      }
+                    }}
+                  />
+
+                  {selectedCurrencyId !== defaultCurrencyId && (
+                    <SearchableSelect
+                      options={currencyOptions}
+                      value={selectedCurrencyId}
+                      onValueChange={(value) => setSelectedCurrencyId(value ?? defaultCurrencyId)}
+                      label="Moneda"
+                      searchPlaceholder="Buscar moneda..."
+                      emptyMessage="No se encontraron monedas."
+                      valid={!!selectedCurrencyId}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <DrawerFooter className="pt-4">
-              <Button type="submit" disabled={isPending} className="w-full">
-                {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear fondo'}
-              </Button>
-            </DrawerFooter>
-          </form>
-        </Form>
-      </div>
-    </DrawerContent>
+          <FormDrawerFooter>
+            <SubmitButton
+              isPending={isPending}
+              pendingText="Guardando..."
+              icon={isEditing ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
+            >
+              {isEditing ? 'Guardar cambios' : 'Crear fondo'}
+            </SubmitButton>
+          </FormDrawerFooter>
+        </FormDrawerBody>
+      </Form>
+    </FormDrawer>
   );
 }

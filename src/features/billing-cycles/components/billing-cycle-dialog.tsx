@@ -1,33 +1,29 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { ArrowRight, Check } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import {
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { useFormValidation, useSuccessAnimation } from '@/hooks';
+import { SubmitButton } from '@/components/submit-button';
+import { FloatingLabelInput } from '@/components/floating-label-input';
+import { FloatingLabelDateInput } from '@/components/floating-label-date-input';
+import { FloatingLabelTextarea } from '@/components/floating-label-textarea';
+import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-drawer';
+import { ProgressIndicator } from '@/components/progress-indicator';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 
 import { createBillingCycle, updateBillingCycle } from '../actions';
 import { createBillingCycleSchema, type CreateBillingCycleInput } from '../schemas';
 import type { BillingCycleWithTotals } from '../types';
-import { formatDateInput } from './utils';
 
 interface BillingCycleDialogContentProps {
   projectId: string;
@@ -55,6 +51,12 @@ export function BillingCycleDialogContent({
 
   const isEditing = !!cycle;
 
+  // Form UX hooks
+  const { onInvalid } = useFormValidation();
+  const { showSuccess, triggerSuccess } = useSuccessAnimation({
+    onComplete: onSuccess,
+  });
+
   const defaultValues = isEditing
     ? {
         projectId,
@@ -76,6 +78,26 @@ export function BillingCycleDialogContent({
     defaultValues,
   });
 
+  // Track form progress
+  const calculateProgress = useCallback((values: any) => {
+    return [
+      !!values.name,
+      !!values.startDate,
+      !!values.endDate,
+    ].filter(Boolean).length;
+  }, []);
+
+  const [formProgress, setFormProgress] = useState(() => calculateProgress(form.getValues()));
+
+  useEffect(() => {
+    setFormProgress(calculateProgress(form.getValues()));
+
+    const subscription = form.watch((values) => {
+      setFormProgress(calculateProgress(values));
+    });
+    return () => subscription.unsubscribe();
+  }, [form, calculateProgress]);
+
   const onSubmit = (data: CreateBillingCycleInput) => {
     setError(null);
     const toastId = toast.loading(isEditing ? 'Actualizando ciclo...' : 'Creando ciclo...');
@@ -93,7 +115,7 @@ export function BillingCycleDialogContent({
 
       if (result.success) {
         form.reset();
-        onSuccess();
+        triggerSuccess();
         onMutationSuccess?.(toastId, isEditing ? 'Ciclo actualizado' : 'Ciclo creado');
       } else {
         setError(result.error);
@@ -103,28 +125,33 @@ export function BillingCycleDialogContent({
   };
 
   return (
-    <DrawerContent>
-      <div className="mx-auto w-full max-w-lg">
-        <DrawerHeader>
-          <DrawerTitle>{isEditing ? 'Editar ciclo' : 'Nuevo ciclo de facturación'}</DrawerTitle>
-          <DrawerDescription>
-            {isEditing
-              ? 'Modifica los detalles del ciclo.'
-              : 'Crea un nuevo ciclo para organizar tus finanzas por período.'}
-          </DrawerDescription>
-        </DrawerHeader>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+    <FormDrawer
+      title={isEditing ? 'Editar ciclo' : 'Nuevo ciclo de facturación'}
+      description={
+        isEditing
+          ? 'Modifica los detalles del ciclo.'
+          : 'Crea un nuevo ciclo para organizar tus finanzas por período.'
+      }
+      showSuccess={showSuccess}
+      headerExtra={!isEditing ? <ProgressIndicator current={formProgress} total={3} /> : undefined}
+    >
+      <Form {...form}>
+        <FormDrawerBody as="form" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
           {/* Name */}
           <FormField
             control={form.control}
             name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombre</FormLabel>
+            render={({ field, fieldState }) => (
+              <FormItem data-field="name">
                 <FormControl>
-                  <Input placeholder="Ej: Ciclo Enero 2025" {...field} />
+                  <FloatingLabelInput
+                    label="Nombre"
+                    placeholder="Ej: Ciclo Enero 2025"
+                    value={field.value}
+                    onChange={field.onChange}
+                    valid={!!field.value && !fieldState.error}
+                    invalid={!!fieldState.error}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -132,22 +159,19 @@ export function BillingCycleDialogContent({
           />
 
           {/* Dates */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2 sm:gap-4 grid-cols-2">
             <FormField
               control={form.control}
               name="startDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Fecha inicio</FormLabel>
+              render={({ field, fieldState }) => (
+                <FormItem data-field="startDate">
                   <FormControl>
-                    <Input
-                      type="date"
-                      value={formatDateInput(field.value)}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value ? new Date(e.target.value + 'T12:00:00') : undefined
-                        )
-                      }
+                    <FloatingLabelDateInput
+                      label="Fecha inicio"
+                      value={field.value}
+                      onChange={field.onChange}
+                      valid={!!field.value && !fieldState.error}
+                      invalid={!!fieldState.error}
                     />
                   </FormControl>
                   <FormMessage />
@@ -158,18 +182,15 @@ export function BillingCycleDialogContent({
             <FormField
               control={form.control}
               name="endDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Fecha fin (cierre)</FormLabel>
+              render={({ field, fieldState }) => (
+                <FormItem data-field="endDate">
                   <FormControl>
-                    <Input
-                      type="date"
-                      value={formatDateInput(field.value)}
-                      onChange={(e) =>
-                        field.onChange(
-                          e.target.value ? new Date(e.target.value + 'T12:00:00') : undefined
-                        )
-                      }
+                    <FloatingLabelDateInput
+                      label="Fecha fin"
+                      value={field.value}
+                      onChange={field.onChange}
+                      valid={!!field.value && !fieldState.error}
+                      invalid={!!fieldState.error}
                     />
                   </FormControl>
                   <FormMessage />
@@ -182,15 +203,16 @@ export function BillingCycleDialogContent({
           <FormField
             control={form.control}
             name="notes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Notas (opcional)</FormLabel>
+            render={({ field, fieldState }) => (
+              <FormItem data-field="notes">
                 <FormControl>
-                  <Textarea
+                  <FloatingLabelTextarea
+                    label="Notas (opcional)"
                     placeholder="Ej: Mes con bono de fin de año"
-                    {...field}
                     value={field.value ?? ''}
-                    rows={2}
+                    onChange={field.onChange}
+                    valid={!!field.value && !fieldState.error}
+                    invalid={!!fieldState.error}
                   />
                 </FormControl>
                 <FormMessage />
@@ -200,14 +222,17 @@ export function BillingCycleDialogContent({
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <DrawerFooter className="pt-4">
-              <Button type="submit" disabled={isPending} className="w-full">
-                {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear ciclo'}
-              </Button>
-            </DrawerFooter>
-          </form>
-        </Form>
-      </div>
-    </DrawerContent>
+          <FormDrawerFooter>
+            <SubmitButton
+              isPending={isPending}
+              pendingText="Guardando..."
+              icon={isEditing ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
+            >
+              {isEditing ? 'Guardar cambios' : 'Crear ciclo'}
+            </SubmitButton>
+          </FormDrawerFooter>
+        </FormDrawerBody>
+      </Form>
+    </FormDrawer>
   );
 }

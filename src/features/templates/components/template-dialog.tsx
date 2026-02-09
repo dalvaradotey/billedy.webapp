@@ -1,27 +1,23 @@
 'use client';
 
-import { useTransition, useEffect } from 'react';
+import { useTransition, useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { Check, ArrowRight } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import {
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { useFormValidation, useSuccessAnimation } from '@/hooks';
+import { SubmitButton } from '@/components/submit-button';
+import { FloatingLabelInput } from '@/components/floating-label-input';
+import { FloatingLabelTextarea } from '@/components/floating-label-textarea';
+import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-drawer';
+import { ProgressIndicator } from '@/components/progress-indicator';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 
@@ -49,6 +45,11 @@ export function TemplateDialogContent({
   onSuccess,
 }: TemplateDialogContentProps) {
   const [isPending, startTransition] = useTransition();
+
+  // Form UX hooks
+  const { onInvalid } = useFormValidation();
+  const { showSuccess, triggerSuccess } = useSuccessAnimation({ onComplete: onSuccess });
+
   const isEditing = !!template;
 
   const form = useForm<TemplateFormData>({
@@ -73,15 +74,34 @@ export function TemplateDialogContent({
     }
   }, [template, form]);
 
+  // Track form progress
+  const calculateProgress = useCallback((values: Partial<TemplateFormData>) => {
+    return [!!values.name].filter(Boolean).length;
+  }, []);
+
+  const [formProgress, setFormProgress] = useState(() => calculateProgress(form.getValues()));
+
+  useEffect(() => {
+    setFormProgress(calculateProgress(form.getValues()));
+
+    const subscription = form.watch((values) => {
+      setFormProgress(calculateProgress(values));
+    });
+    return () => subscription.unsubscribe();
+  }, [form, calculateProgress]);
+
   const onSubmit = (data: TemplateFormData) => {
+    const toastId = toast.loading(isEditing ? 'Actualizando plantilla...' : 'Creando plantilla...');
+
     startTransition(async () => {
       if (isEditing) {
         const result = await updateTemplate(template.id, userId, data);
         if (result.success) {
-          toast.success('Plantilla actualizada');
-          onSuccess();
+          toast.success('Plantilla actualizada', { id: toastId });
+          form.reset();
+          triggerSuccess();
         } else {
-          toast.error(result.error);
+          toast.error(result.error, { id: toastId });
         }
       } else {
         const result = await createTemplate({
@@ -90,72 +110,78 @@ export function TemplateDialogContent({
           ...data,
         });
         if (result.success) {
-          toast.success('Plantilla creada');
-          onSuccess();
+          toast.success('Plantilla creada', { id: toastId });
+          form.reset();
+          triggerSuccess();
         } else {
-          toast.error(result.error);
+          toast.error(result.error, { id: toastId });
         }
       }
     });
   };
 
   return (
-    <DrawerContent>
-      <div className="mx-auto w-full max-w-lg">
-        <DrawerHeader>
-          <DrawerTitle>{isEditing ? 'Editar plantilla' : 'Nueva plantilla'}</DrawerTitle>
-          <DrawerDescription>
-            {isEditing
-              ? 'Modifica los detalles de la plantilla.'
-              : 'Crea una nueva plantilla de items recurrentes.'}
-          </DrawerDescription>
-        </DrawerHeader>
+    <FormDrawer
+      title={isEditing ? 'Editar plantilla' : 'Nueva plantilla'}
+      description={isEditing ? 'Modifica los detalles de la plantilla.' : 'Crea una nueva plantilla de items recurrentes.'}
+      showSuccess={showSuccess}
+      headerExtra={!isEditing ? <ProgressIndicator current={formProgress} total={1} /> : undefined}
+    >
+      <Form {...form}>
+        <FormDrawerBody as="form" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
+          {/* Name */}
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field, fieldState }) => (
+              <FormItem data-field="name">
+                <FormControl>
+                  <FloatingLabelInput
+                    label="Nombre"
+                    placeholder="Ej: Gastos fijos del mes"
+                    value={field.value}
+                    onChange={field.onChange}
+                    valid={!!field.value && !fieldState.error}
+                    invalid={!!fieldState.error}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nombre</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej: Gastos fijos del mes" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          {/* Description */}
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field, fieldState }) => (
+              <FormItem data-field="description">
+                <FormControl>
+                  <FloatingLabelTextarea
+                    label="Descripción (opcional)"
+                    placeholder="Describe el propósito de esta plantilla"
+                    value={field.value ?? ''}
+                    onChange={field.onChange}
+                    valid={!!field.value && !fieldState.error}
+                    invalid={!!fieldState.error}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descripción (opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Describe el propósito de esta plantilla"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DrawerFooter className="pt-4">
-              <Button type="submit" disabled={isPending} className="w-full">
-                {isPending
-                  ? 'Guardando...'
-                  : isEditing
-                  ? 'Guardar cambios'
-                  : 'Crear plantilla'}
-              </Button>
-            </DrawerFooter>
-          </form>
-        </Form>
-      </div>
-    </DrawerContent>
+          <FormDrawerFooter>
+            <SubmitButton
+              isPending={isPending}
+              pendingText="Guardando..."
+              icon={isEditing ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
+            >
+              {isEditing ? 'Guardar cambios' : 'Crear plantilla'}
+            </SubmitButton>
+          </FormDrawerFooter>
+        </FormDrawerBody>
+      </Form>
+    </FormDrawer>
   );
 }

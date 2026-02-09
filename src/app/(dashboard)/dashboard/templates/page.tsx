@@ -58,7 +58,7 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
       <TemplateList
         templates={templates}
         categories={categories}
-        accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
+        accounts={accounts}
         entities={entities}
         summary={summary}
         projectId={projectId}

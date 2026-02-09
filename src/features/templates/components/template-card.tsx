@@ -40,6 +40,7 @@ import {
 import { formatCurrency } from '@/lib/formatting';
 import { deleteTemplate, archiveTemplate, toggleTemplateActive } from '../actions';
 import type { TemplateWithItems, TemplateItemWithDetails } from '../types';
+import type { AccountWithEntity } from '@/features/accounts/types';
 import { CONFIRM_DELETE_TEXT } from './constants';
 import { TemplateItemRow } from './template-item-row';
 import { TemplateItemDialogContent } from './template-item-dialog';
@@ -47,7 +48,7 @@ import { TemplateItemDialogContent } from './template-item-dialog';
 interface TemplateCardProps {
   template: TemplateWithItems;
   categories: { id: string; name: string; color: string }[];
-  accounts: { id: string; name: string }[];
+  accounts: AccountWithEntity[];
   entities: { id: string; name: string; type: string; imageUrl: string | null }[];
   projectId: string;
   userId: string;

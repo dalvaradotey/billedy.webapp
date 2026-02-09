@@ -13,7 +13,7 @@ export const createSavingsFundSchema = z.object({
   accountType: z.string().min(1, 'El tipo de cuenta es requerido').max(100),
   currencyId: z.string().uuid('La moneda es requerida'),
   targetAmount: z.number().positive('La meta debe ser mayor a 0').optional().nullable(),
-  monthlyTarget: z.number().positive('La meta mensual debe ser mayor a 0'),
+  monthlyTarget: z.number({ message: 'Ingresa la meta mensual' }).positive('La meta mensual debe ser mayor a 0'),
   currentBalance: z.number().min(0, 'El balance no puede ser negativo').optional(),
 });
 
@@ -36,7 +36,7 @@ export type UpdateSavingsFundInput = z.infer<typeof updateSavingsFundSchema>;
 export const createMovementSchema = z.object({
   savingsFundId: z.string().uuid('El fondo de ahorro es requerido'),
   type: z.enum(['deposit', 'withdrawal'], { message: 'Tipo de movimiento requerido' }),
-  amount: z.number().positive('El monto debe ser mayor a 0'),
+  amount: z.number({ message: 'Ingresa el monto' }).positive('El monto debe ser mayor a 0'),
   date: z.date({ message: 'La fecha es requerida' }),
   description: z.string().max(500).optional().nullable(),
 });

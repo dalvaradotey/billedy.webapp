@@ -11,33 +11,28 @@ import {
   ToggleLeft,
   ToggleRight,
   Target,
+  Check,
+  ArrowRight,
 } from 'lucide-react';
+import { useFormValidation, useSuccessAnimation } from '@/hooks';
+import { SubmitButton } from '@/components/submit-button';
+import { FloatingLabelInput } from '@/components/floating-label-input';
+import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-drawer';
+import { ProgressIndicator } from '@/components/progress-indicator';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
 import {
   ResponsiveDrawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/currency-input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/searchable-select';
+import { SwitchCard } from '@/components/switch-card';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import {
@@ -57,7 +52,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { CategorySelector } from '@/components/category-selector';
 import {
   createBudget,
@@ -336,6 +330,10 @@ function BudgetDialogContent({
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [localCategories, setLocalCategories] = useState(categories);
 
+  // Form UX hooks
+  const { onInvalid } = useFormValidation();
+  const { showSuccess, triggerSuccess } = useSuccessAnimation({ onComplete: onSuccess });
+
   const isEditing = !!budget;
 
   // Update local categories when props change
@@ -371,6 +369,27 @@ function BudgetDialogContent({
     }
   }, [budget, form, getDefaultValues]);
 
+  // Track form progress with subscription pattern
+  const calculateProgress = useCallback((values: Partial<CreateBudgetInput>) => {
+    return [
+      !!values.name,
+      values.defaultAmount !== undefined && values.defaultAmount > 0,
+    ].filter(Boolean).length;
+  }, []);
+
+  const [formProgress, setFormProgress] = useState(() => calculateProgress(form.getValues()));
+
+  useEffect(() => {
+    // Calculate initial progress
+    setFormProgress(calculateProgress(form.getValues()));
+
+    // Subscribe to changes
+    const subscription = form.watch((values) => {
+      setFormProgress(calculateProgress(values));
+    });
+    return () => subscription.unsubscribe();
+  }, [form, calculateProgress]);
+
   const onSubmit = (data: CreateBudgetInput) => {
     setError(null);
     const toastId = toast.loading(isEditing ? 'Actualizando presupuesto...' : 'Creando presupuesto...');
@@ -388,7 +407,7 @@ function BudgetDialogContent({
       if (result.success) {
         toast.success(isEditing ? 'Presupuesto actualizado' : 'Presupuesto creado', { id: toastId });
         form.reset();
-        onSuccess();
+        triggerSuccess();
       } else {
         toast.error(result.error, { id: toastId });
         setError(result.error);
@@ -397,28 +416,33 @@ function BudgetDialogContent({
   };
 
   return (
-    <DrawerContent>
-      <div className="mx-auto w-full max-w-lg">
-        <DrawerHeader>
-          <DrawerTitle>{isEditing ? 'Editar presupuesto' : 'Nuevo presupuesto'}</DrawerTitle>
-          <DrawerDescription>
-            {isEditing
-              ? 'Modifica los datos del presupuesto.'
-              : 'Crea una plantilla de presupuesto que podrás asignar a cada ciclo.'}
-          </DrawerDescription>
-        </DrawerHeader>
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+    <FormDrawer
+      title={isEditing ? 'Editar presupuesto' : 'Nuevo presupuesto'}
+      description={
+        isEditing
+          ? 'Modifica los datos del presupuesto.'
+          : 'Crea una plantilla de presupuesto que podrás asignar a cada ciclo.'
+      }
+      showSuccess={showSuccess}
+      headerExtra={!isEditing ? <ProgressIndicator current={formProgress} total={2} /> : undefined}
+    >
+      <Form {...form}>
+        <FormDrawerBody as="form" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
           {/* Name */}
           <FormField
             control={form.control}
             name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombre</FormLabel>
+            render={({ field, fieldState }) => (
+              <FormItem data-field="name">
                 <FormControl>
-                  <Input placeholder="Ej: Comida, Transporte, etc." {...field} />
+                  <FloatingLabelInput
+                    label="Nombre"
+                    placeholder="Ej: Comida, Transporte, etc."
+                    value={field.value}
+                    onChange={field.onChange}
+                    valid={!!field.value && !fieldState.error}
+                    invalid={!!fieldState.error}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -429,9 +453,8 @@ function BudgetDialogContent({
           <FormField
             control={form.control}
             name="categoryId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Categoría (opcional)</FormLabel>
+            render={({ field, fieldState }) => (
+              <FormItem data-field="categoryId">
                 <FormControl>
                   <CategorySelector
                     categories={localCategories}
@@ -441,8 +464,11 @@ function BudgetDialogContent({
                     userId={userId}
                     allowNone
                     noneLabel="Sin categoría específica"
-                    placeholder="Selecciona una categoría"
+                    label="Categoría (opcional)"
+                    searchPlaceholder="Buscar categoría..."
                     onCategoryCreated={handleCategoryCreated}
+                    valid={!!field.value}
+                    invalid={!!fieldState.error}
                   />
                 </FormControl>
                 <FormMessage />
@@ -454,15 +480,18 @@ function BudgetDialogContent({
           <FormField
             control={form.control}
             name="defaultAmount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Monto por defecto</FormLabel>
+            render={({ field, fieldState }) => (
+              <FormItem data-field="defaultAmount">
                 <FormControl>
                   <CurrencyInput
                     value={field.value}
                     onChange={field.onChange}
                     currency={form.watch('currency') ?? defaultCurrency}
                     placeholder="0"
+                    size="lg"
+                    label="Monto por defecto"
+                    valid={field.value !== undefined && field.value > 0 && !fieldState.error}
+                    invalid={!!fieldState.error}
                   />
                 </FormControl>
                 <FormMessage />
@@ -472,47 +501,40 @@ function BudgetDialogContent({
 
           {/* Currency Selector */}
           <div className="space-y-3">
-            <div className="flex flex-row items-center justify-between rounded-lg border p-3">
-              <div className="space-y-0.5">
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Moneda diferente
-                </label>
-                <p className="text-[0.8rem] text-muted-foreground">
-                  Por defecto se usa {defaultCurrency}
-                </p>
-              </div>
-              <Switch
-                checked={showCurrencySelector}
-                onCheckedChange={(checked) => {
-                  setShowCurrencySelector(checked);
-                  if (!checked) {
-                    form.setValue('currency', defaultCurrency);
-                  }
-                }}
-              />
-            </div>
+            <SwitchCard
+              title="Moneda diferente"
+              description={`Por defecto se usa ${defaultCurrency}`}
+              checked={showCurrencySelector}
+              onCheckedChange={(checked) => {
+                setShowCurrencySelector(checked);
+                if (!checked) {
+                  form.setValue('currency', defaultCurrency);
+                }
+              }}
+            />
 
             {showCurrencySelector && (
               <FormField
                 control={form.control}
                 name="currency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Moneda</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona una moneda" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {currencies.map((currency) => (
-                          <SelectItem key={currency.code} value={currency.code}>
-                            {currency.code} - {currency.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                render={({ field, fieldState }) => (
+                  <FormItem data-field="currency">
+                    <FormControl>
+                      <SearchableSelect
+                        options={currencies.map((c) => ({
+                          id: c.code,
+                          label: `${c.code} - ${c.name}`,
+                          searchValue: `${c.code} ${c.name}`,
+                        }))}
+                        value={field.value}
+                        onValueChange={(value) => field.onChange(value ?? defaultCurrency)}
+                        label="Moneda"
+                        searchPlaceholder="Buscar moneda..."
+                        emptyMessage="No se encontraron monedas."
+                        valid={!!field.value}
+                        invalid={!!fieldState.error}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -520,16 +542,19 @@ function BudgetDialogContent({
             )}
           </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <DrawerFooter className="pt-4">
-              <Button type="submit" disabled={isPending} className="w-full">
-                {isPending ? 'Guardando...' : isEditing ? 'Guardar cambios' : 'Crear presupuesto'}
-              </Button>
-            </DrawerFooter>
-          </form>
-        </Form>
-      </div>
-    </DrawerContent>
+          <FormDrawerFooter>
+            <SubmitButton
+              isPending={isPending}
+              pendingText="Guardando..."
+              icon={isEditing ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
+            >
+              {isEditing ? 'Guardar cambios' : 'Crear presupuesto'}
+            </SubmitButton>
+          </FormDrawerFooter>
+        </FormDrawerBody>
+      </Form>
+    </FormDrawer>
   );
 }

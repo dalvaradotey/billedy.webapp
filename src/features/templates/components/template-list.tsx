@@ -10,13 +10,14 @@ import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
 import type { TemplateWithItems, TemplatesSummary } from '../types';
+import type { AccountWithEntity } from '@/features/accounts/types';
 import { TemplateCard } from './template-card';
 import { TemplateDialogContent } from './template-dialog';
 
 interface TemplateListProps {
   templates: TemplateWithItems[];
   categories: { id: string; name: string; color: string }[];
-  accounts: { id: string; name: string }[];
+  accounts: AccountWithEntity[];
   entities: { id: string; name: string; type: string; imageUrl: string | null }[];
   summary: TemplatesSummary;
   projectId: string;

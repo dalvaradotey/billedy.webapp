@@ -3,10 +3,13 @@
 import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Plus, Pencil, Trash2, Power, PowerOff } from 'lucide-react';
+import { Plus, Pencil, Trash2, Power, PowerOff, Check, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useSuccessAnimation } from '@/hooks';
+import { SuccessOverlay } from '@/components/success-overlay';
+import { SubmitButton } from '@/components/submit-button';
+import { FloatingLabelInput } from '@/components/floating-label-input';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -222,6 +225,9 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Form UX hooks
+  const { showSuccess, triggerSuccess } = useSuccessAnimation({ onComplete: onSuccess });
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -260,7 +266,7 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
         : await createEntity(userId, input, imageFile ?? undefined);
 
       if (result.success) {
-        onSuccess();
+        triggerSuccess();
       } else {
         setError(result.error);
       }
@@ -286,6 +292,7 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
 
   return (
     <DrawerContent>
+      <SuccessOverlay show={showSuccess} />
       <div className="mx-auto w-full max-w-lg">
         <DrawerHeader>
           <DrawerTitle>{entity ? 'Editar entidad' : 'Nueva entidad'}</DrawerTitle>
@@ -325,47 +332,57 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="name">Nombre</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ej: Banco de Chile, Lider, Cruz Verde"
-            className="h-12"
-          />
-        </div>
+        <FloatingLabelInput
+          label="Nombre"
+          value={name}
+          onChange={setName}
+          placeholder="Ej: Banco de Chile, Lider, Cruz Verde"
+          valid={name.trim().length > 0}
+        />
 
-        <div className="space-y-2">
-          <Label htmlFor="type">Tipo</Label>
-          <Select value={type} onValueChange={(v) => setType(v as EntityType)}>
-            <SelectTrigger id="type" className="h-12">
-              <SelectValue placeholder="Selecciona un tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              {entityTypes.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {entityTypeLabels[t]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={type} onValueChange={(v) => setType(v as EntityType)}>
+          <SelectTrigger
+            id="type"
+            className={cn(
+              'h-14 py-1',
+              type && 'ring-1 ring-emerald-500'
+            )}
+          >
+            <div className="flex flex-col items-start gap-0.5 min-w-0">
+              <span
+                className={cn(
+                  'transition-all flex items-center gap-1',
+                  type ? 'text-xs text-emerald-600' : 'text-base text-muted-foreground'
+                )}
+              >
+                Tipo
+                {type && <CheckCircle2 className="h-3.5 w-3.5" />}
+              </span>
+              {type && (
+                <span className="truncate text-sm">{entityTypeLabels[type]}</span>
+              )}
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            {entityTypes.map((t) => (
+              <SelectItem key={t} value={t}>
+                {entityTypeLabels[t]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <DrawerFooter className="pt-4">
-            <Button
-              type="submit"
-              disabled={!name.trim() || isPending}
-              className="w-full h-12"
+            <SubmitButton
+              isPending={isPending}
+              pendingText="Guardando..."
+              disabled={!name.trim()}
+              icon={entity ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
             >
-              {isPending
-                ? 'Guardando...'
-                : entity
-                ? 'Guardar cambios'
-                : 'Crear entidad'}
-            </Button>
+              {entity ? 'Guardar cambios' : 'Crear entidad'}
+            </SubmitButton>
           </DrawerFooter>
         </form>
       </div>

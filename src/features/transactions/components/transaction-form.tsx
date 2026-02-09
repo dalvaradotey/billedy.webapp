@@ -9,6 +9,8 @@ import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SuccessOverlay } from '@/components/success-overlay';
 import { SubmitButton } from '@/components/submit-button';
 import { ProgressIndicator } from '@/components/progress-indicator';
+import { FloatingLabelInput } from '@/components/floating-label-input';
+import { FloatingLabelTextarea } from '@/components/floating-label-textarea';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,14 +23,6 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Form,
   FormControl,
@@ -54,9 +48,8 @@ import {
 } from '../schemas';
 import type { TransactionWithCategory } from '../types';
 import type { Category } from '@/features/categories/types';
-import type { AccountWithEntity, AccountType } from '@/features/accounts/types';
+import type { AccountWithEntity } from '@/features/accounts/types';
 import type { Entity } from '@/features/entities/types';
-import { AccountTypeIcon } from '@/features/accounts/components/account-type-icon';
 
 // ============================================================================
 // TYPES
@@ -117,7 +110,6 @@ export function TransactionDialogContent({
   const [showManualCategory, setShowManualCategory] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showDate, setShowDate] = useState(false);
-  const [descriptionFocused, setDescriptionFocused] = useState(false);
 
   // Transfer form state (separate from main form)
   const [transferFromAccountId, setTransferFromAccountId] = useState('');
@@ -126,6 +118,8 @@ export function TransactionDialogContent({
   const [transferDate, setTransferDate] = useState<Date>(new Date());
   const [transferDescription, setTransferDescription] = useState('');
   const [transferNotes, setTransferNotes] = useState('');
+  const [showTransferDescription, setShowTransferDescription] = useState(false);
+  const [showTransferNotes, setShowTransferNotes] = useState(false);
 
   // Update local categories when props change
   useEffect(() => {
@@ -212,6 +206,8 @@ export function TransactionDialogContent({
     setTransferDate(new Date());
     setTransferDescription('');
     setTransferNotes('');
+    setShowTransferDescription(false);
+    setShowTransferNotes(false);
     // Reset manual description toggle
     setUseManualDescription(false);
     // Reset manual category toggle
@@ -398,7 +394,7 @@ export function TransactionDialogContent({
 
         {/* Transfer Form */}
         {isTransferMode && !isEditing ? (
-          <ScrollArea key="transfer" className="h-[50vh] md:flex-1 animate-fade-in">
+          <ScrollArea key="transfer" className="h-[65vh] md:flex-1 animate-fade-in">
             <div className="px-4 pt-2 space-y-4 pb-4">
               {/* Amount - Hero section */}
               <div className="pb-2">
@@ -415,67 +411,60 @@ export function TransactionDialogContent({
               </div>
 
               {/* From Account */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Cuenta origen</label>
-                <Select value={transferFromAccountId} onValueChange={setTransferFromAccountId}>
-                  <SelectTrigger className={cn(transferFromAccountId && "ring-1 ring-emerald-500")}>
-                    <SelectValue placeholder="Selecciona cuenta origen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeAccounts
-                      .filter((acc) => acc.id !== transferToAccountId)
-                      .map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          <div className="flex items-center gap-2">
-                            <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
-                            {account.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <AccountSelector
+                accounts={activeAccounts.filter((acc) => acc.id !== transferToAccountId)}
+                value={transferFromAccountId}
+                onValueChange={(value) => setTransferFromAccountId(value ?? '')}
+                label="Cuenta origen"
+                searchPlaceholder="Buscar cuenta..."
+                valid={!!transferFromAccountId}
+              />
 
               {/* To Account */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Cuenta destino</label>
-                <Select value={transferToAccountId} onValueChange={setTransferToAccountId}>
-                  <SelectTrigger className={cn(transferToAccountId && "ring-1 ring-emerald-500")}>
-                    <SelectValue placeholder="Selecciona cuenta destino" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeAccounts
-                      .filter((acc) => acc.id !== transferFromAccountId)
-                      .map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          <div className="flex items-center gap-2">
-                            <AccountTypeIcon type={account.type as AccountType} className="h-4 w-4" />
-                            {account.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <AccountSelector
+                accounts={activeAccounts.filter((acc) => acc.id !== transferFromAccountId)}
+                value={transferToAccountId}
+                onValueChange={(value) => setTransferToAccountId(value ?? '')}
+                label="Cuenta destino"
+                searchPlaceholder="Buscar cuenta..."
+                valid={!!transferToAccountId}
+              />
 
               {/* Description (optional) */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Descripción (opcional)</label>
-                <Input
-                  placeholder="Ej: Ahorro mensual"
-                  value={transferDescription}
-                  onChange={(e) => setTransferDescription(e.target.value)}
-                />
-              </div>
+              {showTransferDescription && (
+                <div className="space-y-2">
+                  <FloatingLabelInput
+                    label="Descripción"
+                    value={transferDescription}
+                    onChange={setTransferDescription}
+                    placeholder="Ej: Ahorro mensual"
+                    valid={!!transferDescription}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto p-0"
+                    onClick={() => {
+                      setTransferDescription('');
+                      setShowTransferDescription(false);
+                    }}
+                  >
+                    <X className="mr-1.5 h-3 w-3" />
+                    Quitar descripción
+                  </Button>
+                </div>
+              )}
 
               {/* Date (optional) */}
               {showDate && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Fecha</label>
-                  <Input
+                  <FloatingLabelInput
+                    label="Fecha"
                     type="date"
                     value={transferDate.toISOString().split('T')[0]}
-                    onChange={(e) => setTransferDate(new Date(e.target.value + 'T12:00:00'))}
+                    onChange={(val) => setTransferDate(new Date(val + 'T12:00:00'))}
+                    valid={!!transferDate}
                   />
                   <Button
                     type="button"
@@ -494,29 +483,71 @@ export function TransactionDialogContent({
               )}
 
               {/* Notes (optional) */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Notas (opcional)</label>
-                <Textarea
-                  placeholder="Notas adicionales..."
-                  className="resize-none"
-                  rows={3}
-                  value={transferNotes}
-                  onChange={(e) => setTransferNotes(e.target.value)}
-                />
-              </div>
+              {showTransferNotes && (
+                <div className="space-y-2">
+                  <FloatingLabelTextarea
+                    label="Notas"
+                    value={transferNotes}
+                    onChange={setTransferNotes}
+                    placeholder="Notas adicionales..."
+                    valid={!!transferNotes}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto p-0"
+                    onClick={() => {
+                      setTransferNotes('');
+                      setShowTransferNotes(false);
+                    }}
+                  >
+                    <X className="mr-1.5 h-3 w-3" />
+                    Quitar notas
+                  </Button>
+                </div>
+              )}
 
-              {/* Toggle for date */}
-              {!showDate && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground h-auto py-1 px-2"
-                  onClick={() => setShowDate(true)}
-                >
-                  <Calendar className="mr-1.5 h-3 w-3" />
-                  Cambiar fecha
-                </Button>
+              {/* Optional toggles row */}
+              {(!showTransferDescription || !showDate || !showTransferNotes) && (
+                <div className="flex flex-wrap gap-3 pt-2 border-t">
+                  {!showTransferDescription && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-auto py-1 px-2"
+                      onClick={() => setShowTransferDescription(true)}
+                    >
+                      <Pencil className="mr-1.5 h-3 w-3" />
+                      Descripción
+                    </Button>
+                  )}
+                  {!showDate && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-auto py-1 px-2"
+                      onClick={() => setShowDate(true)}
+                    >
+                      <Calendar className="mr-1.5 h-3 w-3" />
+                      Fecha
+                    </Button>
+                  )}
+                  {!showTransferNotes && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-auto py-1 px-2"
+                      onClick={() => setShowTransferNotes(true)}
+                    >
+                      <StickyNote className="mr-1.5 h-3 w-3" />
+                      Notas
+                    </Button>
+                  )}
+                </div>
               )}
 
               {error && <p className="text-sm text-destructive">{error}</p>}
@@ -536,7 +567,7 @@ export function TransactionDialogContent({
           </ScrollArea>
         ) : (
           /* Regular Transaction Form */
-          <ScrollArea key="transaction" className="h-[50vh] md:flex-1 animate-fade-in">
+          <ScrollArea key="transaction" className="h-[65vh] md:flex-1 animate-fade-in">
             <Form {...form}>
               <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="px-4 pt-2 space-y-4 pb-4">
             {/* Type Selector for editing */}
@@ -600,7 +631,7 @@ export function TransactionDialogContent({
                       accounts={activeAccounts}
                       value={field.value}
                       onValueChange={(value) => field.onChange(value ?? '')}
-                      label="Cuenta"
+                      label="Cuenta de cargo"
                       searchPlaceholder="Buscar cuenta..."
                       valid={!!field.value}
                       invalid={!!fieldState.error}
@@ -658,46 +689,21 @@ export function TransactionDialogContent({
                 <FormField
                   control={form.control}
                   name="description"
-                  render={({ field, fieldState }) => {
-                    const isActive = descriptionFocused || !!field.value;
-                    const hasError = !!fieldState.error;
-                    return (
-                      <FormItem data-field="description">
-                        <FormControl>
-                          <div className="relative">
-                            <span
-                              className={cn(
-                                "absolute left-3 transition-all flex items-center gap-1 pointer-events-none",
-                                isActive
-                                  ? "top-1.5 text-xs"
-                                  : "top-1/2 -translate-y-1/2 text-base",
-                                field.value ? "text-emerald-600" : hasError ? "text-destructive" : "text-muted-foreground"
-                              )}
-                            >
-                              Descripción
-                              {field.value && <CheckCircle2 className="h-3.5 w-3.5" />}
-                              {hasError && !field.value && <XCircle className="h-3.5 w-3.5" />}
-                            </span>
-                            <Input
-                              placeholder=""
-                              className={cn(
-                                "h-14 pt-5 pb-1",
-                                field.value && "ring-1 ring-emerald-500",
-                                hasError && "ring-1 ring-destructive"
-                              )}
-                              {...field}
-                              onFocus={() => setDescriptionFocused(true)}
-                              onBlur={() => {
-                                setDescriptionFocused(false);
-                                field.onBlur?.();
-                              }}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="description">
+                      <FormControl>
+                        <FloatingLabelInput
+                          label="Descripción"
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          valid={!!field.value}
+                          invalid={!!fieldState.error}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
                 {entities.length > 0 && (
                   <Button
@@ -764,7 +770,6 @@ export function TransactionDialogContent({
                   name="categoryId"
                   render={({ field, fieldState }) => (
                     <FormItem data-field="categoryId">
-                      <FormLabel>Categoría (opcional)</FormLabel>
                       <FormControl>
                         <CategorySelector
                           categories={activeCategories}
@@ -772,7 +777,9 @@ export function TransactionDialogContent({
                           onValueChange={(value) => field.onChange(value ?? null)}
                           projectId={projectId}
                           userId={userId}
+                          label="Categoría (opcional)"
                           placeholder="Sin categoría"
+                          searchPlaceholder="Buscar categoría..."
                           onCategoryCreated={handleCategoryCreated}
                           valid={!!field.value}
                           invalid={!!fieldState.error}
@@ -862,16 +869,17 @@ export function TransactionDialogContent({
                 <FormField
                   control={form.control}
                   name="notes"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem data-field="notes">
-                      <FormLabel>Notas</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Notas adicionales..."
-                          className="resize-none"
-                          rows={3}
-                          {...field}
+                        <FloatingLabelTextarea
+                          label="Notas"
                           value={field.value ?? ''}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          placeholder="Notas adicionales..."
+                          valid={!!field.value}
+                          invalid={!!fieldState.error}
                         />
                       </FormControl>
                       <FormMessage />

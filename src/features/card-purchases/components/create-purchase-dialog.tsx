@@ -1,51 +1,44 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { format } from 'date-fns';
-import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
+import { Plus, ArrowRight, Settings, Pencil, Store } from 'lucide-react';
 
+import { useFormValidation, useSuccessAnimation } from '@/hooks';
+import { SubmitButton } from '@/components/submit-button';
+import { FloatingLabelInput } from '@/components/floating-label-input';
+import { FloatingLabelDateInput } from '@/components/floating-label-date-input';
+import { FloatingLabelTextarea } from '@/components/floating-label-textarea';
+import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-drawer';
+import { ProgressIndicator } from '@/components/progress-indicator';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   ResponsiveDrawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
   DrawerTrigger,
-  DrawerFooter,
 } from '@/components/ui/drawer';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/currency-input';
 import { InstallmentSelector } from '@/components/installment-selector';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
+import { SwitchCard } from '@/components/switch-card';
 import { EntitySelector } from '@/components/entity-selector';
 import { CategorySelector } from '@/components/category-selector';
+import { AccountSelector } from '@/components/account-selector';
 
 import { formatCurrency } from '@/lib/formatting';
-import { createCardPurchaseSchema } from '../schemas';
+import { createCardPurchaseSchema, type CreateCardPurchaseInput } from '../schemas';
 import { createCardPurchase } from '../actions';
-import type { Account } from '@/features/accounts/types';
+import type { AccountWithEntity } from '@/features/accounts/types';
 import type { Category } from '@/features/categories/types';
 import type { Entity } from '@/features/entities/types';
 
@@ -83,7 +76,7 @@ function calculateChargedInstallments(
 interface CreatePurchaseDialogProps {
   projectId: string;
   userId: string;
-  accounts: Account[];
+  accounts: AccountWithEntity[];
   categories: Category[];
   entities: Entity[];
   onSuccess: () => void;
@@ -98,12 +91,22 @@ export function CreatePurchaseDialog({
   onSuccess,
 }: CreatePurchaseDialogProps) {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [showManualStore, setShowManualStore] = useState(false);
   const [localCategories, setLocalCategories] = useState<{ id: string; name: string; color: string }[]>(
     categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))
   );
 
-  const creditCards = accounts.filter((a) => a.type === 'credit_card');
+  // Form UX hooks
+  const { onInvalid } = useFormValidation();
+  const { showSuccess, triggerSuccess } = useSuccessAnimation({
+    onComplete: () => {
+      setOpen(false);
+      onSuccess();
+    },
+  });
 
   const form = useForm({
     resolver: zodResolver(createCardPurchaseSchema),
@@ -126,20 +129,21 @@ export function CreatePurchaseDialog({
     },
   });
 
-  const watchEntityId = form.watch('entityId');
-  const watchStoreName = form.watch('storeName');
+  // Watch fields for conditional rendering
   const watchPurchaseDate = form.watch('purchaseDate');
   const watchOriginalAmount = form.watch('originalAmount');
   const watchInterestRate = form.watch('interestRate');
   const watchInstallments = form.watch('installments');
   const watchFirstChargeDate = form.watch('firstChargeDate');
 
+  // Sync firstChargeDate with purchaseDate
   useEffect(() => {
     if (watchPurchaseDate) {
       form.setValue('firstChargeDate', watchPurchaseDate);
     }
   }, [watchPurchaseDate, form]);
 
+  // Calculate amounts
   const interestMultiplier = 1 + ((watchInterestRate || 0) / 100);
   const totalAmount = (watchOriginalAmount || 0) * interestMultiplier;
   const interestAmount = totalAmount - (watchOriginalAmount || 0);
@@ -154,152 +158,77 @@ export function CreatePurchaseDialog({
     form.setValue('chargedInstallments', calculatedChargedInstallments);
   }, [calculatedChargedInstallments, form]);
 
-  async function onSubmit(data: any) {
-    setIsLoading(true);
-    const result = await createCardPurchase(data);
-    setIsLoading(false);
+  // Track form progress
+  const calculateProgress = useCallback((values: any) => {
+    return [
+      !!values.accountId,
+      !!values.description,
+      values.originalAmount !== undefined && values.originalAmount > 0,
+    ].filter(Boolean).length;
+  }, []);
 
-    if (result.success) {
-      form.reset();
-      setOpen(false);
-      onSuccess();
-    }
+  const [formProgress, setFormProgress] = useState(() => calculateProgress(form.getValues()));
+
+  useEffect(() => {
+    setFormProgress(calculateProgress(form.getValues()));
+
+    const subscription = form.watch((values) => {
+      setFormProgress(calculateProgress(values));
+    });
+    return () => subscription.unsubscribe();
+  }, [form, calculateProgress]);
+
+  async function onSubmit(data: any) {
+    setError(null);
+    const toastId = toast.loading('Creando compra en cuotas...');
+
+    startTransition(async () => {
+      const result = await createCardPurchase(data);
+
+      if (result.success) {
+        toast.success('Compra registrada', { id: toastId });
+        form.reset();
+        triggerSuccess();
+      } else {
+        const errorMessage = result.error || 'Error al crear la compra';
+        toast.error(errorMessage, { id: toastId });
+        setError(errorMessage);
+      }
+    });
   }
 
   return (
     <ResponsiveDrawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <Button>
+        <Button className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nueva compra en cuotas
         </Button>
       </DrawerTrigger>
-      <DrawerContent>
-        <div className="mx-auto w-full max-w-lg">
-          <DrawerHeader>
-            <DrawerTitle>Registrar compra en cuotas</DrawerTitle>
-            <DrawerDescription>
-              Registra una compra con tarjeta de crédito en cuotas para hacer
-              seguimiento del pago y los intereses.
-            </DrawerDescription>
-          </DrawerHeader>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+      <FormDrawer
+        title="Registrar compra en cuotas"
+        description="Registra una compra con tarjeta de crédito en cuotas para hacer seguimiento del pago."
+        showSuccess={showSuccess}
+        headerExtra={<ProgressIndicator current={formProgress} total={3} />}
+      >
+        <Form {...form}>
+          <FormDrawerBody as="form" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
+            {/* Credit Card */}
             <FormField
               control={form.control}
               name="accountId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tarjeta de crédito</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona una tarjeta" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {creditCards.map((card) => (
-                        <SelectItem key={card.id} value={card.id}>
-                          {card.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descripción</FormLabel>
+              render={({ field, fieldState }) => (
+                <FormItem data-field="accountId">
                   <FormControl>
-                    <Input placeholder="ej: MacBook Pro M3" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {entities.length > 0 && (
-              <FormField
-                control={form.control}
-                name="entityId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Entidad (opcional)</FormLabel>
-                    <FormControl>
-                      <EntitySelector
-                        entities={entities}
-                        value={field.value}
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          if (value) {
-                            form.setValue('storeName', '');
-                          }
-                        }}
-                        placeholder="Selecciona una entidad"
-                        searchPlaceholder="Buscar entidad..."
-                        disabled={!!watchStoreName}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            <FormField
-              control={form.control}
-              name="storeName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tienda manual (opcional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="ej: Apple Store"
-                      {...field}
-                      value={field.value ?? ''}
-                      disabled={!!watchEntityId}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        if (e.target.value) {
-                          form.setValue('entityId', undefined);
-                        }
-                      }}
-                    />
-                  </FormControl>
-                  {entities.length > 0 && (
-                    <p className="text-[0.8rem] text-muted-foreground">
-                      Usa este campo si la tienda no está en las entidades
-                    </p>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="categoryId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoría</FormLabel>
-                  <FormControl>
-                    <CategorySelector
-                      categories={localCategories}
+                    <AccountSelector
+                      accounts={accounts}
                       value={field.value}
                       onValueChange={(value) => field.onChange(value ?? '')}
-                      projectId={projectId}
-                      userId={userId}
-                      placeholder="Selecciona categoría"
-                      onCategoryCreated={(newCat) => {
-                        setLocalCategories((prev) => [...prev, newCat]);
-                      }}
+                      label="Tarjeta de crédito"
+                      searchPlaceholder="Buscar tarjeta..."
+                      filterByType={['credit_card']}
+                      valid={!!field.value}
+                      invalid={!!fieldState.error}
                     />
                   </FormControl>
                   <FormMessage />
@@ -307,21 +236,20 @@ export function CreatePurchaseDialog({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
               <FormField
                 control={form.control}
                 name="purchaseDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fecha de compra</FormLabel>
+                render={({ field, fieldState }) => (
+                  <FormItem data-field="purchaseDate">
                     <FormControl>
-                      <Input
-                        type="date"
-                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => {
-                          const [year, month, day] = e.target.value.split('-').map(Number);
-                          field.onChange(new Date(year, month - 1, day));
-                        }}
+                      <FloatingLabelDateInput
+                        label="Fecha de compra"
+                        value={field.value}
+                        onChange={field.onChange}
+                        valid={!!field.value && !fieldState.error}
+                        invalid={!!fieldState.error}
                       />
                     </FormControl>
                     <FormMessage />
@@ -332,17 +260,15 @@ export function CreatePurchaseDialog({
               <FormField
                 control={form.control}
                 name="firstChargeDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vencimiento 1ra cuota</FormLabel>
+                render={({ field, fieldState }) => (
+                  <FormItem data-field="firstChargeDate">
                     <FormControl>
-                      <Input
-                        type="date"
-                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => {
-                          const [year, month, day] = e.target.value.split('-').map(Number);
-                          field.onChange(new Date(year, month - 1, day));
-                        }}
+                      <FloatingLabelDateInput
+                        label="Vencimiento 1ra cuota"
+                        value={field.value}
+                        onChange={field.onChange}
+                        valid={!!field.value && !fieldState.error}
+                        invalid={!!fieldState.error}
                       />
                     </FormControl>
                     <FormMessage />
@@ -351,40 +277,195 @@ export function CreatePurchaseDialog({
               />
             </div>
 
-            <Separator />
+            {/* Description */}
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field, fieldState }) => (
+                <FormItem data-field="description">
+                  <FormControl>
+                    <FloatingLabelInput
+                      label="Descripción"
+                      placeholder="ej: MacBook Pro M3"
+                      value={field.value}
+                      onChange={field.onChange}
+                      valid={!!field.value && !fieldState.error}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="originalAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monto original</FormLabel>
-                    <FormControl>
-                      <CurrencyInput
-                        value={field.value}
-                        onChange={field.onChange}
-                        currency="CLP"
-                        placeholder="0"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+            {/* Entity or Manual Store */}
+            {entities.length > 0 && !showManualStore ? (
+              <div className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="entityId"
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="entityId">
+                      <FormControl>
+                        <EntitySelector
+                          entities={entities}
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          label="Tienda (opcional)"
+                          searchPlaceholder="Buscar tienda..."
+                          allowNone
+                          noneLabel="Sin tienda"
+                          valid={!!field.value}
+                          invalid={!!fieldState.error}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-auto p-0"
+                  onClick={() => {
+                    setShowManualStore(true);
+                    form.setValue('entityId', undefined);
+                  }}
+                >
+                  <Pencil className="mr-1.5 h-3 w-3" />
+                  Escribir tienda manualmente
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <FormField
+                  control={form.control}
+                  name="storeName"
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="storeName">
+                      <FormControl>
+                        <FloatingLabelInput
+                          label="Tienda (opcional)"
+                          placeholder="ej: Apple Store"
+                          value={field.value ?? ''}
+                          onChange={field.onChange}
+                          valid={!!field.value && !fieldState.error}
+                          invalid={!!fieldState.error}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {entities.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto p-0"
+                    onClick={() => {
+                      setShowManualStore(false);
+                      form.setValue('storeName', '');
+                    }}
+                  >
+                    <Store className="mr-1.5 h-3 w-3" />
+                    Seleccionar tienda
+                  </Button>
                 )}
-              />
+              </div>
+            )}
 
+            {/* Category */}
+            <FormField
+              control={form.control}
+              name="categoryId"
+              render={({ field, fieldState }) => (
+                <FormItem data-field="categoryId">
+                  <FormControl>
+                    <CategorySelector
+                      categories={localCategories}
+                      value={field.value}
+                      onValueChange={(value) => field.onChange(value ?? '')}
+                      projectId={projectId}
+                      userId={userId}
+                      label="Categoría"
+                      searchPlaceholder="Buscar categoría..."
+                      onCategoryCreated={(newCat) => {
+                        setLocalCategories((prev) => [...prev, newCat]);
+                      }}
+                      valid={!!field.value}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Amount */}
+            <FormField
+              control={form.control}
+              name="originalAmount"
+              render={({ field, fieldState }) => (
+                <FormItem data-field="originalAmount">
+                  <FormControl>
+                    <CurrencyInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      currency="CLP"
+                      placeholder="0"
+                      size="lg"
+                      label="Monto total"
+                      valid={field.value !== undefined && field.value > 0 && !fieldState.error}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Installments and Interest Rate */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 items-end">
               <FormField
                 control={form.control}
                 name="installments"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Número de cuotas</FormLabel>
+                render={({ field, fieldState }) => (
+                  <FormItem data-field="installments">
                     <FormControl>
                       <InstallmentSelector
                         value={field.value}
                         onChange={field.onChange}
                         min={1}
                         max={60}
+                        label="Número de cuotas"
+                        valid={field.value > 0 && !fieldState.error}
+                        invalid={!!fieldState.error}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="interestRate"
+                render={({ field, fieldState }) => (
+                  <FormItem data-field="interestRate">
+                    <FormControl>
+                      <FloatingLabelInput
+                        label="Tasa de interés (%)"
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        placeholder="0"
+                        value={field.value?.toString() ?? '0'}
+                        onChange={(value) => field.onChange(parseFloat(value) || 0)}
+                        valid={!fieldState.error}
+                        invalid={!!fieldState.error}
                       />
                     </FormControl>
                     <FormMessage />
@@ -393,39 +474,14 @@ export function CreatePurchaseDialog({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="interestRate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tasa de interés (%)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.01}
-                      placeholder="0"
-                      {...field}
-                      value={field.value ?? 0}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Déjalo en 0 para compras sin interés
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {watchOriginalAmount > 0 && watchInstallments > 0 && (
+            {/* Summary Card */}
+            {(watchOriginalAmount ?? 0) > 0 && watchInstallments > 0 && (
               <Card className="bg-muted/50">
                 <CardContent className="pt-4 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Monto original:</span>
                     <span className="font-medium">
-                      {formatCurrency(watchOriginalAmount)}
+                      {formatCurrency(watchOriginalAmount ?? 0)}
                     </span>
                   </div>
                   {interestAmount > 0 && (
@@ -451,65 +507,105 @@ export function CreatePurchaseDialog({
               </Card>
             )}
 
+            {/* Charged Installments Notice */}
             {calculatedChargedInstallments > 0 && (
               <div className="rounded-lg border p-3 bg-muted/50">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Cuotas vencidas (se marcarán como pagadas)</span>
-                  <span className="font-medium">{calculatedChargedInstallments} de {watchInstallments}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Cuotas vencidas (se marcarán como pagadas)
+                  </span>
+                  <span className="font-medium">
+                    {calculatedChargedInstallments} de {watchInstallments}
+                  </span>
                 </div>
               </div>
             )}
 
-            <FormField
-              control={form.control}
-              name="isExternalDebt"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel>Deuda externa (familiar/tercero)</FormLabel>
-                    <p className="text-[0.8rem] text-muted-foreground">
-                      Marca esta opción si compraste para alguien más que te pagará las cuotas.
-                      No se contará en tu límite de endeudamiento personal.
-                    </p>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            {/* Advanced Options Toggle */}
+            {!showAdvancedOptions && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground h-auto p-0"
+                onClick={() => setShowAdvancedOptions(true)}
+              >
+                <Settings className="mr-1.5 h-3 w-3" />
+                Más opciones
+              </Button>
+            )}
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notas (opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Notas adicionales..."
-                      className="resize-none"
-                      {...field}
-                      value={field.value ?? ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Advanced Options */}
+            {showAdvancedOptions && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Más opciones</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto p-0"
+                    onClick={() => setShowAdvancedOptions(false)}
+                  >
+                    Ocultar
+                  </Button>
+                </div>
 
-              <DrawerFooter className="pt-4">
-                <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? 'Guardando...' : 'Guardar compra'}
-                </Button>
-              </DrawerFooter>
-            </form>
-          </Form>
-        </div>
-      </DrawerContent>
+                {/* External Debt Switch */}
+                <FormField
+                  control={form.control}
+                  name="isExternalDebt"
+                  render={({ field }) => (
+                    <FormItem data-field="isExternalDebt">
+                      <FormControl>
+                        <SwitchCard
+                          title="Deuda externa (familiar/tercero)"
+                          description="Marca si compraste para alguien que te pagará las cuotas. No se contará en tu límite de endeudamiento."
+                          checked={field.value ?? false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {/* Notes */}
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="notes">
+                      <FormControl>
+                        <FloatingLabelTextarea
+                          label="Notas (opcional)"
+                          placeholder="Notas adicionales..."
+                          value={field.value ?? ''}
+                          onChange={field.onChange}
+                          valid={!!field.value && !fieldState.error}
+                          invalid={!!fieldState.error}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
+
+            <FormDrawerFooter>
+              <SubmitButton
+                isPending={isPending}
+                pendingText="Guardando..."
+                icon={<ArrowRight className="size-7" />}
+              >
+                Guardar compra
+              </SubmitButton>
+            </FormDrawerFooter>
+          </FormDrawerBody>
+        </Form>
+      </FormDrawer>
     </ResponsiveDrawer>
   );
 }

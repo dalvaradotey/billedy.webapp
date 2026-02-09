@@ -22,9 +22,9 @@ export const createTemplateItemSchema = z.object({
   entityId: z.string().uuid().optional().nullable(),
   type: z.enum(['income', 'expense'], { message: 'El tipo es requerido' }),
   description: z.string().min(1, 'La descripción es requerida').max(500),
-  originalAmount: z.number().positive('El monto debe ser mayor a 0'),
+  originalAmount: z.number({ message: 'Ingresa el monto' }).positive('El monto debe ser mayor a 0'),
   originalCurrency: z.string().length(3, 'Moneda inválida'),
-  baseAmount: z.number().positive('El monto base debe ser mayor a 0'),
+  baseAmount: z.number({ message: 'Ingresa el monto' }).positive('El monto base debe ser mayor a 0'),
   baseCurrency: z.string().length(3, 'Moneda base inválida'),
   notes: z.string().max(1000).optional().nullable(),
 });

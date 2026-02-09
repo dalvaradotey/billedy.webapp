@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/empty-state';
 
 import { chargeAllPendingInstallments } from '../actions';
 import type { CardPurchaseWithDetails, CardPurchasesSummary, DebtCapacityReport } from '../types';
-import type { Account } from '@/features/accounts/types';
+import type { AccountWithEntity } from '@/features/accounts/types';
 import type { Category } from '@/features/categories/types';
 import type { Entity } from '@/features/entities/types';
 
@@ -21,7 +21,7 @@ interface CardPurchasesListProps {
   purchases: CardPurchaseWithDetails[];
   summary: CardPurchasesSummary;
   debtCapacity: DebtCapacityReport;
-  accounts: Account[];
+  accounts: AccountWithEntity[];
   categories: Category[];
   entities: Entity[];
   projectId: string;
@@ -67,7 +67,7 @@ export function CardPurchasesList({
         <DebtCapacityCard report={debtCapacity} />
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Button
             variant={showActive ? 'default' : 'outline'}
@@ -85,9 +85,9 @@ export function CardPurchasesList({
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {hasPendingCharges && (
-            <Button variant="outline" onClick={handleChargeAll}>
+            <Button variant="outline" onClick={handleChargeAll} className="w-full sm:w-auto">
               <Receipt className="mr-2 h-4 w-4" />
               Cobrar cuotas pendientes
             </Button>

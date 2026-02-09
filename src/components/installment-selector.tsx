@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,9 @@ interface InstallmentSelectorProps {
   onChange: (value: number) => void;
   min?: number;
   max?: number;
+  label?: string;
+  valid?: boolean;
+  invalid?: boolean;
   className?: string;
 }
 
@@ -19,6 +22,9 @@ export function InstallmentSelector({
   onChange,
   min = 1,
   max = 60,
+  label,
+  valid,
+  invalid,
   className,
 }: InstallmentSelectorProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -76,50 +82,72 @@ export function InstallmentSelector({
   };
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        className="h-10 w-10 shrink-0 touch-manipulation"
-        onClick={handleDecrement}
-        aria-label="Disminuir"
-      >
-        <Minus className="h-4 w-4" />
-      </Button>
-
-      {isEditing ? (
-        <Input
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={inputValue}
-          onChange={handleInputChange}
-          onBlur={handleInputBlur}
-          onKeyDown={handleInputKeyDown}
-          className="h-10 w-16 text-center font-medium"
-          autoFocus
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={handleStartEditing}
-          className="h-10 w-16 rounded-md border border-input bg-background text-center font-medium text-lg hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation"
+    <div className={cn('space-y-1', className)}>
+      {label && (
+        <div
+          className={cn(
+            'flex items-center gap-1 text-xs md:text-sm',
+            valid ? 'text-emerald-600' : invalid ? 'text-destructive' : 'text-muted-foreground'
+          )}
         >
-          {currentValue}
-        </button>
+          {label}
+          {valid && <CheckCircle2 className="h-4 w-4" />}
+          {invalid && <XCircle className="h-4 w-4" />}
+        </div>
       )}
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 shrink-0 touch-manipulation"
+          onClick={handleDecrement}
+          aria-label="Disminuir"
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
 
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        className="h-10 w-10 shrink-0 touch-manipulation"
-        onClick={handleIncrement}
-        aria-label="Aumentar"
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
+        {isEditing ? (
+          <Input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={inputValue}
+            onChange={handleInputChange}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            className={cn(
+              "h-10 w-16 text-center font-medium",
+              valid && "ring-1 ring-emerald-500",
+              invalid && "ring-1 ring-destructive"
+            )}
+            autoFocus
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={handleStartEditing}
+            className={cn(
+              "h-10 w-16 rounded-md border border-input bg-background text-center font-medium text-lg hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation",
+              valid && "ring-1 ring-emerald-500",
+              invalid && "ring-1 ring-destructive"
+            )}
+          >
+            {currentValue}
+          </button>
+        )}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 shrink-0 touch-manipulation"
+          onClick={handleIncrement}
+          aria-label="Aumentar"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
