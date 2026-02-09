@@ -19,7 +19,9 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        action: "bg-muted/50 text-foreground hover:bg-muted border border-transparent hover:border-border h-9 px-4 text-sm font-medium rounded-lg",
         cta: "bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600 bg-[length:200%_100%] animate-gradient-shift text-white shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] !h-16 text-lg font-semibold rounded-xl",
+        "cta-sm": "bg-gradient-to-r from-blue-600 via-emerald-500 to-blue-600 bg-[length:200%_100%] animate-gradient-shift text-white shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] h-9 px-4 text-sm font-medium rounded-lg",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

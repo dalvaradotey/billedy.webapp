@@ -7,10 +7,18 @@ interface SummaryCardProps {
 
 export function SummaryCard({ title, value, subtitle, className }: SummaryCardProps) {
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="text-sm text-muted-foreground mb-1">{title}</div>
-      <div className={`text-2xl font-bold ${className ?? ''}`}>{value}</div>
-      {subtitle && <div className="text-xs text-muted-foreground">{subtitle}</div>}
+    <div className="rounded-xl border bg-card p-3 sm:p-4">
+      <div className="text-xs sm:text-sm text-muted-foreground mb-0.5 sm:mb-1 truncate">
+        {title}
+      </div>
+      <div className={`text-lg sm:text-2xl font-bold tabular-nums truncate ${className ?? ''}`}>
+        {value}
+      </div>
+      {subtitle && (
+        <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate">
+          {subtitle}
+        </div>
+      )}
     </div>
   );
 }

@@ -39,14 +39,13 @@ export function RecalculateButton({
 
   return (
     <Button
-      variant="outline"
-      size="sm"
+      variant="action"
       className="gap-2"
       onClick={handleRecalculate}
       disabled={isPending}
     >
-      <RefreshCw className={`h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
       Recalcular saldos
+      <RefreshCw className={`h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
     </Button>
   );
 }

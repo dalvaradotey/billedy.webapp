@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Plus, Wallet } from 'lucide-react';
+import { ArrowRight, Wallet } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
@@ -152,9 +152,9 @@ export function AccountsList({
           />
           <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DrawerTrigger asChild>
-              <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
-                <Plus className="h-4 w-4" />
+              <Button variant="cta-sm" onClick={handleOpenDialog}>
                 Nueva cuenta
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </DrawerTrigger>
             <AccountDialogContent

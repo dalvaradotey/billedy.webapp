@@ -102,126 +102,136 @@ export function AccountCard({
 
   return (
     <div
-      className={`rounded-lg border p-4 flex items-center justify-between ${account.isArchived ? 'opacity-60' : ''}`}
+      className={`rounded-xl border bg-card p-4 transition-colors active:bg-muted/50 ${account.isArchived ? 'opacity-60' : ''}`}
     >
-      <div className="flex items-center gap-3">
-        {account.entity?.imageUrl ? (
-          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-            <Image
-              src={account.entity.imageUrl}
-              alt={account.entity.name}
-              width={40}
-              height={40}
-              className="object-cover"
-            />
-          </div>
-        ) : (
-          <div
-            className={`p-2.5 rounded-lg ${
-              isCredit
-                ? 'bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400'
-                : 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
-            }`}
-          >
-            <AccountTypeIcon type={account.type as AccountType} className="h-5 w-5" />
-          </div>
-        )}
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="font-medium">{account.name}</p>
-            {account.isDefault && (
-              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {ACCOUNT_TYPE_LABELS[account.type as AccountType]}
-            {account.entity
-              ? ` · ${account.entity.name}`
-              : account.bankName && ` · ${account.bankName}`}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <div className="text-right">
-          <p
-            className={`text-lg font-semibold ${
-              isCredit
-                ? balance > 0
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-muted-foreground'
-                : balance >= 0
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-red-600 dark:text-red-400'
-            }`}
-          >
-            {isCredit && balance > 0 && '-'}
-            {formatCurrency(Math.abs(balance))}
-          </p>
-          {isCredit && account.creditLimit && (
-            <p className="text-xs text-muted-foreground">
-              Disponible: {formatCurrency(parseFloat(account.creditLimit) - balance)}
-            </p>
-          )}
-        </div>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
-              <MoreVertical className="h-4 w-4" />
-              <span className="sr-only">Acciones</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Editar
-            </DropdownMenuItem>
-            {account.isArchived ? (
-              <DropdownMenuItem onClick={handleRestore}>
-                <ArchiveRestore className="mr-2 h-4 w-4" />
-                Restaurar
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={handleArchive}>
-                <Archive className="mr-2 h-4 w-4" />
-                Archivar
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => setShowDeleteDialog(true)}
-              className="text-destructive"
+      {/* Mobile: Stack vertical, Desktop: Horizontal */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Account Info */}
+        <div className="flex items-center gap-3 min-w-0">
+          {account.entity?.imageUrl ? (
+            <div className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-border">
+              <Image
+                src={account.entity.imageUrl}
+                alt={account.entity.name}
+                width={48}
+                height={48}
+                className="object-cover w-full h-full"
+              />
+            </div>
+          ) : (
+            <div
+              className={`p-3 sm:p-2.5 rounded-xl flex-shrink-0 ${
+                isCredit
+                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400'
+                  : 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
+              }`}
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <AccountTypeIcon type={account.type as AccountType} className="h-6 w-6 sm:h-5 sm:w-5" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-base truncate">{account.name}</p>
+              {account.isDefault && (
+                <Star className="h-4 w-4 flex-shrink-0 text-amber-500 fill-amber-500" />
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground truncate">
+              {ACCOUNT_TYPE_LABELS[account.type as AccountType]}
+              {account.entity
+                ? ` · ${account.entity.name}`
+                : account.bankName && ` · ${account.bankName}`}
+            </p>
+          </div>
+        </div>
 
-        {/* Delete Confirmation */}
-        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Eliminar cuenta</AlertDialogTitle>
-              <AlertDialogDescription>
-                ¿Eliminar esta cuenta permanentemente? Las transacciones asociadas perderán
-                la referencia a esta cuenta.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
+        {/* Balance & Actions */}
+        <div className="flex items-center justify-between sm:justify-end gap-3 ml-[60px] sm:ml-0">
+          <div className="sm:text-right">
+            <p
+              className={`text-xl sm:text-lg font-bold tabular-nums ${
+                isCredit
+                  ? balance > 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-muted-foreground'
+                  : balance >= 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-red-600 dark:text-red-400'
+              }`}
+            >
+              {isCredit && balance > 0 && '-'}
+              {formatCurrency(Math.abs(balance))}
+            </p>
+            {isCredit && account.creditLimit && (
+              <p className="text-xs text-muted-foreground">
+                Disponible: {formatCurrency(parseFloat(account.creditLimit) - balance)}
+              </p>
+            )}
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 sm:h-8 sm:w-8 -mr-2"
                 disabled={isPending}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isPending ? 'Eliminando...' : 'Eliminar'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                <MoreVertical className="h-5 w-5 sm:h-4 sm:w-4" />
+                <span className="sr-only">Acciones</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onEdit} className="py-3 sm:py-2">
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </DropdownMenuItem>
+              {account.isArchived ? (
+                <DropdownMenuItem onClick={handleRestore} className="py-3 sm:py-2">
+                  <ArchiveRestore className="mr-2 h-4 w-4" />
+                  Restaurar
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={handleArchive} className="py-3 sm:py-2">
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archivar
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setShowDeleteDialog(true)}
+                className="text-destructive py-3 sm:py-2"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar cuenta</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Eliminar esta cuenta permanentemente? Las transacciones asociadas perderán
+              la referencia a esta cuenta.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isPending ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
