@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { SuccessOverlay } from '@/components/success-overlay';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -87,31 +87,73 @@ type FormDrawerBodyProps = {
  *
  * Uses ScrollArea for scrolling (same pattern as transaction form).
  * Can be rendered as a div or a form element.
+ * Automatically scrolls to focused inputs when keyboard opens on mobile.
  */
 export function FormDrawerBody(props: FormDrawerBodyProps) {
   const { children, className } = props;
   const contentClassName = cn('px-4 pt-2 space-y-4 pb-4', className);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to focused input when keyboard opens on mobile
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT'
+      ) {
+        // Small delay to let the keyboard open first
+        setTimeout(() => {
+          // Find the ScrollArea viewport (Radix uses this data attribute)
+          const viewport = container.querySelector('[data-radix-scroll-area-viewport]');
+          if (viewport) {
+            // Get the FormItem container (parent with data-field attribute)
+            const formItem = target.closest('[data-field]') || target.parentElement;
+            if (formItem) {
+              const viewportRect = viewport.getBoundingClientRect();
+              const itemRect = formItem.getBoundingClientRect();
+
+              // Calculate scroll position to center the item
+              const scrollTop = viewport.scrollTop + (itemRect.top - viewportRect.top) - (viewportRect.height / 3);
+              viewport.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
+            }
+          }
+        }, 150);
+      }
+    };
+
+    container.addEventListener('focusin', handleFocus);
+    return () => container.removeEventListener('focusin', handleFocus);
+  }, []);
 
   if (props.as === 'form') {
     return (
-      <ScrollArea className="h-[65vh] md:flex-1">
-        <form
-          id={props.id}
-          onSubmit={props.onSubmit}
-          className={contentClassName}
-        >
-          {children}
-        </form>
-      </ScrollArea>
+      <div ref={containerRef}>
+        <ScrollArea className="h-[65dvh] md:flex-1">
+          <form
+            id={props.id}
+            onSubmit={props.onSubmit}
+            className={contentClassName}
+          >
+            {children}
+          </form>
+        </ScrollArea>
+      </div>
     );
   }
 
   return (
-    <ScrollArea className="h-[65vh] md:flex-1">
-      <div className={contentClassName}>
-        {children}
-      </div>
-    </ScrollArea>
+    <div ref={containerRef}>
+      <ScrollArea className="h-[65dvh] md:flex-1">
+        <div className={contentClassName}>
+          {children}
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 

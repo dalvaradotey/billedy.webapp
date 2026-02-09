@@ -394,7 +394,7 @@ export function TransactionDialogContent({
 
         {/* Transfer Form */}
         {isTransferMode && !isEditing ? (
-          <ScrollArea key="transfer" className="h-[65vh] md:flex-1 animate-fade-in">
+          <ScrollArea key="transfer" className="h-[65dvh] md:flex-1 animate-fade-in">
             <div className="px-4 pt-2 space-y-4 pb-4">
               {/* Amount - Hero section */}
               <div className="pb-2">
@@ -567,7 +567,7 @@ export function TransactionDialogContent({
           </ScrollArea>
         ) : (
           /* Regular Transaction Form */
-          <ScrollArea key="transaction" className="h-[65vh] md:flex-1 animate-fade-in">
+          <ScrollArea key="transaction" className="h-[65dvh] md:flex-1 animate-fade-in">
             <Form {...form}>
               <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="px-4 pt-2 space-y-4 pb-4">
             {/* Type Selector for editing */}
