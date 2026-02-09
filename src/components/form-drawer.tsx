@@ -133,8 +133,8 @@ export function FormDrawerBody(props: FormDrawerBodyProps) {
           if (formItem) {
             const viewportRect = viewport.getBoundingClientRect();
             const itemRect = formItem.getBoundingClientRect();
-            // Scroll so the item is in the top third of visible area
-            const scrollTop = viewport.scrollTop + (itemRect.top - viewportRect.top) - 50;
+            // Scroll so the item has more space above it
+            const scrollTop = viewport.scrollTop + (itemRect.top - viewportRect.top) - 120;
             viewport.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
           }
         }
