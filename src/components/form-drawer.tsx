@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { SuccessOverlay } from '@/components/success-overlay';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -87,48 +87,67 @@ type FormDrawerBodyProps = {
  *
  * Uses ScrollArea for scrolling (same pattern as transaction form).
  * Can be rendered as a div or a form element.
- * Automatically scrolls to focused inputs when keyboard opens on mobile.
+ * Automatically adjusts for mobile keyboard and scrolls to focused inputs.
  */
 export function FormDrawerBody(props: FormDrawerBodyProps) {
   const { children, className } = props;
-  const contentClassName = cn('px-4 pt-2 space-y-4 pb-4', className);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  // Auto-scroll to focused input when keyboard opens on mobile
+  // Detect keyboard open/close using visualViewport API
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    if (typeof window === 'undefined' || !window.visualViewport) return;
 
-    const handleFocus = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT'
-      ) {
-        // Small delay to let the keyboard open first
-        setTimeout(() => {
-          // Find the ScrollArea viewport (Radix uses this data attribute)
-          const viewport = container.querySelector('[data-radix-scroll-area-viewport]');
-          if (viewport) {
-            // Get the FormItem container (parent with data-field attribute)
-            const formItem = target.closest('[data-field]') || target.parentElement;
-            if (formItem) {
-              const viewportRect = viewport.getBoundingClientRect();
-              const itemRect = formItem.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const initialHeight = viewport.height;
 
-              // Calculate scroll position to center the item
-              const scrollTop = viewport.scrollTop + (itemRect.top - viewportRect.top) - (viewportRect.height / 3);
-              viewport.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
-            }
-          }
-        }, 150);
-      }
+    const handleResize = () => {
+      // When keyboard opens, visualViewport height decreases
+      const heightDiff = initialHeight - viewport.height;
+      // Only consider it a keyboard if the difference is significant (> 100px)
+      setKeyboardHeight(heightDiff > 100 ? heightDiff : 0);
     };
 
-    container.addEventListener('focusin', handleFocus);
-    return () => container.removeEventListener('focusin', handleFocus);
+    viewport.addEventListener('resize', handleResize);
+    return () => viewport.removeEventListener('resize', handleResize);
   }, []);
+
+  // Scroll to focused input when keyboard opens
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || keyboardHeight === 0) return;
+
+    // Find the currently focused element
+    const activeElement = document.activeElement as HTMLElement;
+    if (
+      activeElement &&
+      (activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.tagName === 'SELECT')
+    ) {
+      // Small delay to let layout settle
+      setTimeout(() => {
+        const viewport = container.querySelector('[data-radix-scroll-area-viewport]');
+        if (viewport) {
+          const formItem = activeElement.closest('[data-field]') || activeElement.parentElement;
+          if (formItem) {
+            const viewportRect = viewport.getBoundingClientRect();
+            const itemRect = formItem.getBoundingClientRect();
+            // Scroll so the item is in the top third of visible area
+            const scrollTop = viewport.scrollTop + (itemRect.top - viewportRect.top) - 50;
+            viewport.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' });
+          }
+        }
+      }, 50);
+    }
+  }, [keyboardHeight]);
+
+  // Extra padding when keyboard is open to allow scrolling to bottom fields
+  const contentClassName = cn(
+    'px-4 pt-2 space-y-4 pb-4',
+    keyboardHeight > 0 && 'pb-[50vh]',
+    className
+  );
 
   if (props.as === 'form') {
     return (
