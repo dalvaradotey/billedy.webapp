@@ -39,14 +39,14 @@ function SavingsGoal() {
             }, 2000);
             return goal;
           }
-          return prev + 100;
+          return prev + 250; // Faster increments = fewer updates
         });
-      }, 120);
+      }, 200); // Reduced frequency for better performance
     };
 
     runAnimation();
-    // Repeat the entire cycle every 10 seconds
-    const cycleInterval = setInterval(runAnimation, 10000);
+    // Repeat the entire cycle every 12 seconds
+    const cycleInterval = setInterval(runAnimation, 12000);
     return () => clearInterval(cycleInterval);
   }, []);
 
@@ -135,28 +135,38 @@ export default function Home() {
     <div className="dark min-h-screen bg-slate-950 overflow-hidden">
       {/* Animated background */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-        {/* Glows grandes */}
-        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-500/20 rounded-full blur-[128px] animate-float" />
-        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-emerald-500/20 rounded-full blur-[128px] animate-float-delayed" />
+        {/* Glows grandes - reduced blur on mobile */}
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-500/20 rounded-full blur-[60px] md:blur-[128px] animate-float" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-emerald-500/20 rounded-full blur-[60px] md:blur-[128px] animate-float-delayed" />
 
-        {/* Partículas flotantes en toda la página */}
-        <div className="absolute w-24 h-24 rounded-full bg-blue-500/25 blur-xl top-[8%] left-[8%] animate-particle-1" />
-        <div className="absolute w-36 h-36 rounded-full bg-emerald-500/20 blur-xl top-[12%] right-[12%] animate-particle-2" />
-        <div className="absolute w-20 h-20 rounded-full bg-blue-500/30 blur-lg top-[25%] left-[5%] animate-particle-3" />
-        <div className="absolute w-28 h-28 rounded-full bg-emerald-500/25 blur-xl top-[20%] right-[25%] animate-particle-4" />
-        <div className="absolute w-32 h-32 rounded-full bg-blue-500/20 blur-xl top-[35%] left-[15%] animate-particle-5" />
-        <div className="absolute w-24 h-24 rounded-full bg-emerald-500/30 blur-lg top-[40%] right-[8%] animate-particle-6" />
-        <div className="absolute w-20 h-20 rounded-full bg-blue-500/25 blur-xl top-[50%] left-[3%] animate-particle-7" />
-        <div className="absolute w-36 h-36 rounded-full bg-emerald-500/20 blur-xl top-[55%] right-[15%] animate-particle-8" />
-        <div className="absolute w-28 h-28 rounded-full bg-blue-500/20 blur-xl top-[65%] left-[20%] animate-particle-1" />
-        <div className="absolute w-24 h-24 rounded-full bg-emerald-500/25 blur-lg top-[70%] right-[5%] animate-particle-3" />
-        <div className="absolute w-20 h-20 rounded-full bg-blue-500/30 blur-xl top-[78%] left-[10%] animate-particle-5" />
-        <div className="absolute w-32 h-32 rounded-full bg-emerald-500/20 blur-xl top-[85%] right-[20%] animate-particle-7" />
-        <div className="absolute w-24 h-24 rounded-full bg-blue-500/25 blur-lg top-[90%] left-[40%] animate-particle-2" />
+        {/* Partículas flotantes - fewer on mobile, all on desktop */}
+        {/* Mobile particles (4 only, lighter blur) */}
+        <div className="md:hidden">
+          <div className="absolute w-16 h-16 rounded-full bg-blue-500/20 blur-lg top-[15%] left-[10%] animate-particle-1" />
+          <div className="absolute w-20 h-20 rounded-full bg-emerald-500/15 blur-lg top-[25%] right-[15%] animate-particle-3" />
+          <div className="absolute w-16 h-16 rounded-full bg-emerald-500/20 blur-lg top-[60%] right-[10%] animate-particle-5" />
+          <div className="absolute w-20 h-20 rounded-full bg-blue-500/15 blur-lg top-[75%] left-[15%] animate-particle-7" />
+        </div>
+        {/* Desktop particles (full set) */}
+        <div className="hidden md:block">
+          <div className="absolute w-24 h-24 rounded-full bg-blue-500/25 blur-xl top-[8%] left-[8%] animate-particle-1" />
+          <div className="absolute w-36 h-36 rounded-full bg-emerald-500/20 blur-xl top-[12%] right-[12%] animate-particle-2" />
+          <div className="absolute w-20 h-20 rounded-full bg-blue-500/30 blur-lg top-[25%] left-[5%] animate-particle-3" />
+          <div className="absolute w-28 h-28 rounded-full bg-emerald-500/25 blur-xl top-[20%] right-[25%] animate-particle-4" />
+          <div className="absolute w-32 h-32 rounded-full bg-blue-500/20 blur-xl top-[35%] left-[15%] animate-particle-5" />
+          <div className="absolute w-24 h-24 rounded-full bg-emerald-500/30 blur-lg top-[40%] right-[8%] animate-particle-6" />
+          <div className="absolute w-20 h-20 rounded-full bg-blue-500/25 blur-xl top-[50%] left-[3%] animate-particle-7" />
+          <div className="absolute w-36 h-36 rounded-full bg-emerald-500/20 blur-xl top-[55%] right-[15%] animate-particle-8" />
+          <div className="absolute w-28 h-28 rounded-full bg-blue-500/20 blur-xl top-[65%] left-[20%] animate-particle-1" />
+          <div className="absolute w-24 h-24 rounded-full bg-emerald-500/25 blur-lg top-[70%] right-[5%] animate-particle-3" />
+          <div className="absolute w-20 h-20 rounded-full bg-blue-500/30 blur-xl top-[78%] left-[10%] animate-particle-5" />
+          <div className="absolute w-32 h-32 rounded-full bg-emerald-500/20 blur-xl top-[85%] right-[20%] animate-particle-7" />
+          <div className="absolute w-24 h-24 rounded-full bg-blue-500/25 blur-lg top-[90%] left-[40%] animate-particle-2" />
+        </div>
       </div>
 
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50">
+      {/* Navbar - reduced blur on mobile for Safari performance */}
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 bg-white/95 dark:bg-slate-950/95 md:bg-white/90 md:dark:bg-slate-950/90 md:backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50">
         <div className="max-w-6xl mx-auto py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-gradient-to-tl from-emerald-500 to-blue-600 [color:white]">
@@ -493,18 +503,29 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Global animations */}
+      {/* Global animations - optimized for Safari */}
       <style jsx global>{`
+        /* Respect user preference for reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+          }
+        }
+
         @keyframes float {
           0%, 100% { transform: translateY(0) scale(1); }
           50% { transform: translateY(-20px) scale(1.05); }
         }
         .animate-float {
           animation: float 8s ease-in-out infinite;
+          will-change: transform;
         }
         .animate-float-delayed {
           animation: float 8s ease-in-out infinite;
           animation-delay: 4s;
+          will-change: transform;
         }
         @keyframes pulse-subtle {
           0%, 100% { opacity: 1; }
@@ -525,6 +546,7 @@ export default function Home() {
         }
         .animate-glow-pulse {
           animation: glow-pulse 3s ease-in-out infinite;
+          will-change: transform, opacity;
         }
         .animated-gradient-border {
           background: linear-gradient(
@@ -542,7 +564,18 @@ export default function Home() {
           0%, 100% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
         }
-        /* Partículas animadas */
+        /* Partículas animadas - GPU accelerated */
+        .animate-particle-1,
+        .animate-particle-2,
+        .animate-particle-3,
+        .animate-particle-4,
+        .animate-particle-5,
+        .animate-particle-6,
+        .animate-particle-7,
+        .animate-particle-8 {
+          will-change: transform;
+          transform: translateZ(0);
+        }
         .animate-particle-1 { animation: particle-float-1 8s ease-in-out infinite; }
         .animate-particle-2 { animation: particle-float-2 10s ease-in-out infinite; }
         .animate-particle-3 { animation: particle-float-3 7s ease-in-out infinite; }
@@ -553,46 +586,46 @@ export default function Home() {
         .animate-particle-8 { animation: particle-float-8 9s ease-in-out infinite; }
 
         @keyframes particle-float-1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(60px, -30px) scale(1.1); }
-          50% { transform: translate(80px, -80px) scale(1); }
-          75% { transform: translate(40px, -50px) scale(0.9); }
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          25% { transform: translate3d(60px, -30px, 0) scale(1.1); }
+          50% { transform: translate3d(80px, -80px, 0) scale(1); }
+          75% { transform: translate3d(40px, -50px, 0) scale(0.9); }
         }
         @keyframes particle-float-2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(-50px, 40px) scale(0.9); }
-          50% { transform: translate(-100px, 60px) scale(1.1); }
-          75% { transform: translate(-60px, 30px) scale(1); }
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          25% { transform: translate3d(-50px, 40px, 0) scale(0.9); }
+          50% { transform: translate3d(-100px, 60px, 0) scale(1.1); }
+          75% { transform: translate3d(-60px, 30px, 0) scale(1); }
         }
         @keyframes particle-float-3 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(50px, 70px) scale(1.15); }
-          66% { transform: translate(30px, 40px) scale(0.85); }
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          33% { transform: translate3d(50px, 70px, 0) scale(1.15); }
+          66% { transform: translate3d(30px, 40px, 0) scale(0.85); }
         }
         @keyframes particle-float-4 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(-70px, -40px) scale(1.1); }
-          50% { transform: translate(-90px, -90px) scale(0.95); }
-          75% { transform: translate(-50px, -60px) scale(1.05); }
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          25% { transform: translate3d(-70px, -40px, 0) scale(1.1); }
+          50% { transform: translate3d(-90px, -90px, 0) scale(0.95); }
+          75% { transform: translate3d(-50px, -60px, 0) scale(1.05); }
         }
         @keyframes particle-float-5 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(60px, 80px) scale(1.2); }
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          50% { transform: translate3d(60px, 80px, 0) scale(1.2); }
         }
         @keyframes particle-float-6 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(-60px, -70px) scale(0.9); }
-          66% { transform: translate(-40px, -30px) scale(1.1); }
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          33% { transform: translate3d(-60px, -70px, 0) scale(0.9); }
+          66% { transform: translate3d(-40px, -30px, 0) scale(1.1); }
         }
         @keyframes particle-float-7 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          25% { transform: translate(70px, 30px) scale(1.05); }
-          50% { transform: translate(100px, 50px) scale(1.15); }
-          75% { transform: translate(50px, 40px) scale(0.95); }
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          25% { transform: translate3d(70px, 30px, 0) scale(1.05); }
+          50% { transform: translate3d(100px, 50px, 0) scale(1.15); }
+          75% { transform: translate3d(50px, 40px, 0) scale(0.95); }
         }
         @keyframes particle-float-8 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          50% { transform: translate(-50px, 60px) scale(1.1); }
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+          50% { transform: translate3d(-50px, 60px, 0) scale(1.1); }
         }
         `}</style>
     </div>
