@@ -40,11 +40,12 @@ export function RecalculateButton({
   return (
     <Button
       variant="action"
-      className="gap-2"
+      className="gap-2 flex-1 sm:flex-none"
       onClick={handleRecalculate}
       disabled={isPending}
     >
-      Recalcular saldos
+      <span className="sm:hidden">Recalcular</span>
+      <span className="hidden sm:inline">Recalcular saldos</span>
       <RefreshCw className={`h-4 w-4 ${isPending ? 'animate-spin' : ''}`} />
     </Button>
   );

@@ -102,7 +102,7 @@ export function AccountCard({
 
   return (
     <div
-      className={`rounded-xl border bg-card p-4 transition-colors active:bg-muted/50 ${account.isArchived ? 'opacity-60' : ''}`}
+      className={`rounded-2xl border bg-card p-4 transition-colors active:bg-muted/50 ${account.isArchived ? 'opacity-60' : ''}`}
     >
       {/* Mobile: Stack vertical, Desktop: Horizontal */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

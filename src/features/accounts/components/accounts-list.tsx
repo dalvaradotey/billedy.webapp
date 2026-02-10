@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import { ArrowRight, Wallet } from 'lucide-react';
+import { ArrowRight, Wallet, TrendingUp, CreditCard, Scale, Hash } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/formatting';
 import type { Account, AccountsSummary, AccountWithEntity } from '../types';
 import type { Entity } from '@/features/entities/types';
 import { SummaryCard } from './summary-card';
+import { SummaryCardsSlider } from './summary-cards-slider';
 import { AccountCard } from './account-card';
 import { AccountCardSkeleton } from './account-card-skeleton';
 import { AccountDialogContent } from './account-dialog';
@@ -117,31 +118,42 @@ export function AccountsList({
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <SummaryCardsSlider>
         <SummaryCard
-          title="Total Disponible"
+          title="Disponible"
           value={formatCurrency(summary.totalDebitBalance)}
-          subtitle="En cuentas de débito"
-          className="text-emerald-600 dark:text-emerald-400"
+          subtitle="Cuentas de débito"
+          icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="success"
         />
         <SummaryCard
           title="Deuda TC"
           value={formatCurrency(summary.totalCreditBalance)}
-          subtitle="En tarjetas de crédito"
-          className="text-red-600 dark:text-red-400"
+          subtitle="Tarjetas de crédito"
+          icon={<CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="danger"
         />
         <SummaryCard
-          title="Patrimonio Neto"
+          title="Patrimonio"
           value={formatCurrency(summary.netWorth)}
           subtitle="Disponible - Deuda"
-          className={summary.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
+          icon={<Scale className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant={summary.netWorth >= 0 ? 'success' : 'danger'}
         />
-        <SummaryCard title="Cuentas" value={String(summary.totalAccounts)} subtitle="Activas" />
-      </div>
+        <SummaryCard
+          title="Cuentas"
+          value={String(summary.totalAccounts)}
+          subtitle="Activas"
+          icon={<Hash className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="info"
+        />
+      </SummaryCardsSlider>
 
       {/* Actions */}
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">{accounts.length} cuentas</div>
+      <div className="space-y-3 sm:space-y-0 sm:flex sm:justify-between sm:items-center">
+        <div className="text-sm text-muted-foreground hidden sm:block">
+          {accounts.length} cuentas
+        </div>
 
         <div className="flex gap-2">
           <RecalculateButton
@@ -152,7 +164,7 @@ export function AccountsList({
           />
           <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DrawerTrigger asChild>
-              <Button variant="cta-sm" onClick={handleOpenDialog}>
+              <Button variant="cta-sm" className="flex-1 sm:flex-none" onClick={handleOpenDialog}>
                 Nueva cuenta
                 <ArrowRight className="h-4 w-4" />
               </Button>
