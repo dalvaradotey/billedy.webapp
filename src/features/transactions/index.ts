@@ -29,3 +29,5 @@ export {
   BulkDeleteDialog,
   HistoricallyPaidDialog,
 } from './components/index';
+
+export type { TransactionInitialValues } from './components/transaction-form';

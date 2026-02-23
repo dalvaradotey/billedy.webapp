@@ -8,3 +8,16 @@ export type BudgetWithCategory = Budget & {
   categoryColor: string | null;
   accountName: string | null;
 };
+
+export type BudgetProgress = {
+  id: string;
+  name: string;
+  budgetedAmount: number;
+  spentAmount: number;
+  remainingAmount: number;
+  progressPercentage: number;
+  categoryName: string | null;
+  categoryColor: string | null;
+  categoryId: string | null;
+  defaultAccountId: string | null;
+};

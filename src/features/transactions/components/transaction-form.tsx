@@ -66,6 +66,13 @@ interface Budget {
 
 type FormMode = 'expense' | 'income' | 'transfer';
 
+export interface TransactionInitialValues {
+  budgetId?: string;
+  categoryId?: string;
+  accountId?: string;
+  type?: 'expense' | 'income';
+}
+
 export interface TransactionDialogContentProps {
   projectId: string;
   userId: string;
@@ -79,6 +86,7 @@ export interface TransactionDialogContentProps {
   onMutationStart?: () => void;
   onMutationSuccess?: (toastId: string | number, message: string) => void;
   onMutationError?: (toastId: string | number, error: string) => void;
+  initialValues?: TransactionInitialValues;
 }
 
 // ============================================================================
@@ -98,6 +106,7 @@ export function TransactionDialogContent({
   onMutationStart,
   onMutationSuccess,
   onMutationError,
+  initialValues,
 }: TransactionDialogContentProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -177,27 +186,28 @@ export function TransactionDialogContent({
         accountId: transaction.accountId ?? defaultAccount?.id ?? '',
       };
     }
+    // Use initialValues for new transactions if provided
     return {
       projectId,
       description: '',
       originalAmount: undefined as unknown as number,
       date: new Date(),
-      type: 'expense' as const,
-      categoryId: undefined as string | undefined,
-      budgetId: undefined as string | undefined,
+      type: initialValues?.type ?? 'expense' as const,
+      categoryId: initialValues?.categoryId ?? undefined as string | undefined,
+      budgetId: initialValues?.budgetId ?? undefined as string | undefined,
       entityId: undefined as string | undefined,
       isPaid: false,
       notes: '',
-      accountId: defaultAccount?.id ?? '',
+      accountId: initialValues?.accountId ?? defaultAccount?.id ?? '',
     };
-  }, [transaction, projectId, defaultAccount?.id]);
+  }, [transaction, projectId, defaultAccount?.id, initialValues]);
 
   const form = useForm<CreateTransactionInput>({
     resolver: zodResolver(createTransactionSchema),
     defaultValues: getDefaultValues(),
   });
 
-  // Reset form when transaction changes (for edit mode)
+  // Reset form when transaction or initialValues changes
   useEffect(() => {
     form.reset(getDefaultValues());
     // Reset transfer form too
@@ -211,19 +221,21 @@ export function TransactionDialogContent({
     setShowTransferNotes(false);
     // Reset manual description toggle
     setUseManualDescription(false);
-    // Reset manual category toggle
+    // Reset manual category toggle - show budget selector if initialValues has budgetId
     setShowManualCategory(false);
     // Reset notes toggle
     setShowNotes(false);
     // Reset date toggle (show if editing, hide if new)
     setShowDate(!!transaction);
-    // Reset form mode when editing
+    // Reset form mode
     if (transaction) {
       setFormMode(transaction.type as FormMode);
+    } else if (initialValues?.type) {
+      setFormMode(initialValues.type);
     } else {
       setFormMode('expense');
     }
-  }, [transaction, form, getDefaultValues, defaultAccount?.id]);
+  }, [transaction, form, getDefaultValues, defaultAccount?.id, initialValues]);
 
   const activeCategories = localCategories.filter((c) => !c.isArchived);
 

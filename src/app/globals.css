@@ -254,3 +254,13 @@
 .animate-float-slow {
   animation: float-slow 4s ease-in-out infinite;
 }
+
+/* Hide scrollbar for slider components */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
