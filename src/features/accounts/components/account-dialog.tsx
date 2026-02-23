@@ -34,6 +34,7 @@ import type { AccountWithEntity, AccountType } from '../types';
 import type { Entity } from '@/features/entities/types';
 
 interface AccountDialogContentProps {
+  projectId: string;
   userId: string;
   account: AccountWithEntity | null;
   currencies: { id: string; code: string; name: string }[];
@@ -45,6 +46,7 @@ interface AccountDialogContentProps {
 }
 
 export function AccountDialogContent({
+  projectId,
   userId,
   account,
   currencies,
@@ -70,6 +72,7 @@ export function AccountDialogContent({
   const getDefaultValues = useCallback(() => {
     if (account) {
       return {
+        projectId: account.projectId,
         name: account.name,
         type: account.type as AccountType,
         bankName: account.bankName ?? '',
@@ -81,6 +84,7 @@ export function AccountDialogContent({
       };
     }
     return {
+      projectId,
       name: '',
       type: 'checking' as AccountType,
       bankName: '',
@@ -90,7 +94,7 @@ export function AccountDialogContent({
       creditLimit: undefined as number | undefined,
       isDefault: false,
     };
-  }, [account]);
+  }, [account, projectId]);
 
   const form = useForm<CreateAccountInput>({
     resolver: zodResolver(createAccountSchema),

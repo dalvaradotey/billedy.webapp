@@ -28,7 +28,7 @@ export default async function BudgetsPage() {
   const [budgets, categories, accounts, currencies, project] = await Promise.all([
     getBudgetsWithCategory(projectId, session.user.id),
     getProjectCategories(projectId, session.user.id),
-    getAccounts(session.user.id),
+    getAccounts(projectId, session.user.id),
     getAllCurrencies(),
     getProjectById(projectId, session.user.id),
   ]);

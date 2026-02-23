@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { getAccounts, getAccountsSummary } from '@/features/accounts/queries';
 import { getAllCurrencies } from '@/features/savings/queries';
 import { getEntities } from '@/features/entities';
+import { getCurrentProjectId } from '@/features/projects/actions';
+import { getLatestProject } from '@/features/projects/queries';
 import { AccountsList } from '@/features/accounts';
 
 export default async function AccountsPage() {
@@ -12,9 +14,19 @@ export default async function AccountsPage() {
     redirect('/login');
   }
 
+  // Obtener proyecto actual
+  let projectId = await getCurrentProjectId();
+  if (!projectId) {
+    const latestProject = await getLatestProject(session.user.id);
+    if (!latestProject) {
+      redirect('/dashboard');
+    }
+    projectId = latestProject.id;
+  }
+
   const [accounts, summary, currencies, entities] = await Promise.all([
-    getAccounts(session.user.id),
-    getAccountsSummary(session.user.id),
+    getAccounts(projectId, session.user.id),
+    getAccountsSummary(projectId, session.user.id),
     getAllCurrencies(),
     getEntities(),
   ]);
@@ -31,6 +43,7 @@ export default async function AccountsPage() {
       <AccountsList
         accounts={accounts}
         summary={summary}
+        projectId={projectId}
         userId={session.user.id}
         currencies={currencies.map((c) => ({ id: c.id, code: c.code, name: c.name }))}
         entities={entities}

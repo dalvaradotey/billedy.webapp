@@ -21,6 +21,7 @@ import { RecalculateButton } from './recalculate-button';
 interface AccountsListProps {
   accounts: AccountWithEntity[];
   summary: AccountsSummary;
+  projectId: string;
   userId: string;
   currencies: { id: string; code: string; name: string }[];
   entities: Entity[];
@@ -29,6 +30,7 @@ interface AccountsListProps {
 export function AccountsList({
   accounts,
   summary,
+  projectId,
   userId,
   currencies,
   entities,
@@ -157,6 +159,7 @@ export function AccountsList({
 
         <div className="flex gap-2">
           <RecalculateButton
+            projectId={projectId}
             userId={userId}
             onMutationStart={onMutationStart}
             onMutationSuccess={onMutationSuccess}
@@ -170,6 +173,7 @@ export function AccountsList({
               </Button>
             </DrawerTrigger>
             <AccountDialogContent
+              projectId={projectId}
               userId={userId}
               account={editingAccount}
               currencies={currencies}

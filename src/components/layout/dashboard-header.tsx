@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
+import { toast } from 'sonner';
 import { LayoutDashboard, Wallet, PiggyBank, Target, CreditCard, Receipt, FileText, Calendar, ArrowRightLeft, Settings, LogOut, ShieldCheck, X, Bell, Check, XIcon, Crown, Pencil, Eye } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/drawer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { ProcessingOverlay, type ProcessingStatus } from '@/components/processing-overlay';
 import { ClientOnly } from '@/components/client-only';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
@@ -249,24 +251,50 @@ function NotificationsButton({
 }: NotificationsButtonProps) {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [overlayStatus, setOverlayStatus] = useState<ProcessingStatus>(null);
+  const [processingProject, setProcessingProject] = useState<string | null>(null);
 
-  const handleAccept = (invitationId: string) => {
-    setProcessingId(invitationId);
+  const handleAccept = (invitation: PendingInvitation) => {
+    setProcessingId(invitation.id);
+    setProcessingProject(invitation.projectName);
+    setOverlayStatus('loading');
+
     startTransition(async () => {
-      const result = await acceptInvitation(invitationId, userId);
+      const result = await acceptInvitation(invitation.id, userId);
       if (result.success) {
+        // Cambiar al proyecto aceptado (en segundo plano)
+        await setCurrentProjectId(invitation.projectId);
+        // Refrescar datos
         onAction();
+        // Mostrar éxito
+        setOverlayStatus('success');
+        // Después de mostrar el éxito, cerrar todo
+        setTimeout(() => {
+          setOverlayStatus(null);
+          setProcessingProject(null);
+          setProcessingId(null);
+          onOpenChange(false);
+        }, 3000);
+      } else {
+        toast.error(result.error);
+        setOverlayStatus(null);
+        setProcessingProject(null);
+        setProcessingId(null);
       }
-      setProcessingId(null);
     });
   };
 
-  const handleReject = (invitationId: string) => {
-    setProcessingId(invitationId);
+  const handleReject = (invitation: PendingInvitation) => {
+    setProcessingId(invitation.id);
+    const toastId = toast.loading('Rechazando invitación...');
+
     startTransition(async () => {
-      const result = await rejectInvitation(invitationId, userId);
+      const result = await rejectInvitation(invitation.id, userId);
       if (result.success) {
+        toast.success('Invitación rechazada', { id: toastId });
         onAction();
+      } else {
+        toast.error(result.error, { id: toastId });
       }
       setProcessingId(null);
     });
@@ -290,6 +318,11 @@ function NotificationsButton({
         )}
       </Button>
       <DrawerContent>
+        <ProcessingOverlay
+          status={overlayStatus}
+          loadingText={`Cargando ${processingProject}...`}
+          successText={`Bienvenido a ${processingProject}`}
+        />
         <div className="flex flex-col h-full">
           <DrawerHeader className="border-b">
             <div className="flex items-center justify-between">
@@ -350,7 +383,7 @@ function NotificationsButton({
                           size="sm"
                           className="flex-1 h-9"
                           disabled={isPending}
-                          onClick={() => handleAccept(invitation.id)}
+                          onClick={() => handleAccept(invitation)}
                         >
                           {isProcessing ? (
                             'Aceptando...'
@@ -366,7 +399,7 @@ function NotificationsButton({
                           variant="outline"
                           className="flex-1 h-9"
                           disabled={isPending}
-                          onClick={() => handleReject(invitation.id)}
+                          onClick={() => handleReject(invitation)}
                         >
                           {isProcessing ? (
                             'Rechazando...'

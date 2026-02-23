@@ -86,8 +86,8 @@ export default async function DashboardPage() {
   // Obtener ciclo actual y cuentas
   const [currentCycle, accounts, accountsSummary] = await Promise.all([
     getCurrentCycle(projectId, session.user.id),
-    getAccounts(session.user.id),
-    getAccountsSummary(session.user.id),
+    getAccounts(projectId, session.user.id),
+    getAccountsSummary(projectId, session.user.id),
   ]);
 
   const progressPercentage = currentCycle

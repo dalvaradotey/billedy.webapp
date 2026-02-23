@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { accounts, transactions } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { accounts, transactions, projectMembers } from '@/lib/db/schema';
+import { eq, and, sql, isNotNull } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { createAccountSchema, updateAccountSchema } from './schemas';
 import type { CreateAccountInput, UpdateAccountInput } from './schemas';
@@ -10,6 +10,28 @@ import type { CreateAccountInput, UpdateAccountInput } from './schemas';
 type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+/**
+ * Verifica que el usuario tenga membresía aceptada en el proyecto
+ */
+async function verifyProjectMembership(
+  projectId: string,
+  userId: string
+): Promise<boolean> {
+  const membership = await db
+    .select({ id: projectMembers.id })
+    .from(projectMembers)
+    .where(
+      and(
+        eq(projectMembers.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  return membership.length > 0;
+}
 
 /**
  * Create a new account
@@ -24,18 +46,30 @@ export async function createAccount(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // If this is set as default, unset any existing default
+  // Verificar membresía al proyecto
+  const hasAccess = await verifyProjectMembership(parsed.data.projectId, userId);
+  if (!hasAccess) {
+    return { success: false, error: 'No tienes acceso a este proyecto' };
+  }
+
+  // If this is set as default, unset any existing default in the project
   if (parsed.data.isDefault) {
     await db
       .update(accounts)
       .set({ isDefault: false })
-      .where(and(eq(accounts.userId, userId), eq(accounts.isDefault, true)));
+      .where(
+        and(
+          eq(accounts.projectId, parsed.data.projectId),
+          eq(accounts.isDefault, true)
+        )
+      );
   }
 
   const [newAccount] = await db
     .insert(accounts)
     .values({
       userId,
+      projectId: parsed.data.projectId,
       name: parsed.data.name,
       type: parsed.data.type,
       bankName: parsed.data.bankName,
@@ -55,6 +89,7 @@ export async function createAccount(
 
 /**
  * Update an existing account
+ * Verifica membresía del usuario al proyecto
  */
 export async function updateAccount(
   accountId: string,
@@ -67,23 +102,38 @@ export async function updateAccount(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Verify ownership
+  // Verificar que la cuenta existe y el usuario tiene acceso al proyecto
   const existing = await db
-    .select({ id: accounts.id })
+    .select({ id: accounts.id, projectId: accounts.projectId })
     .from(accounts)
-    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
+    .where(
+      and(
+        eq(accounts.id, accountId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
     .limit(1);
 
   if (!existing[0]) {
     return { success: false, error: 'Cuenta no encontrada' };
   }
 
-  // If setting as default, unset any existing default
+  // If setting as default, unset any existing default in the project
   if (parsed.data.isDefault) {
     await db
       .update(accounts)
       .set({ isDefault: false })
-      .where(and(eq(accounts.userId, userId), eq(accounts.isDefault, true)));
+      .where(
+        and(
+          eq(accounts.projectId, existing[0].projectId),
+          eq(accounts.isDefault, true)
+        )
+      );
   }
 
   const updateData: Record<string, unknown> = {
@@ -112,16 +162,27 @@ export async function updateAccount(
 
 /**
  * Archive an account (soft delete)
+ * Verifica membresía del usuario al proyecto
  */
 export async function archiveAccount(
   accountId: string,
   userId: string
 ): Promise<ActionResult> {
-  // Verify ownership
+  // Verificar acceso mediante membresía al proyecto
   const existing = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
+    .where(
+      and(
+        eq(accounts.id, accountId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
     .limit(1);
 
   if (!existing[0]) {
@@ -140,16 +201,27 @@ export async function archiveAccount(
 
 /**
  * Restore an archived account
+ * Verifica membresía del usuario al proyecto
  */
 export async function restoreAccount(
   accountId: string,
   userId: string
 ): Promise<ActionResult> {
-  // Verify ownership
+  // Verificar acceso mediante membresía al proyecto
   const existing = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
+    .where(
+      and(
+        eq(accounts.id, accountId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
     .limit(1);
 
   if (!existing[0]) {
@@ -169,16 +241,27 @@ export async function restoreAccount(
 /**
  * Delete an account permanently
  * Note: This should only be allowed if no transactions reference it
+ * Verifica membresía del usuario al proyecto
  */
 export async function deleteAccount(
   accountId: string,
   userId: string
 ): Promise<ActionResult> {
-  // Verify ownership
+  // Verificar acceso mediante membresía al proyecto
   const existing = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
+    .where(
+      and(
+        eq(accounts.id, accountId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
     .limit(1);
 
   if (!existing[0]) {
@@ -198,17 +281,28 @@ export async function deleteAccount(
 /**
  * Adjust account balance manually
  * This is useful for reconciliation
+ * Verifica membresía del usuario al proyecto
  */
 export async function adjustAccountBalance(
   accountId: string,
   userId: string,
   newBalance: number
 ): Promise<ActionResult> {
-  // Verify ownership
+  // Verificar acceso mediante membresía al proyecto
   const existing = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
+    .where(
+      and(
+        eq(accounts.id, accountId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
     .limit(1);
 
   if (!existing[0]) {
@@ -266,12 +360,13 @@ export async function updateAccountBalance(
  * - Saldo inicial
  * - Transacciones PAGADAS (isPaid = true)
  * - Transferencias completadas
+ * Verifica membresía del usuario al proyecto
  */
 export async function recalculateAccountBalance(
   accountId: string,
   userId: string
 ): Promise<ActionResult<{ newBalance: number }>> {
-  // Verificar propiedad y obtener tipo de cuenta
+  // Verificar acceso y obtener tipo de cuenta
   const account = await db
     .select({
       id: accounts.id,
@@ -279,7 +374,17 @@ export async function recalculateAccountBalance(
       type: accounts.type,
     })
     .from(accounts)
-    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
+    .where(
+      and(
+        eq(accounts.id, accountId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
     .limit(1);
 
   if (!account[0]) {
@@ -322,18 +427,26 @@ export async function recalculateAccountBalance(
 }
 
 /**
- * Recalcula el balance de TODAS las cuentas del usuario
+ * Recalcula el balance de TODAS las cuentas del proyecto
+ * Verifica membresía del usuario al proyecto
  */
 export async function recalculateAllAccountBalances(
+  projectId: string,
   userId: string
 ): Promise<ActionResult<{ updated: number }>> {
-  const userAccounts = await db
+  // Verificar membresía
+  const hasAccess = await verifyProjectMembership(projectId, userId);
+  if (!hasAccess) {
+    return { success: false, error: 'No tienes acceso a este proyecto' };
+  }
+
+  const projectAccounts = await db
     .select({ id: accounts.id })
     .from(accounts)
-    .where(eq(accounts.userId, userId));
+    .where(eq(accounts.projectId, projectId));
 
   let updated = 0;
-  for (const account of userAccounts) {
+  for (const account of projectAccounts) {
     const result = await recalculateAccountBalance(account.id, userId);
     if (result.success) {
       updated++;

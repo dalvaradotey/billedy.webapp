@@ -107,7 +107,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     getTransactions(projectId, session.user.id, filters),
     getTransactionSummary(projectId, session.user.id),
     getActiveCategories(projectId, session.user.id),
-    getAccounts(session.user.id),
+    getAccounts(projectId, session.user.id),
     getActiveBudgets(projectId, session.user.id),
     getEntities(),
     getProjectById(projectId, session.user.id),

@@ -154,6 +154,9 @@ export const accounts = pgTable('n1n4_accounts', {
   userId: uuid('user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 255 }).notNull(),
   type: accountTypeEnum('type').notNull(),
   bankName: varchar('bank_name', { length: 255 }),

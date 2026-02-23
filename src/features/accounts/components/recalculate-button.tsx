@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { recalculateAllAccountBalances } from '../actions';
 
 interface RecalculateButtonProps {
+  projectId: string;
   userId: string;
   onMutationStart: () => void;
   onMutationSuccess: (toastId: string | number, message: string) => void;
@@ -16,6 +17,7 @@ interface RecalculateButtonProps {
 }
 
 export function RecalculateButton({
+  projectId,
   userId,
   onMutationStart,
   onMutationSuccess,
@@ -28,7 +30,7 @@ export function RecalculateButton({
     onMutationStart();
 
     startTransition(async () => {
-      const result = await recalculateAllAccountBalances(userId);
+      const result = await recalculateAllAccountBalances(projectId, userId);
       if (result.success) {
         onMutationSuccess(toastId, `${result.data.updated} cuentas actualizadas`);
       } else {

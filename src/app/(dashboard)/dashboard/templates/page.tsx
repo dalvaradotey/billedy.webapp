@@ -39,7 +39,7 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
     getTemplatesWithItems(projectId, session.user.id, showArchived),
     getTemplatesSummary(projectId, session.user.id),
     getActiveCategories(projectId, session.user.id),
-    getAccounts(session.user.id),
+    getAccounts(projectId, session.user.id),
     getEntities(),
     getProjectById(projectId, session.user.id),
   ]);

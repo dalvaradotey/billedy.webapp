@@ -44,7 +44,7 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
     getCreditsSummary(projectId, session.user.id),
     getActiveCategories(projectId, session.user.id),
     getEntities(),
-    getAccounts(session.user.id),
+    getAccounts(projectId, session.user.id),
   ]);
 
   return (

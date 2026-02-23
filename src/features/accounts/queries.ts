@@ -1,21 +1,36 @@
 import { db } from '@/lib/db';
-import { accounts, entities } from '@/lib/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { accounts, entities, projectMembers } from '@/lib/db/schema';
+import { eq, and, desc, isNotNull } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { Account, AccountsSummary, AccountWithEntity } from './types';
 
 /**
- * Query interna para obtener cuentas (sin caché)
+ * Query interna para obtener cuentas del proyecto (sin caché)
+ * Verifica membresía del usuario al proyecto
  */
-async function _getAccounts(userId: string): Promise<AccountWithEntity[]> {
+async function _getAccounts(
+  projectId: string,
+  userId: string
+): Promise<AccountWithEntity[]> {
   const result = await db
     .select({
       account: accounts,
       entity: entities,
     })
     .from(accounts)
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
     .leftJoin(entities, eq(accounts.entityId, entities.id))
-    .where(and(eq(accounts.userId, userId), eq(accounts.isArchived, false)))
+    .where(
+      and(
+        eq(accounts.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt),
+        eq(accounts.isArchived, false)
+      )
+    )
     .orderBy(desc(accounts.isDefault), accounts.name);
 
   return result.map((row) => ({
@@ -25,7 +40,8 @@ async function _getAccounts(userId: string): Promise<AccountWithEntity[]> {
 }
 
 /**
- * Get all accounts for a user (with entity data)
+ * Get all accounts for a project (with entity data)
+ * Verifica membresía del usuario
  * Cacheada por 60 segundos
  */
 export const getAccounts = cachedQuery(
@@ -35,17 +51,30 @@ export const getAccounts = cachedQuery(
 );
 
 /**
- * Query interna para obtener todas las cuentas (sin caché)
+ * Query interna para obtener todas las cuentas incluyendo archivadas (sin caché)
  */
-async function _getAllAccounts(userId: string): Promise<AccountWithEntity[]> {
+async function _getAllAccounts(
+  projectId: string,
+  userId: string
+): Promise<AccountWithEntity[]> {
   const result = await db
     .select({
       account: accounts,
       entity: entities,
     })
     .from(accounts)
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
     .leftJoin(entities, eq(accounts.entityId, entities.id))
-    .where(eq(accounts.userId, userId))
+    .where(
+      and(
+        eq(accounts.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
     .orderBy(desc(accounts.isDefault), accounts.name);
 
   return result.map((row) => ({
@@ -66,6 +95,7 @@ export const getAllAccounts = cachedQuery(
 
 /**
  * Get account by ID (with entity data)
+ * Verifica membresía del usuario al proyecto
  * No cacheada porque es una consulta puntual
  */
 export async function getAccountById(
@@ -78,8 +108,18 @@ export async function getAccountById(
       entity: entities,
     })
     .from(accounts)
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
     .leftJoin(entities, eq(accounts.entityId, entities.id))
-    .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
+    .where(
+      and(
+        eq(accounts.id, accountId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
     .limit(1);
 
   if (!result[0]) return null;
@@ -91,35 +131,47 @@ export async function getAccountById(
 }
 
 /**
- * Get default account for a user
+ * Get default account for a project
  * No cacheada porque se usa poco y puede cambiar frecuentemente
  */
-export async function getDefaultAccount(userId: string): Promise<Account | null> {
+export async function getDefaultAccount(
+  projectId: string,
+  userId: string
+): Promise<Account | null> {
   const result = await db
-    .select()
+    .select({ account: accounts })
     .from(accounts)
+    .innerJoin(
+      projectMembers,
+      eq(accounts.projectId, projectMembers.projectId)
+    )
     .where(
       and(
-        eq(accounts.userId, userId),
+        eq(accounts.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt),
         eq(accounts.isDefault, true),
         eq(accounts.isArchived, false)
       )
     )
     .limit(1);
 
-  return result[0] ?? null;
+  return result[0]?.account ?? null;
 }
 
 /**
- * Query interna para resumen de cuentas
+ * Query interna para resumen de cuentas del proyecto
  */
-async function _getAccountsSummary(userId: string): Promise<AccountsSummary> {
-  const userAccounts = await _getAccounts(userId);
+async function _getAccountsSummary(
+  projectId: string,
+  userId: string
+): Promise<AccountsSummary> {
+  const projectAccounts = await _getAccounts(projectId, userId);
 
   let totalDebitBalance = 0;
   let totalCreditBalance = 0;
 
-  for (const account of userAccounts) {
+  for (const account of projectAccounts) {
     const balance = parseFloat(account.currentBalance);
 
     if (account.type === 'credit_card') {
@@ -132,7 +184,7 @@ async function _getAccountsSummary(userId: string): Promise<AccountsSummary> {
   }
 
   return {
-    totalAccounts: userAccounts.length,
+    totalAccounts: projectAccounts.length,
     totalDebitBalance,
     totalCreditBalance,
     netWorth: totalDebitBalance - totalCreditBalance,
@@ -140,7 +192,7 @@ async function _getAccountsSummary(userId: string): Promise<AccountsSummary> {
 }
 
 /**
- * Get accounts summary for a user
+ * Get accounts summary for a project
  * Cacheada por 60 segundos
  */
 export const getAccountsSummary = cachedQuery(

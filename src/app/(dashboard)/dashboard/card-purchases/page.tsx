@@ -29,7 +29,7 @@ export default async function CardPurchasesPage() {
     getCardPurchases(projectId, session.user.id),
     getCardPurchasesSummary(projectId, session.user.id),
     getDebtCapacityReport(projectId, session.user.id),
-    getAccounts(session.user.id),
+    getAccounts(projectId, session.user.id),
     getCategories(projectId, session.user.id),
     getEntities(),
   ]);
