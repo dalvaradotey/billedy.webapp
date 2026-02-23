@@ -10,27 +10,10 @@ import {
   Archive,
   ArchiveRestore,
   Star,
-  MoreVertical,
 } from 'lucide-react';
 
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-} from '@/components/ui/drawer';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { CardActions } from '@/components/card-actions';
 
 import { formatCurrency } from '@/lib/formatting';
 import { archiveAccount, restoreAccount, deleteAccount } from '../actions';
@@ -66,7 +49,6 @@ export function AccountCard({
   const isCredit = account.type === 'credit_card';
 
   const handleArchive = () => {
-    setShowActionsDrawer(false);
     setShowArchiveDialog(false);
     const toastId = toast.loading('Archivando cuenta...');
     onMutationStart?.();
@@ -81,7 +63,6 @@ export function AccountCard({
   };
 
   const handleRestore = () => {
-    setShowActionsDrawer(false);
     const toastId = toast.loading('Restaurando cuenta...');
     onMutationStart?.();
     startTransition(async () => {
@@ -108,20 +89,43 @@ export function AccountCard({
     });
   };
 
-  const handleEdit = () => {
-    setShowActionsDrawer(false);
-    onEdit();
-  };
+  const description = `${ACCOUNT_TYPE_LABELS[account.type as AccountType]}${
+    account.entity
+      ? ` · ${account.entity.name}`
+      : account.bankName
+        ? ` · ${account.bankName}`
+        : ''
+  }`;
 
-  const handleDeleteClick = () => {
-    setShowActionsDrawer(false);
-    setShowDeleteDialog(true);
-  };
-
-  const handleArchiveClick = () => {
-    setShowActionsDrawer(false);
-    setShowArchiveDialog(true);
-  };
+  const actions = [
+    {
+      key: 'edit',
+      label: 'Editar',
+      icon: <Pencil />,
+      onClick: onEdit,
+    },
+    account.isArchived
+      ? {
+          key: 'restore',
+          label: 'Restaurar',
+          icon: <ArchiveRestore />,
+          onClick: handleRestore,
+        }
+      : {
+          key: 'archive',
+          label: 'Archivar',
+          icon: <Archive />,
+          onClick: () => setShowArchiveDialog(true),
+          closeOnClick: false,
+        },
+    {
+      key: 'delete',
+      label: 'Eliminar',
+      icon: <Trash2 />,
+      onClick: () => setShowDeleteDialog(true),
+      variant: 'destructive' as const,
+    },
+  ];
 
   return (
     <>
@@ -169,254 +173,88 @@ export function AccountCard({
                 )}
               </div>
               <p className="text-sm text-muted-foreground truncate">
-                {ACCOUNT_TYPE_LABELS[account.type as AccountType]}
-                {account.entity
-                  ? ` · ${account.entity.name}`
-                  : account.bankName && ` · ${account.bankName}`}
+                {description}
               </p>
             </div>
           </div>
 
           {/* Balance & Actions */}
           <div className="flex items-center justify-between sm:justify-end gap-3 ml-[60px] sm:ml-0">
-            {/* Inline action buttons - Toggle on desktop */}
-            <div
-              className={`hidden sm:flex items-center gap-2 transition-all duration-300 ease-out ${
-                showInlineActions
-                  ? 'opacity-100 translate-x-0'
-                  : 'opacity-0 translate-x-4 pointer-events-none'
-              }`}
+            <CardActions
+              actions={actions}
+              title={account.name}
+              description={description}
+              isPending={isPending}
+              showInline={showInlineActions}
+              onToggleInline={() => setShowInlineActions(!showInlineActions)}
+              drawerOpen={showActionsDrawer}
+              onDrawerOpenChange={setShowActionsDrawer}
             >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowInlineActions(false);
-                  onEdit();
-                }}
-                disabled={isPending}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors disabled:opacity-50"
-              >
-                <Pencil className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Editar</span>
-              </button>
-              {account.isArchived ? (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowInlineActions(false);
-                    handleRestore();
-                  }}
-                  disabled={isPending}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors disabled:opacity-50"
+              <div className="sm:text-right sm:min-w-[140px]">
+                <p
+                  className={`text-xl sm:text-lg font-bold tabular-nums ${
+                    isCredit
+                      ? balance > 0
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-muted-foreground'
+                      : balance >= 0
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-red-600 dark:text-red-400'
+                  }`}
                 >
-                  <ArchiveRestore className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Restaurar</span>
-                </button>
-              ) : (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowInlineActions(false);
-                    handleArchiveClick();
-                  }}
-                  disabled={isPending}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  <Archive className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Archivar</span>
-                </button>
-              )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowInlineActions(false);
-                  setShowDeleteDialog(true);
-                }}
-                disabled={isPending}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-colors disabled:opacity-50"
-              >
-                <Trash2 className="h-4 w-4 text-red-500 dark:text-red-400" />
-                <span className="text-sm font-medium text-red-500 dark:text-red-400">Eliminar</span>
-              </button>
-            </div>
-
-            <div className="sm:text-right sm:min-w-[140px]">
-              <p
-                className={`text-xl sm:text-lg font-bold tabular-nums ${
-                  isCredit
-                    ? balance > 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-muted-foreground'
-                    : balance >= 0
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-red-600 dark:text-red-400'
-                }`}
-              >
-                {isCredit && balance > 0 && '-'}
-                {formatCurrency(Math.abs(balance))}
-              </p>
-              {isCredit && account.creditLimit && (
-                <p className="text-xs text-muted-foreground">
-                  Disponible: {formatCurrency(parseFloat(account.creditLimit) - balance)}
+                  {isCredit && balance > 0 && '-'}
+                  {formatCurrency(Math.abs(balance))}
                 </p>
-              )}
-            </div>
-
-            {/* Options indicator - Only visible on mobile */}
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted/50 sm:hidden">
-              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-            </div>
-
-            {/* Toggle button for inline actions - Only visible on desktop */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowInlineActions(!showInlineActions);
-              }}
-              disabled={isPending}
-              className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full bg-muted/50 hover:bg-muted transition-colors disabled:opacity-50"
-            >
-              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-              <span className="sr-only">Acciones</span>
-            </button>
+                {isCredit && account.creditLimit && (
+                  <p className="text-xs text-muted-foreground">
+                    Disponible: {formatCurrency(parseFloat(account.creditLimit) - balance)}
+                  </p>
+                )}
+              </div>
+            </CardActions>
           </div>
         </div>
       </div>
 
-      {/* Mobile Actions Drawer */}
-      <Drawer open={showActionsDrawer} onOpenChange={setShowActionsDrawer}>
-        <DrawerContent>
-          <DrawerHeader className="text-left pb-2">
-            <DrawerTitle>{account.name}</DrawerTitle>
-            <DrawerDescription>
-              {ACCOUNT_TYPE_LABELS[account.type as AccountType]}
-              {account.entity
-                ? ` · ${account.entity.name}`
-                : account.bankName && ` · ${account.bankName}`}
-            </DrawerDescription>
-          </DrawerHeader>
-          <div className="px-2 pb-2">
-            <DrawerClose asChild>
-              <button
-                onClick={handleEdit}
-                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl active:bg-muted transition-colors"
-              >
-                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                  <Pencil className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <span className="text-base font-medium">Editar cuenta</span>
-              </button>
-            </DrawerClose>
-            {account.isArchived ? (
-              <DrawerClose asChild>
-                <button
-                  onClick={handleRestore}
-                  className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl active:bg-muted transition-colors"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                    <ArchiveRestore className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <span className="text-base font-medium">Restaurar cuenta</span>
-                </button>
-              </DrawerClose>
-            ) : (
-              <button
-                onClick={handleArchiveClick}
-                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl active:bg-muted transition-colors"
-              >
-                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                  <Archive className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <span className="text-base font-medium">Archivar cuenta</span>
-              </button>
-            )}
-            <DrawerClose asChild>
-              <button
-                onClick={handleDeleteClick}
-                className="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl active:bg-red-500/10 transition-colors"
-              >
-                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                  <Trash2 className="h-5 w-5 text-red-500 dark:text-red-400" />
-                </div>
-                <span className="text-base font-medium text-red-500 dark:text-red-400">Eliminar cuenta</span>
-              </button>
-            </DrawerClose>
-          </div>
-          <div className="px-4 pb-4 pt-2 border-t">
-            <DrawerClose asChild>
-              <button className="w-full py-3 text-base font-medium text-muted-foreground active:text-foreground transition-colors">
-                Cancelar
-              </button>
-            </DrawerClose>
-          </div>
-        </DrawerContent>
-      </Drawer>
-
       {/* Archive Confirmation */}
-      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
-        <AlertDialogContent size="sm" className="rounded-2xl">
-          <AlertDialogHeader>
-            <div className="mx-auto mb-2 w-14 h-14 rounded-xl bg-muted flex items-center justify-center">
-              <Archive className="h-7 w-7 text-muted-foreground" />
-            </div>
-            <AlertDialogTitle className="text-center">
-              Archivar cuenta
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
-              ¿Archivar <span className="font-medium text-foreground">{account.name}</span>?
-              La cuenta no aparecerá en tus listados activos pero podrás restaurarla en cualquier momento.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel
-              disabled={isPending}
-              className="flex-1"
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleArchive}
-              disabled={isPending}
-              className="flex-1"
-            >
-              {isPending ? 'Archivando...' : 'Archivar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
+        icon={<Archive className="h-7 w-7" />}
+        iconVariant="default"
+        title="Archivar cuenta"
+        description={
+          <>
+            ¿Archivar <span className="font-medium text-foreground">{account.name}</span>?
+            La cuenta no aparecerá en tus listados activos pero podrás restaurarla en cualquier momento.
+          </>
+        }
+        confirmText={isPending ? 'Archivando...' : 'Archivar'}
+        size="sm"
+        isPending={isPending}
+        onConfirm={handleArchive}
+      />
 
       {/* Delete Confirmation */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent size="sm" className="rounded-2xl">
-          <AlertDialogHeader>
-            <div className="mx-auto mb-2 w-14 h-14 rounded-xl bg-red-500/10 flex items-center justify-center">
-              <Trash2 className="h-7 w-7 text-red-500 dark:text-red-400" />
-            </div>
-            <AlertDialogTitle className="text-center">
-              Eliminar cuenta
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
-              ¿Eliminar <span className="font-medium text-foreground">{account.name}</span> permanentemente?
-              Las transacciones asociadas perderán la referencia a esta cuenta.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel
-              disabled={isPending}
-              className="flex-1"
-            >
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isPending}
-              className="flex-1 !bg-red-500/10 !text-red-500 dark:!text-red-400 hover:!bg-red-500/20"
-            >
-              {isPending ? 'Eliminando...' : 'Eliminar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        icon={<Trash2 className="h-7 w-7" />}
+        iconVariant="destructive"
+        title="Eliminar cuenta"
+        description={
+          <>
+            ¿Eliminar <span className="font-medium text-foreground">{account.name}</span> permanentemente?
+            Las transacciones asociadas perderán la referencia a esta cuenta.
+          </>
+        }
+        confirmText={isPending ? 'Eliminando...' : 'Eliminar'}
+        variant="destructive"
+        size="sm"
+        requireConfirmText="ELIMINAR"
+        isPending={isPending}
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

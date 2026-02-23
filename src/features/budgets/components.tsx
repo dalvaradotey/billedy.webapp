@@ -27,7 +27,9 @@ import {
 } from '@/components/ui/drawer';
 import { CurrencyInput } from '@/components/currency-input';
 import { SearchableSelect } from '@/components/searchable-select';
+import { AccountSelector } from '@/components/account-selector';
 import { SwitchCard } from '@/components/switch-card';
+import type { AccountWithEntity } from '@/features/accounts/types';
 import {
   Form,
   FormControl,
@@ -35,22 +37,9 @@ import {
   FormItem,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { CardActions } from '@/components/card-actions';
+import { useIsMobile } from '@/hooks';
 import { Badge } from '@/components/ui/badge';
 import { CategorySelector } from '@/components/category-selector';
 import {
@@ -76,6 +65,7 @@ function formatCurrency(amount: number | string, currency: string = 'CLP'): stri
 interface BudgetListProps {
   budgets: BudgetWithCategory[];
   categories: { id: string; name: string; color: string }[];
+  accounts: AccountWithEntity[];
   currencies: { code: string; name: string }[];
   projectId: string;
   userId: string;
@@ -85,6 +75,7 @@ interface BudgetListProps {
 export function BudgetList({
   budgets,
   categories,
+  accounts,
   currencies,
   projectId,
   userId,
@@ -113,26 +104,24 @@ export function BudgetList({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div>
-          <h2 className="text-lg font-medium">Presupuestos</h2>
-          <p className="text-sm text-muted-foreground">
-            Define plantillas de presupuesto para asignar a cada ciclo de facturación
-          </p>
+      {/* Actions */}
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-muted-foreground">
+          {budgets.length} presupuestos
         </div>
 
         <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DrawerTrigger asChild>
-            <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
-              <Plus className="h-4 w-4" />
+            <Button variant="cta-sm" onClick={handleOpenDialog}>
               Nuevo presupuesto
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </DrawerTrigger>
           <BudgetDialogContent
             projectId={projectId}
             userId={userId}
             categories={categories}
+            accounts={accounts}
             currencies={currencies}
             budget={editingBudget}
             onSuccess={handleDialogClose}
@@ -141,7 +130,7 @@ export function BudgetList({
         </ResponsiveDrawer>
       </div>
 
-      {/* Active Budgets */}
+      {/* Budgets */}
       {activeBudgets.length === 0 && inactiveBudgets.length === 0 ? (
         <EmptyState
           icon={Target}
@@ -192,6 +181,9 @@ interface BudgetCardProps {
 function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
   const [isPending, startTransition] = useTransition();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showInlineActions, setShowInlineActions] = useState(false);
+  const [showActionsDrawer, setShowActionsDrawer] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleDelete = () => {
     const toastId = toast.loading('Eliminando presupuesto...');
@@ -218,91 +210,120 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
     });
   };
 
+  const handleDeleteClick = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const actions = [
+    {
+      key: 'edit',
+      label: 'Editar',
+      icon: <Pencil />,
+      onClick: onEdit,
+    },
+    {
+      key: 'toggle',
+      label: budget.isActive ? 'Desactivar' : 'Activar',
+      icon: budget.isActive ? <ToggleLeft /> : <ToggleRight />,
+      onClick: handleToggleActive,
+    },
+    {
+      key: 'delete',
+      label: 'Eliminar',
+      icon: <Trash2 />,
+      onClick: handleDeleteClick,
+      variant: 'destructive' as const,
+    },
+  ];
+
   return (
-    <div className={`rounded-lg border p-4 ${!budget.isActive ? 'opacity-60' : ''}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {budget.categoryColor && (
-            <div
-              className="h-3 w-3 rounded-full"
-              style={{ backgroundColor: budget.categoryColor }}
-            />
-          )}
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="font-medium">{budget.name}</p>
-              {!budget.isActive && (
-                <Badge variant="secondary" className="text-xs">Inactivo</Badge>
+    <>
+      <div
+        onClick={() => {
+          if (isMobile) {
+            setShowActionsDrawer(true);
+          } else {
+            setShowInlineActions(!showInlineActions);
+          }
+        }}
+        className={`rounded-2xl border bg-card p-4 transition-colors cursor-pointer active:bg-muted/50 ${!budget.isActive ? 'opacity-60' : ''}`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          {/* Budget Info */}
+          <div className="flex items-center gap-3 min-w-0">
+            {budget.categoryColor ? (
+              <div
+                className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl flex-shrink-0"
+                style={{ backgroundColor: budget.categoryColor + '30' }}
+              >
+                <div
+                  className="w-full h-full rounded-xl flex items-center justify-center"
+                >
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: budget.categoryColor }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                <Target className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-semibold text-base truncate">{budget.name}</p>
+                {!budget.isActive && (
+                  <Badge variant="secondary" className="text-xs flex-shrink-0">Inactivo</Badge>
+                )}
+              </div>
+              {budget.categoryName && (
+                <p className="text-sm text-muted-foreground truncate">{budget.categoryName}</p>
               )}
             </div>
-            {budget.categoryName && (
-              <p className="text-sm text-muted-foreground">{budget.categoryName}</p>
-            )}
+          </div>
+
+          {/* Actions & Amount */}
+          <div className="flex items-center gap-2">
+            <CardActions
+              actions={actions}
+              title={budget.name}
+              description={budget.categoryName || undefined}
+              isPending={isPending}
+              showInline={showInlineActions}
+              onToggleInline={() => setShowInlineActions(!showInlineActions)}
+              drawerOpen={showActionsDrawer}
+              onDrawerOpenChange={setShowActionsDrawer}
+            >
+              <span className="text-lg sm:text-base font-bold tabular-nums sm:text-right sm:min-w-[120px]">
+                {formatCurrency(budget.defaultAmount, budget.currency)}
+              </span>
+            </CardActions>
           </div>
         </div>
-
-        <div className="flex items-center gap-4">
-          <span className="text-lg font-semibold">
-            {formatCurrency(budget.defaultAmount, budget.currency)}
-          </span>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
-                <span className="sr-only">Acciones</span>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v.01M12 12v.01M12 18v.01" />
-                </svg>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleToggleActive}>
-                {budget.isActive ? (
-                  <>
-                    <ToggleLeft className="mr-2 h-4 w-4" />
-                    Desactivar
-                  </>
-                ) : (
-                  <>
-                    <ToggleRight className="mr-2 h-4 w-4" />
-                    Activar
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Eliminar presupuesto</AlertDialogTitle>
-                <AlertDialogDescription>
-                  ¿Estás seguro de eliminar este presupuesto? Esta acción no se puede deshacer.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  disabled={isPending}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  {isPending ? 'Eliminando...' : 'Eliminar'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
       </div>
-    </div>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        icon={<Trash2 className="h-7 w-7" />}
+        iconVariant="destructive"
+        title="Eliminar presupuesto"
+        description={
+          <>
+            ¿Eliminar <span className="font-medium text-foreground">{budget.name}</span> permanentemente?
+            Esta acción no se puede deshacer.
+          </>
+        }
+        confirmText={isPending ? 'Eliminando...' : 'Eliminar'}
+        variant="destructive"
+        size="sm"
+        requireConfirmText="ELIMINAR"
+        isPending={isPending}
+        onConfirm={handleDelete}
+      />
+    </>
   );
 }
 
@@ -310,6 +331,7 @@ interface BudgetDialogContentProps {
   projectId: string;
   userId: string;
   categories: { id: string; name: string; color: string }[];
+  accounts: AccountWithEntity[];
   currencies: { code: string; name: string }[];
   budget: BudgetWithCategory | null;
   onSuccess: () => void;
@@ -320,6 +342,7 @@ function BudgetDialogContent({
   projectId,
   userId,
   categories,
+  accounts,
   currencies,
   budget,
   onSuccess,
@@ -349,6 +372,7 @@ function BudgetDialogContent({
     projectId,
     name: budget?.name ?? '',
     categoryId: budget?.categoryId ?? undefined,
+    defaultAccountId: budget?.defaultAccountId ?? undefined,
     defaultAmount: budget?.defaultAmount ? parseFloat(budget.defaultAmount) : undefined,
     currency: budget?.currency ?? defaultCurrency,
   }), [projectId, budget, defaultCurrency]);
@@ -399,6 +423,7 @@ function BudgetDialogContent({
         ? await updateBudget(budget.id, userId, {
             name: data.name,
             categoryId: data.categoryId,
+            defaultAccountId: data.defaultAccountId,
             defaultAmount: data.defaultAmount,
             currency: data.currency,
           })
@@ -467,6 +492,30 @@ function BudgetDialogContent({
                     label="Categoría (opcional)"
                     searchPlaceholder="Buscar categoría..."
                     onCategoryCreated={handleCategoryCreated}
+                    valid={!!field.value}
+                    invalid={!!fieldState.error}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Default Account (optional) */}
+          <FormField
+            control={form.control}
+            name="defaultAccountId"
+            render={({ field, fieldState }) => (
+              <FormItem data-field="defaultAccountId">
+                <FormControl>
+                  <AccountSelector
+                    accounts={accounts}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    allowNone
+                    noneLabel="Sin cuenta por defecto"
+                    label="Cuenta de cargo (opcional)"
+                    searchPlaceholder="Buscar cuenta..."
                     valid={!!field.value}
                     invalid={!!fieldState.error}
                   />

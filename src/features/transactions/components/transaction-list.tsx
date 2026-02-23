@@ -28,7 +28,7 @@ import type { Category } from '@/features/categories/types';
 import type { Entity } from '@/features/entities/types';
 import { TransactionDialogContent } from './transaction-form';
 import { TransactionTable } from './transaction-table';
-import { SummaryCard } from './summary-card';
+import { SummaryCard } from '@/components/ui/summary-card';
 
 function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -209,23 +209,24 @@ export function TransactionList({
           title="Ingresos"
           value={formatCurrency(summary.totalIncome, defaultCurrency)}
           icon={<ArrowUpCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
-          className="text-emerald-600 dark:text-emerald-400"
+          variant="success"
         />
         <SummaryCard
           title="Gastos"
           value={formatCurrency(summary.totalExpense, defaultCurrency)}
           icon={<ArrowDownCircle className="h-4 w-4 text-red-600 dark:text-red-400" />}
-          className="text-red-600 dark:text-red-400"
+          variant="danger"
         />
         <SummaryCard
           title="Balance"
           value={formatCurrency(summary.balance, defaultCurrency)}
-          className={summary.balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
+          variant={summary.balance >= 0 ? 'success' : 'danger'}
         />
         <SummaryCard
           title="Pendientes"
           value={`${summary.pendingCount} de ${summary.paidCount + summary.pendingCount}`}
           subtitle="transacciones"
+          variant="neutral"
         />
       </div>
 

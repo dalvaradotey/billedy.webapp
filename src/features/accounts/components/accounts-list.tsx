@@ -9,10 +9,10 @@ import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
+import { SummaryCard } from '@/components/ui/summary-card';
+import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
 import type { Account, AccountsSummary, AccountWithEntity } from '../types';
 import type { Entity } from '@/features/entities/types';
-import { SummaryCard } from './summary-card';
-import { SummaryCardsSlider } from './summary-cards-slider';
 import { AccountCard } from './account-card';
 import { AccountCardSkeleton } from './account-card-skeleton';
 import { AccountDialogContent } from './account-dialog';

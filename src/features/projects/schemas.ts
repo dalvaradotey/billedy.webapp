@@ -20,3 +20,17 @@ export const updateProjectSchema = createProjectSchema.partial();
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
+
+// ============================================================================
+// PROJECT MEMBERS & INVITATIONS
+// ============================================================================
+
+export const projectRoles = ['owner', 'editor', 'viewer'] as const;
+export type ProjectRole = (typeof projectRoles)[number];
+
+export const inviteMemberSchema = z.object({
+  email: z.string().email('Ingresa un correo válido'),
+  role: z.enum(projectRoles, { message: 'Selecciona un rol válido' }),
+});
+
+export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;

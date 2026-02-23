@@ -7,6 +7,9 @@ import {
   getCurrentProjectId,
   getLatestProject,
   getCurrencies,
+  getProjectMembers,
+  isProjectOwner,
+  getPendingInvitations,
 } from '@/features/projects';
 import { isUserAdmin } from '@/features/entities';
 
@@ -39,11 +42,14 @@ export default async function DashboardLayout({
   // Si el usuario no tiene proyectos, mostrar mensaje para crear uno
   const hasNoProjects = projects.length === 0;
 
-  // Obtener monedas disponibles
-  const currencies = await getCurrencies();
-
-  // Verificar si el usuario es admin
-  const isAdmin = await isUserAdmin(session.user.id);
+  // Obtener datos en paralelo
+  const [currencies, isAdmin, members, isOwner, pendingInvitations] = await Promise.all([
+    getCurrencies(),
+    isUserAdmin(session.user.id),
+    currentProjectId ? getProjectMembers(currentProjectId, session.user.id) : Promise.resolve([]),
+    currentProjectId ? isProjectOwner(currentProjectId, session.user.id) : Promise.resolve(false),
+    getPendingInvitations(session.user.id),
+  ]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,6 +59,9 @@ export default async function DashboardLayout({
         currentProjectId={currentProjectId}
         currencies={currencies}
         isAdmin={isAdmin}
+        members={members}
+        isOwner={isOwner}
+        pendingInvitations={pendingInvitations}
       />
       <main className="container mx-auto px-4 py-6">
         {hasNoProjects ? (

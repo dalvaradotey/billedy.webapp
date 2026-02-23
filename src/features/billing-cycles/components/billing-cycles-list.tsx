@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
 import type { BillingCycleWithTotals, BillingCycleSummary } from '../types';
-import { SummaryCard } from './summary-card';
+import { SummaryCard } from '@/components/ui/summary-card';
 import { BillingCycleCard } from './billing-cycle-card';
 import { BillingCycleDialogContent } from './billing-cycle-dialog';
 
@@ -69,27 +69,26 @@ export function BillingCyclesList({
           title="Ciclos"
           value={String(summary.totalCycles)}
           subtitle={`${summary.openCycles} abierto, ${summary.closedCycles} cerrados`}
-          icon={<Calendar className="h-4 w-4 text-blue-600" />}
+          icon={<Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+          variant="info"
         />
         {summary.currentCycle && (
           <>
             <SummaryCard
               title="Ingresos del ciclo"
               value={formatCurrency(summary.currentCycle.currentIncome)}
-              className="text-emerald-600 dark:text-emerald-400"
+              variant="success"
             />
             <SummaryCard
               title="Gastos del ciclo"
               value={formatCurrency(summary.currentCycle.currentExpenses)}
-              className="text-red-600 dark:text-red-400"
+              variant="danger"
             />
             <SummaryCard
               title="Balance"
               value={formatCurrency(summary.currentCycle.currentBalance)}
               subtitle={`${summary.currentCycle.daysRemaining} días restantes`}
-              className={
-                summary.currentCycle.currentBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-              }
+              variant={summary.currentCycle.currentBalance >= 0 ? 'success' : 'danger'}
             />
           </>
         )}

@@ -12,7 +12,7 @@ import { formatCurrency } from '@/lib/formatting';
 import type { Entity } from '@/features/entities/types';
 import type { AccountWithEntity } from '@/features/accounts/types';
 import type { CreditWithProgress, CreditSummary } from '../types';
-import { SummaryCard } from './summary-card';
+import { SummaryCard } from '@/components/ui/summary-card';
 import { CreditCard } from './credit-card';
 import { CreditDialogContent } from './credit-dialog';
 
@@ -75,23 +75,24 @@ export function CreditList({
           title="Créditos activos"
           value={String(summary.activeCredits)}
           subtitle={`de ${summary.totalCredits} total`}
-          icon={<CreditCardIcon className="h-4 w-4 text-blue-600" />}
+          icon={<CreditCardIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+          variant="info"
         />
         <SummaryCard
           title="Deuda total"
           value={formatCurrency(summary.totalDebt)}
-          className="text-red-600 dark:text-red-400"
+          variant="danger"
         />
         <SummaryCard
           title="Total pagado"
           value={formatCurrency(summary.totalPaid)}
-          className="text-emerald-600 dark:text-emerald-400"
+          variant="success"
         />
         <SummaryCard
           title="Cuota mensual"
           value={formatCurrency(summary.monthlyPayment)}
           subtitle="aproximado"
-          className="text-orange-600"
+          variant="neutral"
         />
       </div>
 

@@ -23,7 +23,6 @@ export {
   TransactionDialogContent,
   TransactionTable,
   TransactionTableSkeleton,
-  SummaryCard,
   TransferForm,
   DeleteTransactionDialog,
   TogglePaidDialog,

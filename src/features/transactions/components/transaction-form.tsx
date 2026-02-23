@@ -61,6 +61,7 @@ interface Budget {
   categoryId: string | null;
   categoryName?: string | null;
   categoryColor?: string | null;
+  defaultAccountId?: string | null;
 }
 
 type FormMode = 'expense' | 'income' | 'transfer';
@@ -734,11 +735,14 @@ export function TransactionDialogContent({
                           value={field.value}
                           onValueChange={(budgetId) => {
                             field.onChange(budgetId);
-                            // Auto-select category if budget has one
+                            // Auto-select category and account if budget has them
                             if (budgetId) {
                               const selectedBudget = budgets.find((b) => b.id === budgetId);
                               if (selectedBudget?.categoryId) {
                                 form.setValue('categoryId', selectedBudget.categoryId);
+                              }
+                              if (selectedBudget?.defaultAccountId) {
+                                form.setValue('accountId', selectedBudget.defaultAccountId);
                               }
                             }
                           }}

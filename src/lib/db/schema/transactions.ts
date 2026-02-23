@@ -212,6 +212,9 @@ export const budgets = pgTable('n1n4_budgets', {
   categoryId: uuid('category_id').references(() => categories.id, {
     onDelete: 'set null',
   }),
+  defaultAccountId: uuid('default_account_id').references(() => accounts.id, {
+    onDelete: 'set null',
+  }),
   defaultAmount: decimal('default_amount', { precision: 15, scale: 2 }).notNull(),
   currency: varchar('currency', { length: 3 }).default('CLP').notNull(),
   isActive: boolean('is_active').default(true).notNull(),

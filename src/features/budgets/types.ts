@@ -6,4 +6,5 @@ export type Budget = InferSelectModel<typeof budgets>;
 export type BudgetWithCategory = Budget & {
   categoryName: string | null;
   categoryColor: string | null;
+  accountName: string | null;
 };

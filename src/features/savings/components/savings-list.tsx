@@ -2,45 +2,18 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, PiggyBank } from 'lucide-react';
+import { ArrowRight, PiggyBank, Target, Calendar, TrendingUp } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
+import { SummaryCard } from '@/components/ui/summary-card';
+import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
 
 import { formatCurrency } from '@/lib/formatting';
 import type { SavingsFundWithProgress, SavingsSummary } from '../types';
 import { SavingsFundCard } from './savings-fund-card';
 import { SavingsFundDialogContent } from './savings-fund-dialog';
-
-// ============================================================================
-// SUMMARY CARD
-// ============================================================================
-
-interface SummaryCardProps {
-  title: string;
-  value: string;
-  subtitle?: string;
-  icon?: React.ReactNode;
-  className?: string;
-}
-
-function SummaryCard({ title, value, subtitle, icon, className }: SummaryCardProps) {
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-        {icon}
-        {title}
-      </div>
-      <div className={`text-2xl font-bold ${className ?? ''}`}>{value}</div>
-      {subtitle && <div className="text-xs text-muted-foreground">{subtitle}</div>}
-    </div>
-  );
-}
-
-// ============================================================================
-// SAVINGS LIST
-// ============================================================================
 
 interface SavingsListProps {
   funds: SavingsFundWithProgress[];
@@ -95,12 +68,13 @@ export function SavingsList({
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <SummaryCardsSlider>
         <SummaryCard
           title="Fondos activos"
           value={String(summary.activeFunds)}
           subtitle={`de ${summary.totalFunds} total`}
-          icon={<PiggyBank className="h-4 w-4 text-blue-600" />}
+          icon={<PiggyBank className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="info"
         />
         <SummaryCard
           title="Balance total"
@@ -110,12 +84,14 @@ export function SavingsList({
               ? `${summary.overallProgress}% de ${formatCurrency(summary.totalTargetAmount)}`
               : undefined
           }
-          className="text-emerald-600 dark:text-emerald-400"
+          icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="success"
         />
         <SummaryCard
           title="Meta mensual"
           value={formatCurrency(summary.monthlyTargetTotal)}
-          className="text-blue-600"
+          icon={<Target className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="info"
         />
         <SummaryCard
           title="Depositado este mes"
@@ -125,9 +101,10 @@ export function SavingsList({
               ? `${Math.round((summary.monthlyDepositedTotal / summary.monthlyTargetTotal) * 100)}% de la meta`
               : undefined
           }
-          className="text-orange-600"
+          icon={<Calendar className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="neutral"
         />
-      </div>
+      </SummaryCardsSlider>
 
       {/* Actions */}
       <div className="flex justify-between items-center">
@@ -137,9 +114,9 @@ export function SavingsList({
 
         <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DrawerTrigger asChild>
-            <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
-              <Plus className="h-4 w-4" />
+            <Button variant="cta-sm" onClick={handleOpenDialog}>
               Nuevo fondo
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </DrawerTrigger>
           <SavingsFundDialogContent

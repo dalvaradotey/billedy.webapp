@@ -4,6 +4,7 @@ import { getBudgetsWithCategory, getProjectCategories } from '@/features/budgets
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
 import { getAllCurrencies } from '@/features/savings/queries';
+import { getAccounts } from '@/features/accounts/queries';
 import { BudgetList } from '@/features/budgets/components';
 
 export default async function BudgetsPage() {
@@ -24,9 +25,10 @@ export default async function BudgetsPage() {
   }
 
   // Cargar datos en paralelo
-  const [budgets, categories, currencies, project] = await Promise.all([
+  const [budgets, categories, accounts, currencies, project] = await Promise.all([
     getBudgetsWithCategory(projectId, session.user.id),
     getProjectCategories(projectId, session.user.id),
+    getAccounts(session.user.id),
     getAllCurrencies(),
     getProjectById(projectId, session.user.id),
   ]);
@@ -45,6 +47,7 @@ export default async function BudgetsPage() {
       <BudgetList
         budgets={budgets}
         categories={categories}
+        accounts={accounts}
         currencies={currencies.map((c) => ({ code: c.code, name: c.name }))}
         projectId={projectId}
         userId={session.user.id}

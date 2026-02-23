@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { budgets, categories, projectMembers } from '@/lib/db/schema';
+import { budgets, categories, projectMembers, accounts } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { BudgetWithCategory } from './types';
@@ -39,6 +39,7 @@ async function _getBudgetsWithCategory(
       projectId: budgets.projectId,
       name: budgets.name,
       categoryId: budgets.categoryId,
+      defaultAccountId: budgets.defaultAccountId,
       defaultAmount: budgets.defaultAmount,
       currency: budgets.currency,
       isActive: budgets.isActive,
@@ -46,9 +47,11 @@ async function _getBudgetsWithCategory(
       updatedAt: budgets.updatedAt,
       categoryName: categories.name,
       categoryColor: categories.color,
+      accountName: accounts.name,
     })
     .from(budgets)
     .leftJoin(categories, eq(budgets.categoryId, categories.id))
+    .leftJoin(accounts, eq(budgets.defaultAccountId, accounts.id))
     .where(eq(budgets.projectId, projectId))
     .orderBy(budgets.name);
 
@@ -77,6 +80,7 @@ async function _getActiveBudgets(
   categoryId: string | null;
   categoryName: string | null;
   categoryColor: string | null;
+  defaultAccountId: string | null;
 }[]> {
   const hasAccess = await verifyProjectAccess(projectId, userId);
   if (!hasAccess) return [];
@@ -88,6 +92,7 @@ async function _getActiveBudgets(
       categoryId: budgets.categoryId,
       categoryName: categories.name,
       categoryColor: categories.color,
+      defaultAccountId: budgets.defaultAccountId,
     })
     .from(budgets)
     .leftJoin(categories, eq(budgets.categoryId, categories.id))

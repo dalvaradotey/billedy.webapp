@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useIsMobile } from '@/hooks';
 import { toast } from 'sonner';
 import {
   Pencil,
@@ -11,27 +12,11 @@ import {
   TrendingDown,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { Progress } from '@/components/ui/progress';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { CardActions } from '@/components/card-actions';
 
 import { formatCurrency } from '@/lib/formatting';
 import { archiveSavingsFund, deleteSavingsFund } from '../actions';
@@ -109,8 +94,12 @@ export function SavingsFundCard({
 }: SavingsFundCardProps) {
   const [isPending, startTransition] = useTransition();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showMovementDialog, setShowMovementDialog] = useState(false);
   const [movementType, setMovementType] = useState<'deposit' | 'withdrawal'>('deposit');
+  const [showActionsDrawer, setShowActionsDrawer] = useState(false);
+  const [showInlineActions, setShowInlineActions] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleDelete = () => {
     const toastId = toast.loading('Eliminando fondo...');
@@ -127,12 +116,26 @@ export function SavingsFundCard({
   };
 
   const handleArchive = () => {
-    const toastId = toast.loading(fund.isArchived ? 'Restaurando fondo...' : 'Archivando fondo...');
+    setShowArchiveDialog(false);
+    const toastId = toast.loading('Archivando fondo...');
     onMutationStart?.();
     startTransition(async () => {
-      const result = await archiveSavingsFund(fund.id, userId, !fund.isArchived);
+      const result = await archiveSavingsFund(fund.id, userId, true);
       if (result.success) {
-        onMutationSuccess?.(toastId, fund.isArchived ? 'Fondo restaurado' : 'Fondo archivado');
+        onMutationSuccess?.(toastId, 'Fondo archivado');
+      } else {
+        onMutationError?.(toastId, result.error);
+      }
+    });
+  };
+
+  const handleRestore = () => {
+    const toastId = toast.loading('Restaurando fondo...');
+    onMutationStart?.();
+    startTransition(async () => {
+      const result = await archiveSavingsFund(fund.id, userId, false);
+      if (result.success) {
+        onMutationSuccess?.(toastId, 'Fondo restaurado');
       } else {
         onMutationError?.(toastId, result.error);
       }
@@ -162,173 +165,202 @@ export function SavingsFundCard({
         ? 'bg-blue-500'
         : 'bg-orange-500';
 
+  const description = `${FUND_TYPE_LABELS[fund.type]} • ${fund.accountType}`;
+
+  const actions = [
+    {
+      key: 'deposit',
+      label: 'Depositar',
+      icon: <TrendingUp className="text-emerald-600 dark:text-emerald-400" />,
+      onClick: () => openMovementDialog('deposit'),
+    },
+    {
+      key: 'withdrawal',
+      label: 'Retirar',
+      icon: <TrendingDown className="text-red-600 dark:text-red-400" />,
+      onClick: () => openMovementDialog('withdrawal'),
+      disabled: currentBalance <= 0,
+    },
+    {
+      key: 'edit',
+      label: 'Editar',
+      icon: <Pencil />,
+      onClick: onEdit,
+    },
+    fund.isArchived
+      ? {
+          key: 'restore',
+          label: 'Restaurar',
+          icon: <ArchiveRestore />,
+          onClick: handleRestore,
+        }
+      : {
+          key: 'archive',
+          label: 'Archivar',
+          icon: <Archive />,
+          onClick: () => setShowArchiveDialog(true),
+          closeOnClick: false,
+        },
+    {
+      key: 'delete',
+      label: 'Eliminar',
+      icon: <Trash2 />,
+      onClick: () => setShowDeleteDialog(true),
+      variant: 'destructive' as const,
+    },
+  ];
+
   return (
-    <div className={`rounded-lg border p-4 space-y-3 ${fund.isArchived ? 'opacity-60' : ''}`}>
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
-            {FUND_TYPE_ICONS[fund.type]}
+    <>
+      {/* Card */}
+      <div
+        onClick={() => {
+          if (isMobile) {
+            setShowActionsDrawer(true);
+          } else {
+            setShowInlineActions(!showInlineActions);
+          }
+        }}
+        className={`rounded-2xl border bg-card p-4 space-y-3 transition-colors cursor-pointer active:bg-muted/50 ${fund.isArchived ? 'opacity-60' : ''}`}
+      >
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/* Fund Info */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+              {FUND_TYPE_ICONS[fund.type]}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-base truncate">{fund.name}</p>
+              <p className="text-sm text-muted-foreground truncate">{description}</p>
+            </div>
           </div>
-          <div>
-            <p className="font-medium">{fund.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {FUND_TYPE_LABELS[fund.type]} • {fund.accountType}
-            </p>
+
+          {/* Balance & Actions */}
+          <div className="flex items-center justify-between sm:justify-end gap-3 ml-[60px] sm:ml-0">
+            <CardActions
+              actions={actions}
+              title={fund.name}
+              description={description}
+              isPending={isPending}
+              showInline={showInlineActions}
+              onToggleInline={() => setShowInlineActions(!showInlineActions)}
+              drawerOpen={showActionsDrawer}
+              onDrawerOpenChange={setShowActionsDrawer}
+            >
+              <div className="sm:text-right sm:min-w-[120px]">
+                <span className="text-xl sm:text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(currentBalance, fund.currencyCode)}
+                </span>
+              </div>
+            </CardActions>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-            {formatCurrency(currentBalance, fund.currencyCode)}
-          </span>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
-                <span className="sr-only">Acciones</span>
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v.01M12 12v.01M12 18v.01"
-                  />
-                </svg>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => openMovementDialog('deposit')}>
-                <TrendingUp className="mr-2 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                Depositar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => openMovementDialog('withdrawal')}
-                disabled={currentBalance <= 0}
-              >
-                <TrendingDown className="mr-2 h-4 w-4 text-red-600 dark:text-red-400" />
-                Retirar
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={onEdit}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleArchive}>
-                {fund.isArchived ? (
-                  <>
-                    <ArchiveRestore className="mr-2 h-4 w-4" />
-                    Restaurar
-                  </>
-                ) : (
-                  <>
-                    <Archive className="mr-2 h-4 w-4" />
-                    Archivar
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setShowDeleteDialog(true)}
-                className="text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Eliminar fondo de ahorro</AlertDialogTitle>
-                <AlertDialogDescription>
-                  ¿Estás seguro de eliminar este fondo? Se eliminarán también todos los movimientos
-                  asociados. Esta acción no se puede deshacer.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDelete}
-                  disabled={isPending}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  {isPending ? 'Eliminando...' : 'Eliminar'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          <ResponsiveDrawer open={showMovementDialog} onOpenChange={setShowMovementDialog}>
-            <MovementDialogContent
-              fundId={fund.id}
-              fundName={fund.name}
-              userId={userId}
-              type={movementType}
-              currentBalance={currentBalance}
-              currencyCode={fund.currencyCode}
-              onSuccess={() => setShowMovementDialog(false)}
-              onMutationStart={onMutationStart}
-              onMutationSuccess={onMutationSuccess}
-              onMutationError={onMutationError}
+        {/* Progress to goal */}
+        {targetAmount && targetAmount > 0 && (
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Progreso hacia meta</span>
+              <span>{fund.progressPercentage}%</span>
+            </div>
+            <Progress
+              value={Math.min(fund.progressPercentage, 100)}
+              className="h-2"
+              indicatorClassName={progressColor}
             />
-          </ResponsiveDrawer>
-        </div>
-      </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{formatCurrency(currentBalance, fund.currencyCode)}</span>
+              <span>de {formatCurrency(targetAmount, fund.currencyCode)}</span>
+            </div>
+          </div>
+        )}
 
-      {/* Progress to goal */}
-      {targetAmount && targetAmount > 0 && (
+        {/* Monthly progress */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Progreso hacia meta</span>
-            <span>{fund.progressPercentage}%</span>
+            <span>Meta mensual</span>
+            <span>{fund.monthlyPercentage}%</span>
           </div>
           <Progress
-            value={Math.min(fund.progressPercentage, 100)}
+            value={Math.min(fund.monthlyPercentage, 100)}
             className="h-2"
-            indicatorClassName={progressColor}
+            indicatorClassName={monthlyProgressColor}
           />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{formatCurrency(currentBalance, fund.currencyCode)}</span>
-            <span>de {formatCurrency(targetAmount, fund.currencyCode)}</span>
+            <span>{formatCurrency(fund.monthlyDeposited, fund.currencyCode)} este mes</span>
+            <span>de {formatCurrency(monthlyTarget, fund.currencyCode)}</span>
           </div>
         </div>
-      )}
 
-      {/* Monthly progress */}
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Meta mensual</span>
-          <span>{fund.monthlyPercentage}%</span>
-        </div>
-        <Progress
-          value={Math.min(fund.monthlyPercentage, 100)}
-          className="h-2"
-          indicatorClassName={monthlyProgressColor}
-        />
-        <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{formatCurrency(fund.monthlyDeposited, fund.currencyCode)} este mes</span>
-          <span>de {formatCurrency(monthlyTarget, fund.currencyCode)}</span>
-        </div>
+        {/* Recent movements */}
+        {fund.recentMovements.length > 0 && (
+          <div className="pt-2 border-t">
+            <p className="text-xs text-muted-foreground mb-2">Últimos movimientos</p>
+            <div className="space-y-1">
+              {fund.recentMovements.slice(0, 3).map((movement) => (
+                <MovementRow key={movement.id} movement={movement} currencyCode={fund.currencyCode} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Recent movements */}
-      {fund.recentMovements.length > 0 && (
-        <div className="pt-2 border-t">
-          <p className="text-xs text-muted-foreground mb-2">Últimos movimientos</p>
-          <div className="space-y-1">
-            {fund.recentMovements.slice(0, 3).map((movement) => (
-              <MovementRow key={movement.id} movement={movement} currencyCode={fund.currencyCode} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Archive Confirmation */}
+      <ConfirmDialog
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
+        icon={<Archive className="h-7 w-7" />}
+        iconVariant="default"
+        title="Archivar fondo"
+        description={
+          <>
+            ¿Archivar <span className="font-medium text-foreground">{fund.name}</span>?
+            El fondo no aparecerá en tus listados activos pero podrás restaurarlo en cualquier momento.
+          </>
+        }
+        confirmText={isPending ? 'Archivando...' : 'Archivar'}
+        size="sm"
+        isPending={isPending}
+        onConfirm={handleArchive}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        icon={<Trash2 className="h-7 w-7" />}
+        iconVariant="destructive"
+        title="Eliminar fondo de ahorro"
+        description={
+          <>
+            ¿Eliminar <span className="font-medium text-foreground">{fund.name}</span> permanentemente?
+            Se eliminarán también todos los movimientos asociados.
+          </>
+        }
+        confirmText={isPending ? 'Eliminando...' : 'Eliminar'}
+        variant="destructive"
+        size="sm"
+        requireConfirmText="ELIMINAR"
+        isPending={isPending}
+        onConfirm={handleDelete}
+      />
+
+      {/* Movement Dialog */}
+      <ResponsiveDrawer open={showMovementDialog} onOpenChange={setShowMovementDialog}>
+        <MovementDialogContent
+          fundId={fund.id}
+          fundName={fund.name}
+          userId={userId}
+          type={movementType}
+          currentBalance={currentBalance}
+          currencyCode={fund.currencyCode}
+          onSuccess={() => setShowMovementDialog(false)}
+          onMutationStart={onMutationStart}
+          onMutationSuccess={onMutationSuccess}
+          onMutationError={onMutationError}
+        />
+      </ResponsiveDrawer>
+    </>
   );
 }

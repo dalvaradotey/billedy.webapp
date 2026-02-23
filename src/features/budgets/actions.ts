@@ -60,6 +60,7 @@ export async function createBudget(
       projectId: parsed.data.projectId,
       name: parsed.data.name,
       categoryId: parsed.data.categoryId ?? null,
+      defaultAccountId: parsed.data.defaultAccountId ?? null,
       defaultAmount: String(parsed.data.defaultAmount),
       currency: parsed.data.currency,
     })
@@ -108,6 +109,7 @@ export async function updateBudget(
 
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
   if (parsed.data.categoryId !== undefined) updateData.categoryId = parsed.data.categoryId;
+  if (parsed.data.defaultAccountId !== undefined) updateData.defaultAccountId = parsed.data.defaultAccountId;
   if (parsed.data.defaultAmount !== undefined) updateData.defaultAmount = String(parsed.data.defaultAmount);
   if (parsed.data.currency !== undefined) updateData.currency = parsed.data.currency;
   if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;

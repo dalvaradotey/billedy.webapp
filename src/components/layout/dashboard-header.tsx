@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import dynamic from 'next/dynamic';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { LayoutDashboard, Wallet, PiggyBank, Target, CreditCard, Receipt, FileText, Calendar, ArrowRightLeft, Settings, LogOut, ShieldCheck, X } from 'lucide-react';
+import { LayoutDashboard, Wallet, PiggyBank, Target, CreditCard, Receipt, FileText, Calendar, ArrowRightLeft, Settings, LogOut, ShieldCheck, X, Bell, Check, XIcon, Crown, Pencil, Eye } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,8 +19,9 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { ClientOnly } from '@/components/client-only';
 import { Logo } from '@/components/logo';
 import { cn } from '@/lib/utils';
-import { setCurrentProjectId } from '@/features/projects/actions';
-import type { Project, Currency } from '@/features/projects/types';
+import { setCurrentProjectId, acceptInvitation, rejectInvitation } from '@/features/projects/actions';
+import type { Project, Currency, ProjectMemberWithUser, PendingInvitation } from '@/features/projects/types';
+import type { ProjectRole } from '@/features/projects/schemas';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Resumen', icon: LayoutDashboard },
@@ -54,11 +55,25 @@ interface DashboardHeaderProps {
   currentProjectId: string | null;
   currencies: Currency[];
   isAdmin?: boolean;
+  members?: ProjectMemberWithUser[];
+  isOwner?: boolean;
+  pendingInvitations?: PendingInvitation[];
 }
 
-export function DashboardHeader({ user, projects, currentProjectId, currencies, isAdmin }: DashboardHeaderProps) {
+export function DashboardHeader({
+  user,
+  projects,
+  currentProjectId,
+  currencies,
+  isAdmin,
+  members = [],
+  isOwner = false,
+  pendingInvitations = [],
+}: DashboardHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   const handleProjectChange = async (projectId: string) => {
     await setCurrentProjectId(projectId);
@@ -86,12 +101,22 @@ export function DashboardHeader({ user, projects, currentProjectId, currencies, 
               currentProjectId={currentProjectId}
               userId={user.id}
               currencies={currencies}
+              members={members}
+              isOwner={isOwner}
               onProjectChange={handleProjectChange}
             />
           )}
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Notificaciones */}
+          <NotificationsButton
+            invitations={pendingInvitations}
+            userId={user.id}
+            isOpen={isNotificationsOpen}
+            onOpenChange={setIsNotificationsOpen}
+            onAction={() => router.refresh()}
+          />
           <ThemeToggle />
           <ClientOnly fallback={<Skeleton className="h-8 w-8 rounded-full" />}>
             <Drawer open={isMenuOpen} onOpenChange={setIsMenuOpen} direction="right">
@@ -194,5 +219,178 @@ export function DashboardHeader({ user, projects, currentProjectId, currencies, 
         </div>
       </div>
     </header>
+  );
+}
+
+// ============================================================================
+// NOTIFICATIONS BUTTON
+// ============================================================================
+
+const roleLabels: Record<ProjectRole, { label: string; icon: typeof Crown }> = {
+  owner: { label: 'Dueño', icon: Crown },
+  editor: { label: 'Editor', icon: Pencil },
+  viewer: { label: 'Lector', icon: Eye },
+};
+
+interface NotificationsButtonProps {
+  invitations: PendingInvitation[];
+  userId: string;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAction: () => void;
+}
+
+function NotificationsButton({
+  invitations,
+  userId,
+  isOpen,
+  onOpenChange,
+  onAction,
+}: NotificationsButtonProps) {
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const handleAccept = (invitationId: string) => {
+    setProcessingId(invitationId);
+    startTransition(async () => {
+      const result = await acceptInvitation(invitationId, userId);
+      if (result.success) {
+        onAction();
+      }
+      setProcessingId(null);
+    });
+  };
+
+  const handleReject = (invitationId: string) => {
+    setProcessingId(invitationId);
+    startTransition(async () => {
+      const result = await rejectInvitation(invitationId, userId);
+      if (result.success) {
+        onAction();
+      }
+      setProcessingId(null);
+    });
+  };
+
+  const hasInvitations = invitations.length > 0;
+
+  return (
+    <Drawer open={isOpen} onOpenChange={onOpenChange} direction="right">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="relative h-8 w-8"
+        onClick={() => onOpenChange(true)}
+      >
+        <Bell className="h-5 w-5" />
+        {hasInvitations && (
+          <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-emerald-500 text-[10px] font-medium text-white flex items-center justify-center">
+            {invitations.length}
+          </span>
+        )}
+      </Button>
+      <DrawerContent>
+        <div className="flex flex-col h-full">
+          <DrawerHeader className="border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <DrawerTitle>Notificaciones</DrawerTitle>
+                <DrawerDescription>
+                  {hasInvitations
+                    ? `${invitations.length} invitación${invitations.length > 1 ? 'es' : ''} pendiente${invitations.length > 1 ? 's' : ''}`
+                    : 'No tienes notificaciones'}
+                </DrawerDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full"
+                onClick={() => onOpenChange(false)}
+              >
+                <X className="h-5 w-5" />
+                <span className="sr-only">Cerrar</span>
+              </Button>
+            </div>
+          </DrawerHeader>
+
+          <div className="flex-1 overflow-y-auto p-4">
+            {hasInvitations ? (
+              <div className="space-y-3">
+                {invitations.map((invitation) => {
+                  const roleInfo = roleLabels[invitation.role];
+                  const RoleIcon = roleInfo.icon;
+                  const isProcessing = processingId === invitation.id;
+
+                  return (
+                    <div
+                      key={invitation.id}
+                      className="p-4 rounded-lg border bg-card space-y-3"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          Te han invitado a{' '}
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            {invitation.projectName}
+                          </span>
+                        </p>
+                        {invitation.invitedByName && (
+                          <p className="text-sm text-muted-foreground">
+                            Invitado por {invitation.invitedByName}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <RoleIcon className="h-3.5 w-3.5" />
+                        <span>Rol: {roleInfo.label}</span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1 h-9"
+                          disabled={isPending}
+                          onClick={() => handleAccept(invitation.id)}
+                        >
+                          {isProcessing ? (
+                            'Aceptando...'
+                          ) : (
+                            <>
+                              <Check className="h-4 w-4 mr-1" />
+                              Aceptar
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 h-9"
+                          disabled={isPending}
+                          onClick={() => handleReject(invitation.id)}
+                        >
+                          {isProcessing ? (
+                            'Rechazando...'
+                          ) : (
+                            <>
+                              <XIcon className="h-4 w-4 mr-1" />
+                              Rechazar
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                <Bell className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                <p className="text-muted-foreground">No tienes notificaciones</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
