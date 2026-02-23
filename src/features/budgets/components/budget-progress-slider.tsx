@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Plus, ArrowRight, Target } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, ArrowRight, Target, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatting';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -15,21 +15,33 @@ interface BudgetProgressSliderProps {
 
 function BudgetCard({ budget, onAddTransaction }: { budget: BudgetProgress; onAddTransaction?: (budgetId: string) => void }) {
   const isOverBudget = budget.spentAmount > budget.budgetedAmount;
-  const progressColor = isOverBudget
-    ? 'bg-red-500'
-    : budget.progressPercentage >= 80
-      ? 'bg-amber-500'
-      : 'bg-emerald-500';
+  const categoryColor = budget.categoryColor || '#6366f1';
+  const accentColor = isOverBudget ? '#ef4444' : categoryColor;
 
   return (
-    <div className="flex-shrink-0 w-[280px] rounded-xl bg-slate-700/50 p-4 space-y-3">
+    <div
+      className="h-full rounded-xl overflow-hidden"
+      style={{
+        background: isOverBudget
+          ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%)'
+          : `linear-gradient(135deg, ${categoryColor}15 0%, ${categoryColor}05 100%)`,
+        border: `1px solid ${isOverBudget ? 'rgba(239, 68, 68, 0.4)' : `${categoryColor}30`}`
+      }}
+    >
       {/* Header */}
-      <div className="flex items-start justify-between gap-2">
+      <div
+        className="px-4 py-3 flex items-center justify-between"
+        style={{ backgroundColor: isOverBudget ? 'rgba(239, 68, 68, 0.2)' : `${categoryColor}20` }}
+      >
         <div className="flex items-center gap-2 min-w-0">
-          {budget.categoryColor && (
+          {isOverBudget ? (
+            <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 animate-pulse">
+              <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+            </div>
+          ) : (
             <div
               className="w-3 h-3 rounded-full flex-shrink-0"
-              style={{ backgroundColor: budget.categoryColor }}
+              style={{ backgroundColor: categoryColor }}
             />
           )}
           <span className="text-white font-medium text-sm truncate">{budget.name}</span>
@@ -37,7 +49,7 @@ function BudgetCard({ budget, onAddTransaction }: { budget: BudgetProgress; onAd
         {/* Botón + solo en desktop */}
         {onAddTransaction && (
           <Button
-            variant="secondary"
+            variant="subtle"
             size="icon-sm"
             className="hidden md:flex"
             onClick={() => onAddTransaction(budget.id)}
@@ -47,50 +59,67 @@ function BudgetCard({ budget, onAddTransaction }: { budget: BudgetProgress; onAd
         )}
       </div>
 
-      {/* Progress bar */}
-      <div className="space-y-1.5">
-        <Progress
-          value={Math.min(100, budget.progressPercentage)}
-          className="h-2 bg-slate-600"
-          indicatorClassName={progressColor}
-        />
-        <div className="flex justify-between text-xs">
-          <span className={isOverBudget ? 'text-red-400' : 'text-slate-400'}>
-            {formatCurrency(budget.spentAmount)}
-          </span>
-          <span className="text-slate-500">
-            {formatCurrency(budget.budgetedAmount)}
-          </span>
+      <div className="p-4 space-y-3">
+        {/* Monto principal */}
+        <div className="text-center">
+          <p className={`text-2xl font-bold tabular-nums ${isOverBudget ? 'text-red-400' : 'text-white'}`}>
+            {isOverBudget ? '-' : ''}{formatCurrency(Math.abs(budget.remainingAmount))}
+          </p>
+          <p className="text-xs text-slate-400">
+            {isOverBudget ? 'Excedido' : 'Disponible'} de {formatCurrency(budget.budgetedAmount)}
+          </p>
         </div>
-      </div>
 
-      {/* Remaining */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-500">
-          {isOverBudget ? 'Excedido' : 'Disponible'}
-        </span>
-        <span className={`text-sm font-semibold ${isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}>
-          {isOverBudget ? '-' : ''}{formatCurrency(Math.abs(budget.remainingAmount))}
-        </span>
-      </div>
+        {/* Progress bar */}
+        <div className="space-y-1">
+          <div className="h-3 rounded-full bg-slate-700/50 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${Math.min(100, budget.progressPercentage)}%`,
+                backgroundColor: accentColor
+              }}
+            />
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className={isOverBudget ? 'text-red-400' : 'text-slate-400'}>
+              {formatCurrency(budget.spentAmount)} gastado
+            </span>
+            <span className={isOverBudget ? 'text-red-400' : 'text-slate-500'}>
+              {Math.round(budget.progressPercentage)}%
+            </span>
+          </div>
+        </div>
 
-      {/* Botón agregar transacción - solo en mobile */}
-      {onAddTransaction && (
-        <Button
-          variant="secondary"
-          className="md:hidden w-full"
-          onClick={() => onAddTransaction(budget.id)}
-        >
-          Nueva transacción
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      )}
+        {/* Botón agregar transacción - solo en mobile */}
+        {onAddTransaction && (
+          <Button
+            variant="subtle"
+            className="md:hidden w-full"
+            onClick={() => onAddTransaction(budget.id)}
+          >
+            Nueva transacción
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
 
 export function BudgetProgressSlider({ budgets, onAddTransaction }: BudgetProgressSliderProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Calcular totales
+  const totals = useMemo(() => {
+    const totalBudgeted = budgets.reduce((sum, b) => sum + b.budgetedAmount, 0);
+    const totalSpent = budgets.reduce((sum, b) => sum + b.spentAmount, 0);
+    const totalRemaining = totalBudgeted - totalSpent;
+    const overallPercentage = totalBudgeted > 0 ? (totalSpent / totalBudgeted) * 100 : 0;
+    const isOverBudget = totalSpent > totalBudgeted;
+
+    return { totalBudgeted, totalSpent, totalRemaining, overallPercentage, isOverBudget };
+  }, [budgets]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -169,14 +198,78 @@ export function BudgetProgressSlider({ budgets, onAddTransaction }: BudgetProgre
         </div>
       </div>
 
-      {/* Slider */}
+      {/* Balance Summary - Mobile: compact single row / Desktop: 3 columns */}
+      {/* Mobile Summary */}
+      <div className="md:hidden bg-slate-700/30 rounded-xl p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-400 mb-1">
+              {totals.isOverBudget ? 'Excedido del presupuesto' : 'Disponible para gastar'}
+            </p>
+            <p className={`text-2xl font-bold tabular-nums ${totals.isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}>
+              {totals.isOverBudget ? '-' : ''}{formatCurrency(Math.abs(totals.totalRemaining))}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-slate-500">
+              {formatCurrency(totals.totalSpent)} gastado
+            </p>
+            <p className="text-xs text-slate-500">
+              de {formatCurrency(totals.totalBudgeted)}
+            </p>
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div className="mt-3 h-2 rounded-full bg-slate-600/50 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${Math.min(100, totals.overallPercentage)}%`,
+              backgroundColor: totals.isOverBudget ? '#ef4444' : totals.overallPercentage > 80 ? '#f59e0b' : '#10b981'
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Desktop Summary */}
+      <div className="hidden md:grid grid-cols-3 gap-3">
+        <div className="bg-slate-700/30 rounded-xl p-3 text-center">
+          <p className="text-xl font-bold text-white tabular-nums">
+            {formatCurrency(totals.totalBudgeted)}
+          </p>
+          <p className="text-xs text-slate-400">Presupuestado</p>
+        </div>
+        <div className="bg-slate-700/30 rounded-xl p-3 text-center">
+          <p className={`text-xl font-bold tabular-nums ${totals.overallPercentage > 80 ? 'text-amber-400' : 'text-slate-300'}`}>
+            {formatCurrency(totals.totalSpent)}
+          </p>
+          <p className="text-xs text-slate-400">Gastado ({Math.round(totals.overallPercentage)}%)</p>
+        </div>
+        <div className="bg-slate-700/30 rounded-xl p-3 text-center">
+          <p className={`text-xl font-bold tabular-nums ${totals.isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}>
+            {totals.isOverBudget ? '-' : ''}{formatCurrency(Math.abs(totals.totalRemaining))}
+          </p>
+          <p className="text-xs text-slate-400">{totals.isOverBudget ? 'Excedido' : 'Disponible'}</p>
+        </div>
+      </div>
+
+      {/* Slider - Desktop: 4 tarjetas si <=4, o más compactas si >4 para mostrar parte de la siguiente */}
       <div
         ref={scrollRef}
-        className="flex gap-4 overflow-x-auto scrollbar-hide pb-1 -mr-4 pr-4 md:mr-0 md:pr-0"
-        style={{ scrollSnapType: 'x mandatory' }}
+        className="flex gap-3 md:gap-4 overflow-x-auto scrollbar-hide pb-1 -mr-4 pr-4 md:-mr-5 md:pr-5"
+        style={{
+          scrollSnapType: 'x mandatory',
+          ['--card-width' as string]: budgets.length > 4
+            ? 'calc((100% - 4rem) / 4.5)'
+            : 'calc((100% - 3rem) / 4)',
+        }}
       >
         {budgets.map((budget) => (
-          <div key={budget.id} style={{ scrollSnapAlign: 'start' }}>
+          <div
+            key={budget.id}
+            className="flex-shrink-0 w-[72%] sm:w-[280px] md:w-[var(--card-width)]"
+            style={{ scrollSnapAlign: 'start' }}
+          >
             <BudgetCard budget={budget} onAddTransaction={onAddTransaction} />
           </div>
         ))}
