@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
 import { getCurrentCycle } from '@/features/billing-cycles/queries';
-import { CycleSummaryBanner } from '@/features/billing-cycles/components';
-import { getAccounts, getAccountsSummary } from '@/features/accounts/queries';
-import { AccountsSummaryBanner } from '@/features/accounts/components';
+import { getAccountsSummaryWithAccounts } from '@/features/accounts/queries';
 import { getBudgetsProgress, getActiveBudgets } from '@/features/budgets';
 import { getActiveCategories } from '@/features/categories/queries';
 import { getEntities } from '@/features/entities/queries';
+import { DashboardClientWrapper } from './dashboard-client-wrapper';
 import { DashboardBudgetsSection } from './dashboard-budgets-section';
+import { DashboardCycleBanner } from './dashboard-cycle-banner';
+import { DashboardAccountsBanner } from './dashboard-accounts-banner';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -60,15 +61,17 @@ export default async function DashboardPage() {
   }
 
   // Obtener ciclo actual, proyecto y datos maestros para el formulario de transacciones
-  const [currentCycle, accountsSummary, project, categories, accounts, budgets, allEntities] = await Promise.all([
+  // Nota: getAccountsSummaryWithAccounts retorna summary + accounts en una sola llamada (optimización)
+  const [currentCycle, accountsData, project, categories, budgets, allEntities] = await Promise.all([
     getCurrentCycle(projectId, session.user.id),
-    getAccountsSummary(projectId, session.user.id),
+    getAccountsSummaryWithAccounts(projectId, session.user.id),
     getProjectById(projectId, session.user.id),
     getActiveCategories(projectId, session.user.id),
-    getAccounts(projectId, session.user.id),
     getActiveBudgets(projectId, session.user.id),
     getEntities(),
   ]);
+
+  const { summary: accountsSummary, accounts } = accountsData;
 
   const isOwner = project?.userId === session.user.id;
 
@@ -95,61 +98,65 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Banner de resumen de cuentas - Solo para el dueño del proyecto */}
-      {isOwner && accountsSummary.totalAccounts > 0 && (
-        <AccountsSummaryBanner summary={accountsSummary} />
-      )}
+      {/* Contenido dinámico con actualizaciones optimistas */}
+      <DashboardClientWrapper
+        budgetsProgress={budgetsProgress}
+        cycle={currentCycle}
+        accountsSummary={accountsSummary}
+      >
+        {/* Banner de resumen de cuentas - Solo para el dueño del proyecto */}
+        {isOwner && accountsSummary.totalAccounts > 0 && <DashboardAccountsBanner />}
 
-      {/* Banner si no hay ciclo activo */}
-      {!currentCycle && (
-        <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 dark:from-blue-950/40 dark:via-indigo-950/40 dark:to-violet-950/40 p-6 md:p-8">
-          {/* Decorative elements */}
-          <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-gradient-to-br from-blue-400/20 to-violet-400/20 blur-2xl" />
-          <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-32 w-32 rounded-full bg-gradient-to-tr from-indigo-400/20 to-blue-400/20 blur-2xl" />
+        {/* Banner si no hay ciclo activo */}
+        {!currentCycle && (
+          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 dark:from-blue-950/40 dark:via-indigo-950/40 dark:to-violet-950/40 p-6 md:p-8">
+            {/* Decorative elements */}
+            <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-gradient-to-br from-blue-400/20 to-violet-400/20 blur-2xl" />
+            <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-32 w-32 rounded-full bg-gradient-to-tr from-indigo-400/20 to-blue-400/20 blur-2xl" />
 
-          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className="rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-3 text-white shadow-lg shadow-blue-500/25">
-                <CalendarDays className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-lg">Comienza tu primer ciclo</h3>
-                  <Sparkles className="h-4 w-4 text-amber-500" />
+            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-3 text-white shadow-lg shadow-blue-500/25">
+                  <CalendarDays className="h-6 w-6" />
                 </div>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Los ciclos te permiten organizar tus finanzas por períodos.
-                  Define cuándo empieza y termina cada período de facturación.
-                </p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-lg">Comienza tu primer ciclo</h3>
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                  </div>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Los ciclos te permiten organizar tus finanzas por períodos.
+                    Define cuándo empieza y termina cada período de facturación.
+                  </p>
+                </div>
               </div>
+
+              <Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 w-full md:w-auto">
+                <Link href="/dashboard/cycles">
+                  Crear mi primer ciclo
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
             </div>
-
-            <Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 w-full md:w-auto">
-              <Link href="/dashboard/cycles">
-                Crear mi primer ciclo
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Banner de resumen del ciclo */}
-      {currentCycle && <CycleSummaryBanner cycle={currentCycle} />}
+        {/* Banner de resumen del ciclo */}
+        {currentCycle && <DashboardCycleBanner />}
 
-      {/* Slider de presupuestos con drawer de transacciones */}
-      {currentCycle && (
-        <DashboardBudgetsSection
-          budgetsProgress={budgetsProgress}
-          categories={categories}
-          accounts={accounts}
-          budgets={budgets}
-          entities={allEntities}
-          projectId={projectId}
-          userId={session.user.id}
-          defaultCurrency={project?.currency ?? 'USD'}
-        />
-      )}
+        {/* Slider de presupuestos con drawer de transacciones */}
+        {currentCycle && (
+          <DashboardBudgetsSection
+            categories={categories}
+            accounts={accounts}
+            budgets={budgets}
+            entities={allEntities}
+            projectId={projectId}
+            userId={session.user.id}
+            defaultCurrency={project?.currency ?? 'USD'}
+          />
+        )}
+      </DashboardClientWrapper>
     </div>
   );
 }

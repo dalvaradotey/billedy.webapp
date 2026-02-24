@@ -232,13 +232,10 @@ async function _getBudgetsProgress(
 
 /**
  * Obtiene el progreso de presupuestos activos para un ciclo
- * No cacheado porque depende de las fechas del ciclo
+ * Cacheado - las fechas forman parte de la cache key automáticamente
  */
-export async function getBudgetsProgress(
-  projectId: string,
-  userId: string,
-  startDate: Date,
-  endDate: Date
-): Promise<BudgetProgress[]> {
-  return _getBudgetsProgress(projectId, userId, startDate, endDate);
-}
+export const getBudgetsProgress = cachedQuery(
+  _getBudgetsProgress,
+  ['budgets', 'progress'],
+  { tags: [CACHE_TAGS.budgets, CACHE_TAGS.transactions] }
+);

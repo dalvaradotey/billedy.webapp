@@ -89,14 +89,16 @@ export function DashboardHeader({
     .slice(0, 2);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 flex h-14 items-center justify-between">
-        <div className="flex items-center gap-4 md:gap-6">
-          <a href="/dashboard" className="flex items-center">
-            <div className="p-1 rounded-lg bg-gradient-to-tl from-emerald-500 to-blue-600 [color:white]">
-              <Logo className="h-9 w-auto" />
-            </div>
+    <header className="sticky top-0 z-50 w-full">
+      <div className="container relative mx-auto px-3 md:px-4 flex h-14 md:h-16 items-center justify-between gap-2 md:gap-3">
+        {/* Left - Logo & Project Selector */}
+        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+          {/* Logo */}
+          <a href="/dashboard" className="flex-shrink-0 p-2 md:p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 [color:white] shadow-lg shadow-emerald-500/20">
+            <Logo className="h-7 md:h-8 w-auto" />
           </a>
+
+          {/* Project Selector */}
           {projects.length > 0 && currentProjectId && (
             <ProjectSelector
               projects={projects}
@@ -106,11 +108,13 @@ export function DashboardHeader({
               members={members}
               isOwner={isOwner}
               onProjectChange={handleProjectChange}
+              className="glass-island h-[44px] md:h-[46px] min-w-0 max-w-[160px] sm:max-w-[200px] md:max-w-none"
             />
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Right Island - Actions */}
+        <div className="glass-island h-[44px] md:h-[46px] flex items-center gap-0.5 md:gap-1 flex-shrink-0">
           {/* Notificaciones */}
           <NotificationsButton
             invitations={pendingInvitations}

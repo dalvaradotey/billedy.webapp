@@ -4,7 +4,7 @@ import { useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Plus, ArrowRight, Target, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatting';
-import { Progress } from '@/components/ui/progress';
+import { AnimatedCurrency } from '@/components/animated-currency';
 import { Button } from '@/components/ui/button';
 import type { BudgetProgress } from '../types';
 
@@ -62,9 +62,11 @@ function BudgetCard({ budget, onAddTransaction }: { budget: BudgetProgress; onAd
       <div className="p-4 space-y-3">
         {/* Monto principal */}
         <div className="text-center">
-          <p className={`text-2xl font-bold tabular-nums ${isOverBudget ? 'text-red-400' : 'text-white'}`}>
-            {isOverBudget ? '-' : ''}{formatCurrency(Math.abs(budget.remainingAmount))}
-          </p>
+          <AnimatedCurrency
+            value={Math.abs(budget.remainingAmount)}
+            prefix={isOverBudget ? '-' : ''}
+            className={`text-2xl font-bold ${isOverBudget ? 'text-red-400' : 'text-white'}`}
+          />
           <p className="text-xs text-slate-400">
             {isOverBudget ? 'Excedido' : 'Disponible'} de {formatCurrency(budget.budgetedAmount)}
           </p>
@@ -83,7 +85,7 @@ function BudgetCard({ budget, onAddTransaction }: { budget: BudgetProgress; onAd
           </div>
           <div className="flex justify-between text-xs">
             <span className={isOverBudget ? 'text-red-400' : 'text-slate-400'}>
-              {formatCurrency(budget.spentAmount)} gastado
+              <AnimatedCurrency value={budget.spentAmount} className="text-xs" /> gastado
             </span>
             <span className={isOverBudget ? 'text-red-400' : 'text-slate-500'}>
               {Math.round(budget.progressPercentage)}%
@@ -200,34 +202,45 @@ export function BudgetProgressSlider({ budgets, onAddTransaction }: BudgetProgre
 
       {/* Balance Summary - Mobile: compact single row / Desktop: 3 columns */}
       {/* Mobile Summary */}
-      <div className="md:hidden bg-slate-700/30 rounded-xl p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-slate-400 mb-1">
-              {totals.isOverBudget ? 'Excedido del presupuesto' : 'Disponible para gastar'}
-            </p>
-            <p className={`text-2xl font-bold tabular-nums ${totals.isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}>
-              {totals.isOverBudget ? '-' : ''}{formatCurrency(Math.abs(totals.totalRemaining))}
-            </p>
+      <div
+        className="md:hidden progress-container bg-slate-700/30 rounded-xl p-4"
+        style={{
+          ['--fill-percentage' as string]: `${Math.min(100, totals.overallPercentage)}%`,
+          ['--fill-color' as string]: totals.overallPercentage > 80 ? 'rgba(251, 191, 36, 0.15)' : 'rgba(148, 163, 184, 0.12)',
+        }}
+      >
+        <div className="progress-fill rounded-l-xl" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-slate-400 mb-1">
+                {totals.isOverBudget ? 'Excedido del presupuesto' : 'Disponible para gastar'}
+              </p>
+              <AnimatedCurrency
+                value={Math.abs(totals.totalRemaining)}
+                prefix={totals.isOverBudget ? '-' : ''}
+                className={`text-2xl font-bold ${totals.isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}
+              />
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-slate-500">
+                <AnimatedCurrency value={totals.totalSpent} className="text-xs" /> gastado ({Math.round(totals.overallPercentage)}%)
+              </p>
+              <p className="text-xs text-slate-500">
+                de {formatCurrency(totals.totalBudgeted)}
+              </p>
+            </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-slate-500">
-              {formatCurrency(totals.totalSpent)} gastado
-            </p>
-            <p className="text-xs text-slate-500">
-              de {formatCurrency(totals.totalBudgeted)}
-            </p>
+          {/* Progress bar */}
+          <div className="mt-3 h-3 rounded-full bg-slate-600/50 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${Math.min(100, totals.overallPercentage)}%`,
+                backgroundColor: totals.isOverBudget ? '#ef4444' : totals.overallPercentage > 80 ? '#f59e0b' : '#10b981'
+              }}
+            />
           </div>
-        </div>
-        {/* Progress bar */}
-        <div className="mt-3 h-2 rounded-full bg-slate-600/50 overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${Math.min(100, totals.overallPercentage)}%`,
-              backgroundColor: totals.isOverBudget ? '#ef4444' : totals.overallPercentage > 80 ? '#f59e0b' : '#10b981'
-            }}
-          />
         </div>
       </div>
 
@@ -240,16 +253,28 @@ export function BudgetProgressSlider({ budgets, onAddTransaction }: BudgetProgre
           <p className="text-xs text-slate-400">Presupuestado</p>
         </div>
         <div className="bg-slate-700/30 rounded-xl p-3 text-center">
-          <p className={`text-xl font-bold tabular-nums ${totals.overallPercentage > 80 ? 'text-amber-400' : 'text-slate-300'}`}>
-            {formatCurrency(totals.totalSpent)}
-          </p>
-          <p className="text-xs text-slate-400">Gastado ({Math.round(totals.overallPercentage)}%)</p>
-        </div>
-        <div className="bg-slate-700/30 rounded-xl p-3 text-center">
-          <p className={`text-xl font-bold tabular-nums ${totals.isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}>
-            {totals.isOverBudget ? '-' : ''}{formatCurrency(Math.abs(totals.totalRemaining))}
-          </p>
+          <AnimatedCurrency
+            value={Math.abs(totals.totalRemaining)}
+            prefix={totals.isOverBudget ? '-' : ''}
+            className={`text-xl font-bold ${totals.isOverBudget ? 'text-red-400' : 'text-emerald-400'}`}
+          />
           <p className="text-xs text-slate-400">{totals.isOverBudget ? 'Excedido' : 'Disponible'}</p>
+        </div>
+        <div
+          className="progress-container bg-slate-700/30 rounded-xl p-3 text-center"
+          style={{
+            ['--fill-percentage' as string]: `${Math.min(100, totals.overallPercentage)}%`,
+            ['--fill-color' as string]: totals.overallPercentage > 80 ? 'rgba(251, 191, 36, 0.15)' : 'rgba(148, 163, 184, 0.12)',
+          }}
+        >
+          <div className="progress-fill rounded-l-xl" />
+          <div className="relative z-10">
+            <AnimatedCurrency
+              value={totals.totalSpent}
+              className={`text-xl font-bold ${totals.overallPercentage > 80 ? 'text-amber-400' : 'text-slate-300'}`}
+            />
+            <p className="text-xs text-slate-400">Gastado ({Math.round(totals.overallPercentage)}%)</p>
+          </div>
         </div>
       </div>
 

@@ -200,3 +200,48 @@ export const getAccountsSummary = cachedQuery(
   ['accounts', 'summary'],
   { tags: [CACHE_TAGS.accounts, CACHE_TAGS.summary] }
 );
+
+/**
+ * Query interna para obtener resumen Y lista de cuentas en una sola llamada
+ * Optimización para el dashboard que necesita ambos datos
+ */
+async function _getAccountsSummaryWithAccounts(
+  projectId: string,
+  userId: string
+): Promise<{ summary: AccountsSummary; accounts: AccountWithEntity[] }> {
+  const projectAccounts = await _getAccounts(projectId, userId);
+
+  let totalDebitBalance = 0;
+  let totalCreditBalance = 0;
+
+  for (const account of projectAccounts) {
+    const balance = parseFloat(account.currentBalance);
+
+    if (account.type === 'credit_card') {
+      totalCreditBalance += Math.abs(balance);
+    } else {
+      totalDebitBalance += balance;
+    }
+  }
+
+  return {
+    summary: {
+      totalAccounts: projectAccounts.length,
+      totalDebitBalance,
+      totalCreditBalance,
+      netWorth: totalDebitBalance - totalCreditBalance,
+    },
+    accounts: projectAccounts,
+  };
+}
+
+/**
+ * Get accounts summary AND accounts list in a single call
+ * Optimizado para el dashboard - evita llamadas duplicadas
+ * Cacheada por 60 segundos
+ */
+export const getAccountsSummaryWithAccounts = cachedQuery(
+  _getAccountsSummaryWithAccounts,
+  ['accounts', 'summary-with-list'],
+  { tags: [CACHE_TAGS.accounts, CACHE_TAGS.summary] }
+);

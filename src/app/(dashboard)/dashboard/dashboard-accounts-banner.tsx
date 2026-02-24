@@ -2,15 +2,17 @@
 
 import Link from 'next/link';
 import { Wallet, TrendingUp, CreditCard, ArrowRight } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatting';
 import { Button } from '@/components/ui/button';
-import type { AccountsSummary } from '../types';
+import { AnimatedCurrency } from '@/components/animated-currency';
+import { useDashboard } from './dashboard-context';
 
-interface AccountsSummaryBannerProps {
-  summary: AccountsSummary;
-}
+/**
+ * Banner de resumen de cuentas que usa el contexto del dashboard
+ * para actualizaciones optimistas con animaciones
+ */
+export function DashboardAccountsBanner() {
+  const { accountsSummary } = useDashboard();
 
-export function AccountsSummaryBanner({ summary }: AccountsSummaryBannerProps) {
   return (
     <div className="rounded-2xl bg-slate-800 dark:bg-slate-900 p-4 md:p-5">
       {/* Mobile Layout */}
@@ -23,7 +25,9 @@ export function AccountsSummaryBanner({ summary }: AccountsSummaryBannerProps) {
             </div>
             <div>
               <p className="text-white font-medium text-sm">Tus cuentas</p>
-              <p className="text-slate-400 text-xs">{summary.totalAccounts} cuenta{summary.totalAccounts !== 1 ? 's' : ''}</p>
+              <p className="text-slate-400 text-xs">
+                {accountsSummary.totalAccounts} cuenta{accountsSummary.totalAccounts !== 1 ? 's' : ''}
+              </p>
             </div>
           </div>
           <Button asChild variant="secondary" size="icon">
@@ -40,14 +44,21 @@ export function AccountsSummaryBanner({ summary }: AccountsSummaryBannerProps) {
               <TrendingUp className="w-3 h-3" />
               Disponible
             </p>
-            <p className="text-emerald-400 font-bold">{formatCurrency(summary.totalDebitBalance)}</p>
+            <AnimatedCurrency
+              value={accountsSummary.totalDebitBalance}
+              className="text-emerald-400 font-bold"
+            />
           </div>
           <div className="text-right">
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1 justify-end">
               <CreditCard className="w-3 h-3" />
               Deuda TC
             </p>
-            <p className="text-red-400 font-bold">-{formatCurrency(summary.totalCreditBalance)}</p>
+            <AnimatedCurrency
+              value={accountsSummary.totalCreditBalance}
+              prefix="-"
+              className="text-red-400 font-bold"
+            />
           </div>
         </div>
       </div>
@@ -61,7 +72,9 @@ export function AccountsSummaryBanner({ summary }: AccountsSummaryBannerProps) {
           </div>
           <div>
             <p className="text-white font-medium text-sm">Tus cuentas</p>
-            <p className="text-slate-400 text-xs">{summary.totalAccounts} cuenta{summary.totalAccounts !== 1 ? 's' : ''}</p>
+            <p className="text-slate-400 text-xs">
+              {accountsSummary.totalAccounts} cuenta{accountsSummary.totalAccounts !== 1 ? 's' : ''}
+            </p>
           </div>
         </div>
 
@@ -75,14 +88,21 @@ export function AccountsSummaryBanner({ summary }: AccountsSummaryBannerProps) {
               <TrendingUp className="w-3 h-3" />
               Disponible
             </p>
-            <p className="text-emerald-400 font-bold">{formatCurrency(summary.totalDebitBalance)}</p>
+            <AnimatedCurrency
+              value={accountsSummary.totalDebitBalance}
+              className="text-emerald-400 font-bold"
+            />
           </div>
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
               <CreditCard className="w-3 h-3" />
               Deuda TC
             </p>
-            <p className="text-red-400 font-bold">-{formatCurrency(summary.totalCreditBalance)}</p>
+            <AnimatedCurrency
+              value={accountsSummary.totalCreditBalance}
+              prefix="-"
+              className="text-red-400 font-bold"
+            />
           </div>
         </div>
 

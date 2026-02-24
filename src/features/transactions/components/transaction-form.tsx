@@ -87,6 +87,14 @@ export interface TransactionDialogContentProps {
   onMutationSuccess?: (toastId: string | number, message: string) => void;
   onMutationError?: (toastId: string | number, error: string) => void;
   initialValues?: TransactionInitialValues;
+  /** Callback cuando se crea una transacción exitosamente (para actualizaciones optimistas) */
+  onTransactionCreated?: (data: {
+    type: 'expense' | 'income';
+    amount: number;
+    budgetId?: string;
+    accountId: string;
+    isPaid: boolean;
+  }) => void;
 }
 
 // ============================================================================
@@ -107,6 +115,7 @@ export function TransactionDialogContent({
   onMutationSuccess,
   onMutationError,
   initialValues,
+  onTransactionCreated,
 }: TransactionDialogContentProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -278,6 +287,22 @@ export function TransactionDialogContent({
         : await createTransaction(userId, data);
 
       if (result.success) {
+        // Notificar actualización optimista para nuevas transacciones
+        if (!transaction && onTransactionCreated) {
+          const account = accountsMap.get(data.accountId);
+          const isCreditCard = account?.type === 'credit_card';
+          // Para tarjetas de crédito y gastos, siempre se marca como pagado
+          const effectiveIsPaid = (isCreditCard && data.type === 'expense') || (data.isPaid ?? false);
+
+          onTransactionCreated({
+            type: data.type,
+            amount: data.originalAmount,
+            budgetId: data.budgetId ?? undefined,
+            accountId: data.accountId,
+            isPaid: effectiveIsPaid,
+          });
+        }
+
         form.reset();
         onMutationSuccess?.(toastId, transaction ? 'Transacción actualizada' : 'Transacción creada');
         triggerSuccess();

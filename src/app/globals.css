@@ -264,3 +264,635 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Progress fill animation for budget spent box */
+@keyframes progress-fill {
+  0% { width: 0%; }
+  100% { width: var(--fill-percentage); }
+}
+
+.progress-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    var(--fill-color) 0%,
+    var(--fill-color) 70%,
+    transparent 100%
+  );
+  animation: progress-fill 1s ease-out forwards;
+  width: var(--fill-percentage);
+}
+
+/* FAB Aurora Glow animations */
+@keyframes fab-glow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.15);
+  }
+}
+
+.animate-fab-glow {
+  animation: fab-glow 2s ease-in-out infinite;
+}
+
+@keyframes fab-glow-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.animate-fab-glow-subtle {
+  animation: fab-glow-subtle 3s ease-in-out infinite;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+@keyframes spin-reverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-spin-reverse {
+  animation: spin-reverse 4s linear infinite;
+}
+
+/* Conic gradient for rotating border effect */
+.bg-gradient-conic {
+  background: conic-gradient(
+    from 0deg,
+    #3b82f6,
+    #10b981,
+    #22d3ee,
+    #14b8a6,
+    #3b82f6
+  );
+}
+
+/* Liquid Glass / Glassmorphism effects */
+.glass-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-shimmer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.15) 45%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.15) 55%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  animation: glass-shimmer 8s ease-in-out infinite;
+}
+
+.dark .glass-shimmer::before {
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.03) 45%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.03) 55%,
+    transparent 60%
+  );
+}
+
+@keyframes glass-shimmer {
+  0%, 100% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+}
+
+/* Advanced Liquid Glass Effects */
+.liquid-glass {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Liquid flow animation - slow color movement */
+@keyframes liquid-flow {
+  0%, 100% {
+    background-position: 0% 50%;
+    opacity: 0.5;
+  }
+  25% {
+    opacity: 0.7;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.5;
+  }
+  75% {
+    opacity: 0.8;
+  }
+}
+
+.animate-liquid-flow {
+  background-size: 200% 200%;
+  animation: liquid-flow 12s ease-in-out infinite;
+}
+
+/* Floating light orbs */
+@keyframes float-orb {
+  0%, 100% {
+    transform: translateY(-50%) translateX(0);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translateY(-50%) translateX(10px);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-50%) translateX(-5px);
+    opacity: 0.5;
+  }
+  75% {
+    transform: translateY(-50%) translateX(15px);
+    opacity: 0.7;
+  }
+}
+
+.animate-float-orb {
+  animation: float-orb 8s ease-in-out infinite;
+}
+
+.animate-float-orb-delayed {
+  animation: float-orb 10s ease-in-out infinite reverse;
+  animation-delay: -3s;
+}
+
+/* Liquid edge animation - chromatic movement */
+@keyframes liquid-edge {
+  0%, 100% {
+    transform: translateX(-30%);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateX(30%);
+    opacity: 1;
+  }
+}
+
+.animate-liquid-edge {
+  animation: liquid-edge 6s ease-in-out infinite;
+}
+
+.animate-liquid-edge-delayed {
+  animation: liquid-edge 8s ease-in-out infinite reverse;
+  animation-delay: -2s;
+}
+
+/* ============================================
+   HOLOGRAPHIC / IRIDESCENT GLASS EFFECT
+   ============================================ */
+
+.holographic-glass {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Main holographic gradient - shifts through rainbow colors */
+.holographic-gradient {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 0, 128, 0.15) 0%,
+    rgba(0, 255, 200, 0.15) 25%,
+    rgba(100, 100, 255, 0.15) 50%,
+    rgba(255, 200, 0, 0.15) 75%,
+    rgba(255, 0, 128, 0.15) 100%
+  );
+  background-size: 400% 400%;
+  animation: holographic-shift 8s ease-in-out infinite;
+}
+
+@keyframes holographic-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 100% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+}
+
+/* Rotating conic gradient for prismatic effect */
+@keyframes holographic-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-holographic-rotate {
+  animation: holographic-rotate 20s linear infinite;
+}
+
+/* Shimmer sweep across the surface */
+.holographic-shimmer {
+  background: linear-gradient(
+    110deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.1) 40%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.1) 60%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  animation: holographic-shimmer-sweep 4s ease-in-out infinite;
+}
+
+.dark .holographic-shimmer {
+  background: linear-gradient(
+    110deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.02) 40%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.02) 60%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes holographic-shimmer-sweep {
+  0%, 100% {
+    background-position: 200% 0;
+  }
+  50% {
+    background-position: -200% 0;
+  }
+}
+
+/* Rainbow color shift for edges */
+@keyframes rainbow-shift {
+  0%, 100% {
+    filter: hue-rotate(0deg);
+    opacity: 0.5;
+  }
+  50% {
+    filter: hue-rotate(180deg);
+    opacity: 0.8;
+  }
+}
+
+.animate-rainbow-shift {
+  animation: rainbow-shift 6s ease-in-out infinite;
+}
+
+/* Rainbow flow for bottom border */
+@keyframes rainbow-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.animate-rainbow-flow {
+  animation: rainbow-flow 3s linear infinite;
+}
+
+/* Holographic flare animations */
+@keyframes holo-flare {
+  0%, 100% {
+    opacity: 0.2;
+    transform: translateY(-50%) scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: translateY(-50%) scale(1.3);
+  }
+}
+
+.animate-holo-flare {
+  animation: holo-flare 4s ease-in-out infinite;
+}
+
+.animate-holo-flare-delayed {
+  animation: holo-flare 5s ease-in-out infinite;
+  animation-delay: -1.5s;
+}
+
+.animate-holo-flare-slow {
+  animation: holo-flare 7s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+/* Radial gradient utility for flares */
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+
+/* ============================================
+   AURORA BOREALIS / NORTHERN LIGHTS EFFECT
+   ============================================ */
+
+.aurora-glass {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Aurora wave animations - vertical curtain movement */
+@keyframes aurora-wave {
+  0%, 100% {
+    transform: translateY(0) scaleX(1) skewX(0deg);
+    opacity: 0.6;
+  }
+  25% {
+    transform: translateY(-5%) scaleX(1.1) skewX(2deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(5%) scaleX(0.9) skewX(-1deg);
+    opacity: 0.5;
+  }
+  75% {
+    transform: translateY(-3%) scaleX(1.05) skewX(1deg);
+    opacity: 0.7;
+  }
+}
+
+.animate-aurora-wave {
+  animation: aurora-wave 8s ease-in-out infinite;
+}
+
+.animate-aurora-wave-delayed {
+  animation: aurora-wave 10s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+.animate-aurora-wave-slow {
+  animation: aurora-wave 12s ease-in-out infinite;
+  animation-delay: -5s;
+}
+
+/* Aurora shimmer - faster subtle movement */
+@keyframes aurora-shimmer {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.4;
+  }
+  33% {
+    transform: translateY(-8%) translateX(5%);
+    opacity: 0.7;
+  }
+  66% {
+    transform: translateY(5%) translateX(-3%);
+    opacity: 0.5;
+  }
+}
+
+.animate-aurora-shimmer {
+  animation: aurora-shimmer 6s ease-in-out infinite;
+}
+
+/* Aurora pulse - breathing glow effect */
+@keyframes aurora-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+}
+
+.animate-aurora-pulse {
+  animation: aurora-pulse 5s ease-in-out infinite;
+}
+
+.animate-aurora-pulse-delayed {
+  animation: aurora-pulse 7s ease-in-out infinite;
+  animation-delay: -2s;
+}
+
+/* Twinkling stars */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+}
+
+.animate-twinkle {
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+.animate-twinkle-delayed {
+  animation: twinkle 2.5s ease-in-out infinite;
+  animation-delay: -0.8s;
+}
+
+.animate-twinkle-slow {
+  animation: twinkle 3s ease-in-out infinite;
+  animation-delay: -1.5s;
+}
+
+/* Aurora edge animations */
+@keyframes aurora-edge {
+  0%, 100% {
+    transform: translateX(-50%);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateX(50%);
+    opacity: 0.9;
+  }
+}
+
+.animate-aurora-edge {
+  animation: aurora-edge 4s ease-in-out infinite;
+}
+
+.animate-aurora-edge-delayed {
+  animation: aurora-edge 5s ease-in-out infinite reverse;
+  animation-delay: -1s;
+}
+
+/* Aurora border flow */
+@keyframes aurora-border {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 300% 50%;
+  }
+}
+
+.animate-aurora-border {
+  animation: aurora-border 6s linear infinite;
+}
+
+/* ============================================
+   GLASS ISLANDS - Separated floating elements
+   ============================================ */
+
+.glass-island {
+  position: relative;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.08),
+    0 1px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .glass-island {
+    padding: 0.5rem 0.75rem;
+    border-radius: 1rem;
+  }
+}
+
+.dark .glass-island {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.35),
+    0 1px 4px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.glass-island:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.dark .glass-island:hover {
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Glass island with accent glow */
+.glass-island-glow {
+  position: relative;
+}
+
+.glass-island-glow::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 0.875rem;
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.4),
+    rgba(59, 130, 246, 0.4)
+  );
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.3s ease;
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .glass-island-glow::before {
+    border-radius: 1.125rem;
+  }
+}
+
+.dark .glass-island-glow::before {
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.5),
+    rgba(59, 130, 246, 0.5)
+  );
+}
+
+.glass-island-glow:hover::before {
+  opacity: 1;
+}
+
+/* Shimmer effect on glass islands */
+.glass-island::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.glass-island:hover::after {
+  opacity: 1;
+  animation: island-shimmer 1.5s ease-in-out;
+}
+
+@keyframes island-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+

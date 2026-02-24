@@ -32,6 +32,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { cn } from '@/lib/utils';
 import { createProject, updateProject, inviteMember, removeMember, searchUsersForInvite } from './actions';
 import type { Project, Currency, ProjectMemberWithUser } from './types';
 import type { ProjectRole } from './schemas';
@@ -44,6 +45,7 @@ interface ProjectSelectorProps {
   members?: ProjectMemberWithUser[];
   isOwner?: boolean;
   onProjectChange: (projectId: string) => void;
+  className?: string;
 }
 
 export function ProjectSelector({
@@ -54,6 +56,7 @@ export function ProjectSelector({
   members = [],
   isOwner = false,
   onProjectChange,
+  className,
 }: ProjectSelectorProps) {
   const router = useRouter();
   const [isNewOpen, setIsNewOpen] = useState(false);
@@ -64,11 +67,11 @@ export function ProjectSelector({
   const currentProject = projects.find((p) => p.id === currentProjectId);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={cn('flex items-center', className)}>
       <Select value={currentProjectId} onValueChange={onProjectChange}>
-        <SelectTrigger className="w-[180px] h-9">
+        <SelectTrigger className="w-full h-full border-0 bg-transparent dark:bg-transparent shadow-none px-0 py-0 focus:ring-0 [&>svg]:ml-1 [&>svg]:opacity-60">
           <SelectValue placeholder="Seleccionar proyecto">
-            {currentProject?.name ?? 'Seleccionar'}
+            <span className="truncate font-medium text-sm">{currentProject?.name ?? 'Seleccionar'}</span>
           </SelectValue>
         </SelectTrigger>
         <SelectContent>

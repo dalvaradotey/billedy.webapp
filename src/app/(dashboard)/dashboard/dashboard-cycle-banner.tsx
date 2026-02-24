@@ -2,18 +2,30 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, ArrowRight, TrendingUp, TrendingDown, PiggyBank, Wallet, ChevronDown } from 'lucide-react';
-import { formatCurrency } from '@/lib/formatting';
-import { Progress } from '@/components/ui/progress';
+import {
+  CalendarDays,
+  ArrowRight,
+  TrendingUp,
+  TrendingDown,
+  PiggyBank,
+  Wallet,
+  ChevronDown,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { BillingCycleWithTotals } from '../types';
+import { Progress } from '@/components/ui/progress';
+import { AnimatedCurrency } from '@/components/animated-currency';
+import { useDashboard } from './dashboard-context';
 
-interface CycleSummaryBannerProps {
-  cycle: BillingCycleWithTotals;
-}
-
-export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
+/**
+ * Banner de resumen del ciclo que usa el contexto del dashboard
+ * para actualizaciones optimistas con animaciones
+ */
+export function DashboardCycleBanner() {
+  const { cycle } = useDashboard();
   const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!cycle) return null;
+
   const progressPercentage = Math.round((cycle.daysElapsed / cycle.daysTotal) * 100);
 
   return (
@@ -44,16 +56,17 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs text-slate-400 mb-1">Balance del ciclo</p>
-              <p className={`text-2xl font-bold tabular-nums ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {formatCurrency(cycle.currentBalance)}
-              </p>
+              <AnimatedCurrency
+                value={cycle.currentBalance}
+                className={`text-2xl font-bold ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+              />
             </div>
             <div className="text-right">
               <p className="text-xs text-slate-500">
-                {formatCurrency(cycle.currentIncome)} ingresos
+                <AnimatedCurrency value={cycle.currentIncome} className="text-xs" /> ingresos
               </p>
               <p className="text-xs text-slate-500">
-                {formatCurrency(cycle.currentExpenses)} gastos
+                <AnimatedCurrency value={cycle.currentExpenses} className="text-xs" /> gastos
               </p>
             </div>
           </div>
@@ -87,36 +100,31 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
                 <TrendingUp className="w-3 h-3" />
                 Ingresos
               </p>
-              <p className="text-emerald-400 font-bold">
-                {formatCurrency(cycle.currentIncome)}
-              </p>
+              <AnimatedCurrency value={cycle.currentIncome} className="text-emerald-400 font-bold" />
             </div>
             <div className="bg-slate-700/30 rounded-lg p-3">
               <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
                 <TrendingDown className="w-3 h-3" />
                 Gastos
               </p>
-              <p className="text-red-400 font-bold">
-                {formatCurrency(cycle.currentExpenses)}
-              </p>
+              <AnimatedCurrency value={cycle.currentExpenses} className="text-red-400 font-bold" />
             </div>
             <div className="bg-slate-700/30 rounded-lg p-3">
               <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
                 <PiggyBank className="w-3 h-3" />
                 Ahorro
               </p>
-              <p className="text-blue-400 font-bold">
-                {formatCurrency(cycle.currentSavings)}
-              </p>
+              <AnimatedCurrency value={cycle.currentSavings} className="text-blue-400 font-bold" />
             </div>
             <div className="bg-slate-700/30 rounded-lg p-3">
               <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
                 <Wallet className="w-3 h-3" />
                 Balance
               </p>
-              <p className={`font-bold ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {formatCurrency(cycle.currentBalance)}
-              </p>
+              <AnimatedCurrency
+                value={cycle.currentBalance}
+                className={`font-bold ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+              />
             </div>
           </div>
         )}
@@ -143,36 +151,31 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
               <TrendingUp className="w-3 h-3" />
               Ingresos
             </p>
-            <p className="text-emerald-400 font-bold text-lg">
-              {formatCurrency(cycle.currentIncome)}
-            </p>
+            <AnimatedCurrency value={cycle.currentIncome} className="text-emerald-400 font-bold text-lg" />
           </div>
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
               <TrendingDown className="w-3 h-3" />
               Gastos
             </p>
-            <p className="text-red-400 font-bold text-lg">
-              {formatCurrency(cycle.currentExpenses)}
-            </p>
+            <AnimatedCurrency value={cycle.currentExpenses} className="text-red-400 font-bold text-lg" />
           </div>
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
               <PiggyBank className="w-3 h-3" />
               Ahorro
             </p>
-            <p className="text-blue-400 font-bold text-lg">
-              {formatCurrency(cycle.currentSavings)}
-            </p>
+            <AnimatedCurrency value={cycle.currentSavings} className="text-blue-400 font-bold text-lg" />
           </div>
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
               <Wallet className="w-3 h-3" />
               Balance
             </p>
-            <p className={`font-bold text-lg ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {formatCurrency(cycle.currentBalance)}
-            </p>
+            <AnimatedCurrency
+              value={cycle.currentBalance}
+              className={`font-bold text-lg ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+            />
           </div>
         </div>
       </div>
