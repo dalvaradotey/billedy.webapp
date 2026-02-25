@@ -326,6 +326,7 @@ export function AccountDialogContent({
                       onChange={field.onChange}
                       currency={watchCurrency ?? 'CLP'}
                       placeholder="0"
+                      size="lg"
                       label="Cupo total"
                       valid={field.value != null && field.value > 0 && !fieldState.error}
                       invalid={!!fieldState.error}
