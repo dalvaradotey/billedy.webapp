@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Plus, Pencil, Trash2, Power, PowerOff, Check, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
+import { Pencil, Trash2, Power, PowerOff, Check, ArrowRight, CheckCircle2, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSuccessAnimation } from '@/hooks';
 import { SuccessOverlay } from '@/components/success-overlay';
@@ -11,12 +11,18 @@ import { SubmitButton } from '@/components/submit-button';
 import { FloatingLabelInput } from '@/components/floating-label-input';
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   ResponsiveDrawer,
   DrawerContent,
@@ -56,9 +62,9 @@ export function EntitiesList({ entities, userId }: EntitiesListProps) {
       <div className="flex justify-end">
         <ResponsiveDrawer open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DrawerTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button variant="cta-sm">
               Nueva entidad
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </DrawerTrigger>
           {isCreateOpen && (
@@ -223,6 +229,7 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
   const [imageFile, setImageFile] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [typeOpen, setTypeOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form UX hooks
@@ -340,37 +347,69 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
           valid={name.trim().length > 0}
         />
 
-        <Select value={type} onValueChange={(v) => setType(v as EntityType)}>
-          <SelectTrigger
-            id="type"
-            className={cn(
-              'h-14 py-1',
-              type && 'ring-1 ring-emerald-500'
-            )}
-          >
-            <div className="flex flex-col items-start gap-0.5 min-w-0">
-              <span
-                className={cn(
-                  'transition-all flex items-center gap-1',
-                  type ? 'text-xs text-emerald-600' : 'text-base text-muted-foreground'
-                )}
-              >
-                Tipo
-                {type && <CheckCircle2 className="h-3.5 w-3.5" />}
-              </span>
-              {type && (
-                <span className="truncate text-sm">{entityTypeLabels[type]}</span>
+        <Popover open={typeOpen} onOpenChange={setTypeOpen} modal={true}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={typeOpen}
+              className={cn(
+                'w-full justify-between font-normal h-14 py-1',
+                type && 'ring-1 ring-emerald-500'
               )}
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            {entityTypes.map((t) => (
-              <SelectItem key={t} value={t}>
-                {entityTypeLabels[t]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            >
+              <div className="flex flex-col items-start gap-0.5 min-w-0">
+                <span
+                  className={cn(
+                    'transition-all flex items-center gap-1',
+                    type ? 'text-xs' : 'text-base',
+                    type ? 'text-emerald-600' : 'text-muted-foreground'
+                  )}
+                >
+                  Tipo
+                  {type && <CheckCircle2 className="h-3.5 w-3.5" />}
+                </span>
+                {type && (
+                  <span className="truncate text-sm">{entityTypeLabels[type]}</span>
+                )}
+              </div>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-[calc(100vw-2rem)] sm:w-[300px] p-0"
+            align="start"
+            sideOffset={4}
+          >
+            <Command>
+              <CommandInput placeholder="Buscar tipo..." />
+              <CommandList className="max-h-[200px] overflow-y-auto overscroll-contain">
+                <CommandEmpty>No se encontraron tipos.</CommandEmpty>
+                <CommandGroup>
+                  {entityTypes.map((t) => (
+                    <CommandItem
+                      key={t}
+                      value={entityTypeLabels[t]}
+                      onSelect={() => {
+                        setType(t);
+                        setTypeOpen(false);
+                      }}
+                      className="py-3"
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          type === t ? 'opacity-100' : 'opacity-0'
+                        )}
+                      />
+                      {entityTypeLabels[t]}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
