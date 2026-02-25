@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CardActions } from '@/components/card-actions';
 
-import { formatCurrency, formatDate } from '@/lib/formatting';
+import { formatCurrency, formatDateLong } from '@/lib/formatting';
 import { archiveCredit, deleteCredit, generateAllCreditInstallments } from '../actions';
 import type { CreditWithProgress } from '../types';
 import { CONFIRM_DELETE_TEXT, FREQUENCY_LABELS } from './constants';
@@ -266,13 +266,18 @@ export function CreditCard({
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">Próximo:</span>{' '}
-            <span>{formatDate(credit.nextPaymentDate)}</span>
+            <span className="text-muted-foreground">1ª cuota:</span>{' '}
+            <span>{formatDateLong(credit.startDate)}</span>
           </div>
           <div className="flex items-center gap-1">
             <Calendar className="h-3 w-3 text-muted-foreground" />
+            <span className="text-muted-foreground">Próximo:</span>{' '}
+            <span>{formatDateLong(credit.nextPaymentDate)}</span>
+          </div>
+          <div className="flex items-center gap-1 col-span-2">
+            <Calendar className="h-3 w-3 text-muted-foreground" />
             <span className="text-muted-foreground">Vencimiento:</span>{' '}
-            <span>{formatDate(credit.endDate)}</span>
+            <span>{formatDateLong(credit.endDate)}</span>
           </div>
         </div>
 

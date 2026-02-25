@@ -153,6 +153,7 @@ export function CreditList({
             </Button>
           </DrawerTrigger>
           <CreditDialogContent
+            key={editingCredit?.id ?? 'new'}
             projectId={projectId}
             userId={userId}
             categories={categories}

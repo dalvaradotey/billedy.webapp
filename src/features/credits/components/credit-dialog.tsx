@@ -203,29 +203,100 @@ export function CreditDialogContent({
             )}
           />
 
-          {/* Category & Entity */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-4">
+          {/* Description - visible directly when editing */}
+          {isEditing && (
             <FormField
               control={form.control}
-              name="categoryId"
+              name="description"
               render={({ field, fieldState }) => (
-                <FormItem data-field="categoryId">
+                <FormItem data-field="description">
                   <FormControl>
-                    <CategorySelector
-                      label="Categoría"
-                      categories={localCategories}
+                    <FloatingLabelTextarea
+                      label="Descripción (opcional)"
+                      placeholder="Detalles adicionales del crédito..."
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      valid={!!field.value && !fieldState.error}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {/* Category & Entity - only for new credits */}
+          {!isEditing && (
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
+              <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field, fieldState }) => (
+                  <FormItem data-field="categoryId">
+                    <FormControl>
+                      <CategorySelector
+                        label="Categoría"
+                        categories={localCategories}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onCategoryCreated={(cat) =>
+                          setLocalCategories((prev) => [
+                            ...prev,
+                            { id: cat.id, name: cat.name, color: cat.color },
+                          ])
+                        }
+                        projectId={projectId}
+                        userId={userId}
+                        valid={!!field.value && !fieldState.error}
+                        invalid={!!fieldState.error}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="entityId"
+                render={({ field, fieldState }) => (
+                  <FormItem data-field="entityId">
+                    <FormControl>
+                      <EntitySelector
+                        label="Tienda"
+                        entities={entities}
+                        value={field.value ?? undefined}
+                        onValueChange={(val) => field.onChange(val ?? null)}
+                        valid={!!field.value && !fieldState.error}
+                        invalid={!!fieldState.error}
+                        allowNone
+                        noneLabel="Sin tienda"
+                        searchPlaceholder="Buscar tienda..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+
+          {/* Account selector - only for new credits */}
+          {!isEditing && (
+            <FormField
+              control={form.control}
+              name="accountId"
+              render={({ field, fieldState }) => (
+                <FormItem data-field="accountId">
+                  <FormControl>
+                    <AccountSelector
+                      accounts={accounts}
                       value={field.value}
-                      onValueChange={field.onChange}
-                      onCategoryCreated={(cat) =>
-                        setLocalCategories((prev) => [
-                          ...prev,
-                          { id: cat.id, name: cat.name, color: cat.color },
-                        ])
-                      }
-                      projectId={projectId}
-                      userId={userId}
-                      disabled={isEditing}
-                      valid={!!field.value && !fieldState.error}
+                      onValueChange={(value) => field.onChange(value ?? '')}
+                      label="Cuenta de cargo"
+                      searchPlaceholder="Buscar cuenta..."
+                      valid={!!field.value}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -233,54 +304,7 @@ export function CreditDialogContent({
                 </FormItem>
               )}
             />
-
-            <FormField
-              control={form.control}
-              name="entityId"
-              render={({ field, fieldState }) => (
-                <FormItem data-field="entityId">
-                  <FormControl>
-                    <EntitySelector
-                      label="Tienda"
-                      entities={entities}
-                      value={field.value ?? undefined}
-                      onValueChange={(val) => field.onChange(val ?? null)}
-                      disabled={isEditing}
-                      valid={!!field.value && !fieldState.error}
-                      invalid={!!fieldState.error}
-                      allowNone
-                      noneLabel="Sin tienda"
-                      searchPlaceholder="Buscar tienda..."
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Account selector */}
-          <FormField
-            control={form.control}
-            name="accountId"
-            render={({ field, fieldState }) => (
-              <FormItem data-field="accountId">
-                <FormControl>
-                  <AccountSelector
-                    accounts={accounts}
-                    value={field.value}
-                    onValueChange={(value) => field.onChange(value ?? '')}
-                    label="Cuenta de cargo"
-                    searchPlaceholder="Buscar cuenta..."
-                    valid={!!field.value}
-                    invalid={!!fieldState.error}
-                    disabled={isEditing}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          )}
 
           {!isEditing && (
             <>
@@ -443,8 +467,8 @@ export function CreditDialogContent({
             </>
           )}
 
-          {/* Advanced Options Toggle */}
-          {!showAdvancedOptions && (
+          {/* Advanced Options Toggle - only for new credits */}
+          {!isEditing && !showAdvancedOptions && (
             <Button
               type="button"
               variant="ghost"
@@ -457,8 +481,8 @@ export function CreditDialogContent({
             </Button>
           )}
 
-          {/* Advanced Options */}
-          {showAdvancedOptions && (
+          {/* Advanced Options - only for new credits */}
+          {!isEditing && showAdvancedOptions && (
             <div className="space-y-4 pt-4 border-t">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-muted-foreground">Otras opciones</span>
