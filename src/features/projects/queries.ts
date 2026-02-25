@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { projects, currencies, projectMembers, users } from '@/lib/db/schema';
 import { eq, desc, and, isNotNull, isNull, asc, inArray, sql } from 'drizzle-orm';
+import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { Project, ProjectWithCurrency, Currency, ProjectMemberWithUser, PendingInvitation } from './types';
 
 /**
@@ -32,9 +33,9 @@ export async function getProjects(userId: string): Promise<Project[]> {
 }
 
 /**
- * Obtiene todos los proyectos activos donde el usuario es miembro
+ * Query interna para obtener proyectos activos
  */
-export async function getActiveProjects(userId: string): Promise<Project[]> {
+async function _getActiveProjects(userId: string): Promise<Project[]> {
   return db
     .select({
       id: projects.id,
@@ -61,9 +62,19 @@ export async function getActiveProjects(userId: string): Promise<Project[]> {
 }
 
 /**
- * Obtiene un proyecto por ID si el usuario es miembro
+ * Obtiene todos los proyectos activos donde el usuario es miembro
+ * Cacheada por 2 minutos
  */
-export async function getProjectById(
+export const getActiveProjects = cachedQuery(
+  _getActiveProjects,
+  ['projects', 'active'],
+  { tags: [CACHE_TAGS.projects], revalidate: 120 }
+);
+
+/**
+ * Query interna para obtener proyecto por ID
+ */
+async function _getProjectById(
   projectId: string,
   userId: string
 ): Promise<ProjectWithCurrency | null> {
@@ -98,6 +109,16 @@ export async function getProjectById(
 }
 
 /**
+ * Obtiene un proyecto por ID si el usuario es miembro
+ * Cacheada por 3 minutos
+ */
+export const getProjectById = cachedQuery(
+  _getProjectById,
+  ['projects', 'by-id'],
+  { tags: [CACHE_TAGS.projects], revalidate: 180 }
+);
+
+/**
  * Obtiene el proyecto más reciente donde el usuario es miembro
  */
 export async function getLatestProject(userId: string): Promise<Project | null> {
@@ -130,23 +151,33 @@ export async function getLatestProject(userId: string): Promise<Project | null> 
 }
 
 /**
- * Obtiene todas las monedas disponibles
+ * Query interna para obtener monedas
  */
-export async function getCurrencies(): Promise<Currency[]> {
+async function _getCurrencies(): Promise<Currency[]> {
   return db
     .select()
     .from(currencies)
     .orderBy(asc(currencies.code));
 }
 
+/**
+ * Obtiene todas las monedas disponibles
+ * Cacheada por 5 minutos (datos maestros que nunca cambian)
+ */
+export const getCurrencies = cachedQuery(
+  _getCurrencies,
+  ['currencies', 'all'],
+  { tags: [CACHE_TAGS.projects], revalidate: 300 }
+);
+
 // ============================================================================
 // PROJECT MEMBERS & INVITATIONS
 // ============================================================================
 
 /**
- * Obtiene los miembros de un proyecto (aceptados y pendientes)
+ * Query interna para obtener miembros del proyecto
  */
-export async function getProjectMembers(
+async function _getProjectMembers(
   projectId: string,
   userId: string
 ): Promise<ProjectMemberWithUser[]> {
@@ -198,17 +229,19 @@ export async function getProjectMembers(
 }
 
 /**
- * Obtiene las invitaciones pendientes para un usuario
+ * Obtiene los miembros de un proyecto (aceptados y pendientes)
+ * Cacheada por 2 minutos
  */
-export async function getPendingInvitations(userId: string): Promise<PendingInvitation[]> {
-  const invitedByAlias = db.$with('inviter').as(
-    db.select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-    }).from(users)
-  );
+export const getProjectMembers = cachedQuery(
+  _getProjectMembers,
+  ['projects', 'members'],
+  { tags: [CACHE_TAGS.projects], revalidate: 120 }
+);
 
+/**
+ * Query interna para obtener invitaciones pendientes
+ */
+async function _getPendingInvitations(userId: string): Promise<PendingInvitation[]> {
   const result = await db
     .select({
       id: projectMembers.id,
@@ -251,6 +284,16 @@ export async function getPendingInvitations(userId: string): Promise<PendingInvi
 }
 
 /**
+ * Obtiene las invitaciones pendientes para un usuario
+ * Cacheada por 60 segundos
+ */
+export const getPendingInvitations = cachedQuery(
+  _getPendingInvitations,
+  ['projects', 'pending-invitations'],
+  { tags: [CACHE_TAGS.projects] }
+);
+
+/**
  * Cuenta las invitaciones pendientes para un usuario
  */
 export async function countPendingInvitations(userId: string): Promise<number> {
@@ -281,9 +324,9 @@ export async function findUserByEmail(email: string): Promise<{ id: string; name
 }
 
 /**
- * Verifica si un usuario es owner de un proyecto
+ * Query interna para verificar owner
  */
-export async function isProjectOwner(projectId: string, userId: string): Promise<boolean> {
+async function _isProjectOwner(projectId: string, userId: string): Promise<boolean> {
   const result = await db
     .select({ id: projectMembers.id })
     .from(projectMembers)
@@ -299,6 +342,16 @@ export async function isProjectOwner(projectId: string, userId: string): Promise
 
   return !!result[0];
 }
+
+/**
+ * Verifica si un usuario es owner de un proyecto
+ * Cacheada por 3 minutos (cambia muy raramente)
+ */
+export const isProjectOwner = cachedQuery(
+  _isProjectOwner,
+  ['projects', 'is-owner'],
+  { tags: [CACHE_TAGS.projects], revalidate: 180 }
+);
 
 /**
  * Busca usuarios por email parcial (para selector de invitación)

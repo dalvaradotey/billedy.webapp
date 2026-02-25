@@ -4,12 +4,8 @@ import Link from 'next/link';
 import { Wallet, TrendingUp, CreditCard, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnimatedCurrency } from '@/components/animated-currency';
-import { useDashboard } from './dashboard-context';
+import { useDashboard } from '../hooks';
 
-/**
- * Banner de resumen de cuentas que usa el contexto del dashboard
- * para actualizaciones optimistas con animaciones
- */
 export function DashboardAccountsBanner() {
   const { accountsSummary } = useDashboard();
 

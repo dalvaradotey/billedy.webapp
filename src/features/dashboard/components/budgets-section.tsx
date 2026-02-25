@@ -3,11 +3,10 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { BudgetProgressSlider } from '@/features/budgets/components/budget-progress-slider';
 import { TransactionDialogContent } from '@/features/transactions';
-import { useDashboard } from './dashboard-context';
+import { useDashboard } from '../hooks';
 import type { TransactionInitialValues } from '@/features/transactions';
 import type { Category } from '@/features/categories/types';
 import type { AccountWithEntity } from '@/features/accounts/types';

@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { DashboardProvider } from './dashboard-context';
+import { DashboardProvider } from '../hooks';
 import type { BudgetProgress } from '@/features/budgets/types';
 import type { BillingCycleWithTotals } from '@/features/billing-cycles/types';
 import type { AccountsSummary } from '@/features/accounts/types';
@@ -13,10 +13,6 @@ interface DashboardClientWrapperProps {
   accountsSummary: AccountsSummary;
 }
 
-/**
- * Wrapper del cliente que envuelve el contenido del dashboard
- * Proporciona el contexto para estado optimista y animaciones
- */
 export function DashboardClientWrapper({
   children,
   budgetsProgress,

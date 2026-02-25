@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { billingCycles, transactions, projectMembers, savingsMovements, savingsFunds } from '@/lib/db/schema';
 import { eq, and, sql, isNotNull, desc, gte, lte, asc } from 'drizzle-orm';
+import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { BillingCycleWithTotals, BillingCycleSummary } from './types';
 
 /**
@@ -24,37 +25,35 @@ async function calculateTotalsForRange(
   savings: number;
   balance: number;
 }> {
-  // Obtener totales de transacciones
-  const transactionTotals = await db
-    .select({
-      totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-      totalExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.projectId, projectId),
-        gte(transactions.date, startDate),
-        lte(transactions.date, endDate)
-      )
-    );
-
-  // Obtener depósitos de ahorro en el período
-  // (los fondos de ahorro están asociados al usuario, no al proyecto directamente,
-  // pero podemos filtrar por projectId si existe)
-  const savingsTotals = await db
-    .select({
-      totalSavings: sql<string>`COALESCE(SUM(CASE WHEN ${savingsMovements.type} = 'deposit' THEN ${savingsMovements.amount} ELSE 0 END), 0)`,
-    })
-    .from(savingsMovements)
-    .innerJoin(savingsFunds, eq(savingsMovements.savingsFundId, savingsFunds.id))
-    .where(
-      and(
-        eq(savingsFunds.projectId, projectId),
-        gte(savingsMovements.date, startDate),
-        lte(savingsMovements.date, endDate)
-      )
-    );
+  // Ejecutar ambas queries en paralelo (antes eran secuenciales)
+  const [transactionTotals, savingsTotals] = await Promise.all([
+    db
+      .select({
+        totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
+        totalExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.projectId, projectId),
+          gte(transactions.date, startDate),
+          lte(transactions.date, endDate)
+        )
+      ),
+    db
+      .select({
+        totalSavings: sql<string>`COALESCE(SUM(CASE WHEN ${savingsMovements.type} = 'deposit' THEN ${savingsMovements.amount} ELSE 0 END), 0)`,
+      })
+      .from(savingsMovements)
+      .innerJoin(savingsFunds, eq(savingsMovements.savingsFundId, savingsFunds.id))
+      .where(
+        and(
+          eq(savingsFunds.projectId, projectId),
+          gte(savingsMovements.date, startDate),
+          lte(savingsMovements.date, endDate)
+        )
+      ),
+  ]);
 
   const income = parseFloat(transactionTotals[0]?.totalIncome ?? '0');
   const expenses = parseFloat(transactionTotals[0]?.totalExpenses ?? '0');
@@ -153,9 +152,9 @@ export async function getBillingCycles(
 }
 
 /**
- * Obtiene el ciclo actual (abierto) de un proyecto
+ * Query interna para obtener ciclo actual
  */
-export async function getCurrentCycle(
+async function _getCurrentCycle(
   projectId: string,
   userId: string
 ): Promise<BillingCycleWithTotals | null> {
@@ -182,6 +181,16 @@ export async function getCurrentCycle(
 
   return enrichCycleWithTotals(cycle[0], projectId);
 }
+
+/**
+ * Obtiene el ciclo actual (abierto) de un proyecto
+ * Cacheada por 60 segundos - se invalida con transacciones y savings
+ */
+export const getCurrentCycle = cachedQuery(
+  _getCurrentCycle,
+  ['billing-cycles', 'current'],
+  { tags: [CACHE_TAGS.billingCycles, CACHE_TAGS.transactions, CACHE_TAGS.savings] }
+);
 
 /**
  * Obtiene un ciclo por ID

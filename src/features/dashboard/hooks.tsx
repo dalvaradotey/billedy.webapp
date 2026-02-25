@@ -14,37 +14,7 @@ import { useRouter } from 'next/navigation';
 import type { BudgetProgress } from '@/features/budgets/types';
 import type { BillingCycleWithTotals } from '@/features/billing-cycles/types';
 import type { AccountsSummary } from '@/features/accounts/types';
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface OptimisticTransaction {
-  type: 'expense' | 'income';
-  amount: number;
-  budgetId?: string;
-  accountId: string;
-  accountType: 'checking' | 'savings' | 'cash' | 'credit_card';
-  isPaid: boolean;
-}
-
-interface DashboardState {
-  budgetsProgress: BudgetProgress[];
-  cycle: BillingCycleWithTotals | null;
-  accountsSummary: AccountsSummary;
-}
-
-interface DashboardContextValue {
-  // State
-  budgetsProgress: BudgetProgress[];
-  cycle: BillingCycleWithTotals | null;
-  accountsSummary: AccountsSummary;
-
-  // Actions
-  applyOptimisticTransaction: (transaction: OptimisticTransaction) => void;
-  refreshDashboard: () => void;
-  isRefreshing: boolean;
-}
+import type { OptimisticTransaction, DashboardContextValue, DashboardState } from './types';
 
 // ============================================================================
 // CONTEXT
@@ -222,4 +192,3 @@ export function useDashboard() {
   }
   return context;
 }
-

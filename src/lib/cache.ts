@@ -99,12 +99,13 @@ export function invalidateCache(...tags: CacheTag[]): void {
  * Útil cuando una mutación afecta múltiples features
  */
 export const RELATED_TAGS = {
-  // Transacciones afectan: dashboard, accounts (balances), budgets
+  // Transacciones afectan: dashboard, accounts (balances), budgets, billing cycles (totales)
   transactions: [
     CACHE_TAGS.transactions,
     CACHE_TAGS.dashboard,
     CACHE_TAGS.accounts,
     CACHE_TAGS.summary,
+    CACHE_TAGS.billingCycles,
   ],
 
   // Cuentas afectan: dashboard, transactions (para selects)
@@ -118,8 +119,8 @@ export const RELATED_TAGS = {
     CACHE_TAGS.summary,
   ],
 
-  // Fondos de ahorro afectan: dashboard
-  savings: [CACHE_TAGS.savings, CACHE_TAGS.dashboard, CACHE_TAGS.summary],
+  // Fondos de ahorro afectan: dashboard, billing cycles (totales incluyen savings)
+  savings: [CACHE_TAGS.savings, CACHE_TAGS.dashboard, CACHE_TAGS.summary, CACHE_TAGS.billingCycles],
 
   // Presupuestos afectan: dashboard, transactions (para selects)
   budgets: [
@@ -148,8 +149,8 @@ export const RELATED_TAGS = {
     CACHE_TAGS.dashboard,
   ],
 
-  // Ciclos de facturación afectan: card purchases
-  billingCycles: [CACHE_TAGS.billingCycles, CACHE_TAGS.cardPurchases],
+  // Ciclos de facturación afectan: card purchases, dashboard
+  billingCycles: [CACHE_TAGS.billingCycles, CACHE_TAGS.cardPurchases, CACHE_TAGS.dashboard],
 
   // Entidades son bastante independientes
   entities: [CACHE_TAGS.entities, CACHE_TAGS.accounts],

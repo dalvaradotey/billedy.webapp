@@ -3,17 +3,13 @@ import Link from 'next/link';
 import { auth } from '@/lib/auth';
 import { ArrowRight, CalendarDays, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getCurrentProjectId } from '@/features/projects/actions';
-import { getLatestProject, getProjectById } from '@/features/projects/queries';
-import { getCurrentCycle } from '@/features/billing-cycles/queries';
-import { getAccountsSummaryWithAccounts } from '@/features/accounts/queries';
-import { getBudgetsProgress, getActiveBudgets } from '@/features/budgets';
-import { getActiveCategories } from '@/features/categories/queries';
-import { getEntities } from '@/features/entities/queries';
-import { DashboardClientWrapper } from './dashboard-client-wrapper';
-import { DashboardBudgetsSection } from './dashboard-budgets-section';
-import { DashboardCycleBanner } from './dashboard-cycle-banner';
-import { DashboardAccountsBanner } from './dashboard-accounts-banner';
+import {
+  getDashboardData,
+  DashboardClientWrapper,
+  DashboardAccountsBanner,
+  DashboardCycleBanner,
+  DashboardBudgetsSection,
+} from '@/features/dashboard';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -22,68 +18,51 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  // Obtener proyecto actual
-  let projectId = await getCurrentProjectId();
-  if (!projectId) {
-    const latestProject = await getLatestProject(session.user.id);
-    if (!latestProject) {
-      // No hay proyectos, mostrar estado vacío
-      return (
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              Hola, {session.user.name?.split(' ')[0]}
-            </h1>
-            <p className="text-muted-foreground">Bienvenido a Billedy.</p>
-          </div>
+  const data = await getDashboardData(session.user.id);
 
-          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/40 dark:via-teal-950/40 dark:to-cyan-950/40 p-6 md:p-8">
-            <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 blur-2xl" />
-            <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-32 w-32 rounded-full bg-gradient-to-tr from-teal-400/20 to-emerald-400/20 blur-2xl" />
+  if (!data.hasProject) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Hola, {session.user.name?.split(' ')[0]}
+          </h1>
+          <p className="text-muted-foreground">Bienvenido a Billedy.</p>
+        </div>
 
-            <div className="relative text-center space-y-4 py-4">
-              <div className="mx-auto rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-4 text-white shadow-lg shadow-emerald-500/25 w-fit">
-                <Sparkles className="h-8 w-8" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold text-xl">Crea tu primer proyecto</h3>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                  Un proyecto agrupa tus finanzas por contexto: personal, familia, negocio.
-                  Usa el selector en la barra superior para comenzar.
-                </p>
-              </div>
+        <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/40 dark:via-teal-950/40 dark:to-cyan-950/40 p-6 md:p-8">
+          <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 blur-2xl" />
+          <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-32 w-32 rounded-full bg-gradient-to-tr from-teal-400/20 to-emerald-400/20 blur-2xl" />
+
+          <div className="relative text-center space-y-4 py-4">
+            <div className="mx-auto rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-4 text-white shadow-lg shadow-emerald-500/25 w-fit">
+              <Sparkles className="h-8 w-8" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-semibold text-xl">Crea tu primer proyecto</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                Un proyecto agrupa tus finanzas por contexto: personal, familia, negocio.
+                Usa el selector en la barra superior para comenzar.
+              </p>
             </div>
           </div>
         </div>
-      );
-    }
-    projectId = latestProject.id;
+      </div>
+    );
   }
 
-  // Obtener ciclo actual, proyecto y datos maestros para el formulario de transacciones
-  // Nota: getAccountsSummaryWithAccounts retorna summary + accounts en una sola llamada (optimización)
-  const [currentCycle, accountsData, project, categories, budgets, allEntities] = await Promise.all([
-    getCurrentCycle(projectId, session.user.id),
-    getAccountsSummaryWithAccounts(projectId, session.user.id),
-    getProjectById(projectId, session.user.id),
-    getActiveCategories(projectId, session.user.id),
-    getActiveBudgets(projectId, session.user.id),
-    getEntities(),
-  ]);
-
-  const { summary: accountsSummary, accounts } = accountsData;
-
-  const isOwner = project?.userId === session.user.id;
-
-  // Obtener progreso de presupuestos si hay ciclo activo
-  const budgetsProgress = currentCycle
-    ? await getBudgetsProgress(
-        projectId,
-        session.user.id,
-        new Date(currentCycle.startDate),
-        new Date(currentCycle.endDate)
-      )
-    : [];
+  const {
+    currentCycle,
+    accountsSummary,
+    accounts,
+    project,
+    categories,
+    budgets,
+    allEntities,
+    isOwner,
+    budgetsProgress,
+    projectId,
+  } = data;
 
   return (
     <div className="space-y-6">

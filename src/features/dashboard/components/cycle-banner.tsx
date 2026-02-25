@@ -14,12 +14,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AnimatedCurrency } from '@/components/animated-currency';
-import { useDashboard } from './dashboard-context';
+import { useDashboard } from '../hooks';
 
-/**
- * Banner de resumen del ciclo que usa el contexto del dashboard
- * para actualizaciones optimistas con animaciones
- */
 export function DashboardCycleBanner() {
   const { cycle } = useDashboard();
   const [isExpanded, setIsExpanded] = useState(false);
