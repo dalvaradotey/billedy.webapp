@@ -151,8 +151,8 @@ export function FormDrawerBody(props: FormDrawerBodyProps) {
 
   if (props.as === 'form') {
     return (
-      <div ref={containerRef}>
-        <ScrollArea className="h-[65dvh] md:flex-1">
+      <div ref={containerRef} className="md:flex-1 md:min-h-0">
+        <ScrollArea className="h-[65dvh] md:h-full">
           <form
             id={props.id}
             onSubmit={props.onSubmit}
@@ -166,8 +166,8 @@ export function FormDrawerBody(props: FormDrawerBodyProps) {
   }
 
   return (
-    <div ref={containerRef}>
-      <ScrollArea className="h-[65dvh] md:flex-1">
+    <div ref={containerRef} className="md:flex-1 md:min-h-0">
+      <ScrollArea className="h-[65dvh] md:h-full">
         <div className={contentClassName}>
           {children}
         </div>
