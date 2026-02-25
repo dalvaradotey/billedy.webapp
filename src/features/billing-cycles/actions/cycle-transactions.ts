@@ -9,7 +9,7 @@ import {
   projects,
   currencies,
 } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, isNotNull } from 'drizzle-orm';
 
 /**
  * Carga transacciones automáticas al crear un ciclo:
@@ -78,57 +78,75 @@ export async function loadCycleTransactions(
     .from(credits)
     .where(and(eq(credits.projectId, projectId), eq(credits.isArchived, false)));
 
+  // Obtener todas las transacciones de crédito existentes (creditId + date)
+  // para evitar duplicados
+  const existingCreditTxs = await db
+    .select({
+      creditId: transactions.creditId,
+      date: transactions.date,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.projectId, projectId),
+        isNotNull(transactions.creditId)
+      )
+    );
+
+  // Crear un Set de "creditId|date" para búsqueda rápida
+  const existingCreditDates = new Set(
+    existingCreditTxs.map((tx) => {
+      const d = new Date(tx.date);
+      return `${tx.creditId}|${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    })
+  );
+
   for (const credit of activeCredits) {
-    // Calcular cuotas que caen en el rango del ciclo
     const creditStartDate = new Date(credit.startDate);
     const totalInstallments = credit.installments;
 
-    // Contar cuotas ya generadas para este crédito
-    const [existingCount] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(transactions)
-      .where(eq(transactions.creditId, credit.id));
-
-    const paidInstallments = existingCount?.count ?? 0;
-    const remainingInstallments = totalInstallments - paidInstallments;
-
-    if (remainingInstallments <= 0) continue;
-
-    // Calcular fechas de las próximas cuotas según frecuencia
-    for (let i = 0; i < remainingInstallments; i++) {
-      const installmentNumber = paidInstallments + i + 1;
+    // Calcular TODAS las cuotas y generar solo las que caen en el rango
+    // y que NO existen todavía
+    for (let i = 0; i < totalInstallments; i++) {
+      const installmentNumber = i + 1;
       const installmentDate = new Date(creditStartDate);
 
-      // Calcular fecha según frecuencia
       if (credit.frequency === 'monthly') {
-        installmentDate.setMonth(installmentDate.getMonth() + paidInstallments + i);
+        installmentDate.setMonth(installmentDate.getMonth() + i);
       } else if (credit.frequency === 'biweekly') {
-        installmentDate.setDate(installmentDate.getDate() + (paidInstallments + i) * 14);
+        installmentDate.setDate(installmentDate.getDate() + i * 14);
       } else if (credit.frequency === 'weekly') {
-        installmentDate.setDate(installmentDate.getDate() + (paidInstallments + i) * 7);
+        installmentDate.setDate(installmentDate.getDate() + i * 7);
       }
 
       // Verificar si la cuota cae dentro del rango del ciclo
-      if (installmentDate >= startDate && installmentDate <= endDate) {
-        transactionsToInsert.push({
-          userId: credit.userId,
-          projectId: credit.projectId,
-          categoryId: credit.categoryId,
-          accountId: credit.accountId,
-          entityId: credit.entityId,
-          type: 'expense',
-          description: `${credit.name} - Cuota ${installmentNumber}/${totalInstallments}`,
-          originalAmount: credit.installmentAmount,
-          originalCurrency: credit.originalCurrency,
-          baseAmount: credit.installmentAmount,
-          baseCurrency: credit.baseCurrency,
-          exchangeRate: credit.exchangeRate,
-          date: installmentDate,
-          notes: credit.notes,
-          isPaid: false,
-          creditId: credit.id,
-        });
-      }
+      if (installmentDate < startDate || installmentDate > endDate) continue;
+
+      // Verificar si ya existe una transacción para este crédito en esta fecha
+      const dateKey = `${credit.id}|${installmentDate.getFullYear()}-${installmentDate.getMonth()}-${installmentDate.getDate()}`;
+      if (existingCreditDates.has(dateKey)) continue;
+
+      // Marcar como existente para evitar duplicados dentro del mismo batch
+      existingCreditDates.add(dateKey);
+
+      transactionsToInsert.push({
+        userId: credit.userId,
+        projectId: credit.projectId,
+        categoryId: credit.categoryId,
+        accountId: credit.accountId,
+        entityId: credit.entityId,
+        type: 'expense',
+        description: `${credit.name} - Cuota ${installmentNumber}/${totalInstallments}`,
+        originalAmount: credit.installmentAmount,
+        originalCurrency: credit.originalCurrency,
+        baseAmount: credit.installmentAmount,
+        baseCurrency: credit.baseCurrency,
+        exchangeRate: credit.exchangeRate,
+        date: installmentDate,
+        notes: credit.notes,
+        isPaid: false,
+        creditId: credit.id,
+      });
     }
   }
 

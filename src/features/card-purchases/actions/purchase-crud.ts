@@ -10,7 +10,7 @@ import {
   projects,
   currencies,
 } from '@/lib/db/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and, isNotNull, sql } from 'drizzle-orm';
 import { createCardPurchaseSchema, updateCardPurchaseSchema } from '../schemas';
 import type { CardPurchase } from '../types';
 import { updateAccountBalance } from '@/features/accounts/actions';
@@ -339,6 +339,148 @@ export async function deleteCardPurchase(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Error al eliminar',
+    };
+  }
+}
+
+/**
+ * Regenera todas las transacciones de cuotas de una compra.
+ * Elimina las transacciones existentes y las vuelve a crear con la lógica original.
+ */
+export async function regenerateInstallments(
+  purchaseId: string,
+  userId: string
+): Promise<{ success: boolean; regenerated?: number; error?: string }> {
+  try {
+    // Obtener la compra con verificación de acceso
+    const [purchase] = await db
+      .select()
+      .from(cardPurchases)
+      .innerJoin(projectMembers, eq(cardPurchases.projectId, projectMembers.projectId))
+      .where(
+        and(
+          eq(cardPurchases.id, purchaseId),
+          eq(projectMembers.userId, userId),
+          isNotNull(projectMembers.acceptedAt)
+        )
+      )
+      .limit(1);
+
+    if (!purchase) {
+      return { success: false, error: 'Compra no encontrada' };
+    }
+
+    const p = purchase.n1n4_card_purchases;
+
+    if (!p.categoryId) {
+      return { success: false, error: 'La compra no tiene categoría asignada' };
+    }
+
+    // Obtener moneda del proyecto
+    const [projectInfo] = await db
+      .select({ currencyCode: currencies.code })
+      .from(projects)
+      .innerJoin(currencies, eq(projects.baseCurrencyId, currencies.id))
+      .where(eq(projects.id, p.projectId))
+      .limit(1);
+
+    if (!projectInfo) {
+      return { success: false, error: 'Proyecto no encontrado' };
+    }
+
+    // Calcular el total actual de las transacciones existentes para ajustar balance
+    const [currentTotal] = await db
+      .select({
+        total: sql<string>`COALESCE(SUM(CAST(${transactions.baseAmount} AS numeric)), 0)`,
+      })
+      .from(transactions)
+      .where(eq(transactions.cardPurchaseId, purchaseId));
+
+    const oldTransactionsTotal = parseFloat(currentTotal?.total ?? '0');
+
+    // Eliminar todas las transacciones existentes
+    await db
+      .delete(transactions)
+      .where(eq(transactions.cardPurchaseId, purchaseId));
+
+    // Recalcular cuotas históricamente pagadas
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let initialPaidInstallments = 0;
+    const installmentAmount = parseFloat(p.installmentAmount);
+    const totalAmount = parseFloat(p.totalAmount);
+
+    for (let i = 0; i < p.installments; i++) {
+      const chargeDate = new Date(p.firstChargeDate);
+      chargeDate.setMonth(chargeDate.getMonth() + i);
+      if (chargeDate < today) {
+        initialPaidInstallments++;
+      } else {
+        break;
+      }
+    }
+
+    // Crear TODAS las transacciones de cuotas
+    const installmentTransactions = [];
+
+    for (let i = 0; i < p.installments; i++) {
+      const chargeDate = new Date(p.firstChargeDate);
+      chargeDate.setMonth(chargeDate.getMonth() + i);
+
+      const installmentNumber = i + 1;
+      const isHistorical = i < initialPaidInstallments;
+
+      installmentTransactions.push({
+        userId: p.userId,
+        projectId: p.projectId,
+        accountId: p.accountId,
+        categoryId: p.categoryId,
+        entityId: p.entityId,
+        cardPurchaseId: p.id,
+        type: 'expense' as const,
+        description: `${p.description} - Cuota ${installmentNumber}/${p.installments}`,
+        originalAmount: installmentAmount.toFixed(2),
+        originalCurrency: projectInfo.currencyCode,
+        baseAmount: installmentAmount.toFixed(2),
+        baseCurrency: projectInfo.currencyCode,
+        exchangeRate: '1',
+        date: chargeDate,
+        isPaid: true,
+        paidAt: null,
+        isHistoricallyPaid: isHistorical,
+      });
+    }
+
+    if (installmentTransactions.length > 0) {
+      await db.insert(transactions).values(installmentTransactions);
+    }
+
+    // Ajustar balance de la cuenta: revertir viejo total + aplicar nuevo total
+    // oldTransactionsTotal = suma de baseAmount de las transacciones eliminadas (positivo = gastos)
+    // totalAmount = monto total de la compra que debe estar reflejado como deuda
+    const balanceDiff = oldTransactionsTotal - totalAmount;
+    if (balanceDiff !== 0) {
+      await updateAccountBalance(p.accountId, balanceDiff);
+    }
+
+    // Actualizar campos en la compra
+    await db
+      .update(cardPurchases)
+      .set({
+        chargedInstallments: p.installments,
+        initialPaidInstallments,
+        updatedAt: new Date(),
+      })
+      .where(eq(cardPurchases.id, purchaseId));
+
+    invalidateRelatedCache('cardPurchases');
+
+    return { success: true, regenerated: installmentTransactions.length };
+  } catch (error) {
+    console.error('Error regenerating installments:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error al regenerar cuotas',
     };
   }
 }

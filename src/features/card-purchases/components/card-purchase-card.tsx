@@ -10,6 +10,7 @@ import {
   Archive,
   Receipt,
   Users,
+  RefreshCw,
 } from 'lucide-react';
 
 import { Progress } from '@/components/ui/progress';
@@ -18,7 +19,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { CardActions } from '@/components/card-actions';
 
 import { formatCurrency, formatDateLong } from '@/lib/formatting';
-import { chargeInstallment, archiveCardPurchase, deleteCardPurchase } from '../actions';
+import { chargeInstallment, archiveCardPurchase, deleteCardPurchase, regenerateInstallments } from '../actions';
 import type { CardPurchaseWithDetails } from '../types';
 
 interface CardPurchaseCardProps {
@@ -41,6 +42,7 @@ export function CardPurchaseCard({
   const [isPending, startTransition] = useTransition();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
   const [showActionsDrawer, setShowActionsDrawer] = useState(false);
   const [showInlineActions, setShowInlineActions] = useState(false);
   const isMobile = useIsMobile();
@@ -92,6 +94,21 @@ export function CardPurchaseCard({
     });
   };
 
+  const handleRegenerate = () => {
+    const toastId = toast.loading('Regenerando cuotas...');
+    onMutationStart?.();
+    startTransition(async () => {
+      const result = await regenerateInstallments(purchase.id, userId);
+      setShowRegenerateDialog(false);
+      if (result.success) {
+        onMutationSuccess?.(toastId, `${result.regenerated} cuotas regeneradas`);
+        onUpdate();
+      } else {
+        onMutationError?.(toastId, result.error ?? 'Error al regenerar cuotas');
+      }
+    });
+  };
+
   // Build description line
   const descriptionParts: string[] = [];
   if (purchase.entityName) descriptionParts.push(purchase.entityName);
@@ -108,6 +125,13 @@ export function CardPurchaseCard({
           onClick: handleChargeInstallment,
         }]
       : []),
+    {
+      key: 'regenerate',
+      label: 'Regenerar cuotas',
+      icon: <RefreshCw />,
+      onClick: () => setShowRegenerateDialog(true),
+      closeOnClick: false,
+    },
     ...(purchase.isActive
       ? [{
           key: 'archive',
@@ -282,6 +306,26 @@ export function CardPurchaseCard({
         size="sm"
         isPending={isPending}
         onConfirm={handleArchive}
+      />
+
+      {/* Regenerate Confirmation */}
+      <ConfirmDialog
+        open={showRegenerateDialog}
+        onOpenChange={setShowRegenerateDialog}
+        icon={<RefreshCw className="h-7 w-7" />}
+        iconVariant="info"
+        title="Regenerar cuotas"
+        description={
+          <>
+            Se eliminarán todas las transacciones asociadas a{' '}
+            <span className="font-medium text-foreground">{purchase.description}</span>{' '}
+            y se volverán a crear las {purchase.installments} cuotas desde cero.
+          </>
+        }
+        confirmText={isPending ? 'Regenerando...' : 'Regenerar cuotas'}
+        size="sm"
+        isPending={isPending}
+        onConfirm={handleRegenerate}
       />
 
       {/* Delete Confirmation */}

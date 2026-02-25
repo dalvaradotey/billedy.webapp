@@ -4,6 +4,7 @@ export {
   updateCardPurchase,
   archiveCardPurchase,
   deleteCardPurchase,
+  regenerateInstallments,
 } from './purchase-crud';
 
 // Installment operations
