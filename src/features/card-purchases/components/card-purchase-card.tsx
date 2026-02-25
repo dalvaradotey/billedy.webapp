@@ -1,39 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
+import { useIsMobile } from '@/hooks';
+import { toast } from 'sonner';
 import {
   CreditCard,
   Store,
-  MoreHorizontal,
   Trash2,
   Archive,
   Receipt,
   Users,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { CardActions } from '@/components/card-actions';
 
 import { formatCurrency, formatDateLong } from '@/lib/formatting';
 import { chargeInstallment, archiveCardPurchase, deleteCardPurchase } from '../actions';
@@ -43,191 +25,219 @@ interface CardPurchaseCardProps {
   purchase: CardPurchaseWithDetails;
   userId: string;
   onUpdate: () => void;
+  onMutationStart?: () => void;
+  onMutationSuccess?: (toastId: string | number, message: string) => void;
+  onMutationError?: (toastId: string | number, error: string) => void;
 }
 
-const CONFIRM_DELETE_TEXT = 'ELIMINAR';
-
-export function CardPurchaseCard({ purchase, userId, onUpdate }: CardPurchaseCardProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
+export function CardPurchaseCard({
+  purchase,
+  userId,
+  onUpdate,
+  onMutationStart,
+  onMutationError,
+  onMutationSuccess,
+}: CardPurchaseCardProps) {
+  const [isPending, startTransition] = useTransition();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [showActionsDrawer, setShowActionsDrawer] = useState(false);
+  const [showInlineActions, setShowInlineActions] = useState(false);
+  const isMobile = useIsMobile();
 
   const hasInterest = parseFloat(purchase.interestAmount) > 0;
   const isOverdue = purchase.nextChargeDate && new Date(purchase.nextChargeDate) < new Date();
-  const canDelete = confirmText === CONFIRM_DELETE_TEXT;
 
-  const handleChargeInstallment = async () => {
-    setIsLoading(true);
-    const result = await chargeInstallment(purchase.id, userId);
-    setIsLoading(false);
-    if (result.success) {
-      onUpdate();
-    }
+  const handleChargeInstallment = () => {
+    const toastId = toast.loading('Cobrando cuota...');
+    onMutationStart?.();
+    startTransition(async () => {
+      const result = await chargeInstallment(purchase.id, userId);
+      if (result.success) {
+        onMutationSuccess?.(toastId, 'Cuota cobrada');
+        onUpdate();
+      } else {
+        onMutationError?.(toastId, result.error ?? 'Error al cobrar cuota');
+      }
+    });
   };
 
-  const handleArchive = async () => {
-    setIsLoading(true);
-    const result = await archiveCardPurchase(purchase.id, userId);
-    setIsLoading(false);
-    if (result.success) {
-      onUpdate();
-    }
+  const handleArchive = () => {
+    setShowArchiveDialog(false);
+    const toastId = toast.loading('Archivando compra...');
+    onMutationStart?.();
+    startTransition(async () => {
+      const result = await archiveCardPurchase(purchase.id, userId);
+      if (result.success) {
+        onMutationSuccess?.(toastId, 'Compra archivada');
+        onUpdate();
+      } else {
+        onMutationError?.(toastId, result.error ?? 'Error al archivar');
+      }
+    });
   };
 
-  const handleDelete = async () => {
-    if (!canDelete) return;
-    setIsLoading(true);
-    const result = await deleteCardPurchase(purchase.id, userId);
-    setIsLoading(false);
-    setShowDeleteAlert(false);
-    setConfirmText('');
-    if (result.success) {
-      onUpdate();
-    }
+  const handleDelete = () => {
+    const toastId = toast.loading('Eliminando compra...');
+    onMutationStart?.();
+    startTransition(async () => {
+      const result = await deleteCardPurchase(purchase.id, userId);
+      setShowDeleteDialog(false);
+      if (result.success) {
+        onMutationSuccess?.(toastId, 'Compra eliminada');
+        onUpdate();
+      } else {
+        onMutationError?.(toastId, result.error ?? 'Error al eliminar');
+      }
+    });
   };
 
-  const handleCloseDeleteAlert = (open: boolean) => {
-    setShowDeleteAlert(open);
-    if (!open) {
-      setConfirmText('');
-    }
-  };
+  // Build description line
+  const descriptionParts: string[] = [];
+  if (purchase.entityName) descriptionParts.push(purchase.entityName);
+  else if (purchase.storeName) descriptionParts.push(purchase.storeName);
+  if (purchase.categoryName) descriptionParts.push(purchase.categoryName);
+  const description = descriptionParts.join(' · ') || formatDateLong(purchase.purchaseDate);
+
+  const actions = [
+    ...(purchase.isActive && purchase.remainingInstallments > 0
+      ? [{
+          key: 'charge',
+          label: 'Cobrar cuota',
+          icon: <Receipt />,
+          onClick: handleChargeInstallment,
+        }]
+      : []),
+    ...(purchase.isActive
+      ? [{
+          key: 'archive',
+          label: 'Archivar',
+          icon: <Archive />,
+          onClick: () => setShowArchiveDialog(true),
+          closeOnClick: false,
+        }]
+      : []),
+    {
+      key: 'delete',
+      label: 'Eliminar',
+      icon: <Trash2 />,
+      onClick: () => setShowDeleteDialog(true),
+      variant: 'destructive' as const,
+    },
+  ];
 
   return (
     <>
-      <Card className={!purchase.isActive ? 'opacity-60' : ''}>
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-lg flex items-center gap-2">
-                {purchase.description}
-                {purchase.isExternalDebt && (
-                  <Badge variant="outline" className="gap-1">
-                    <Users className="h-3 w-3" />
-                    Externa
-                  </Badge>
-                )}
-                {!purchase.isActive && (
-                  <Badge variant="secondary">Completada</Badge>
-                )}
-                {isOverdue && purchase.isActive && (
-                  <Badge variant="destructive">Pendiente</Badge>
-                )}
-              </CardTitle>
-              {/* Entity or Store Name */}
-              {(purchase.entityName || purchase.storeName) && (
-                <CardDescription className="flex items-center gap-2">
-                  {purchase.entityImageUrl ? (
-                    <img
-                      src={purchase.entityImageUrl}
-                      alt={purchase.entityName ?? ''}
-                      className="h-5 w-5 rounded object-contain bg-white shrink-0"
-                    />
-                  ) : (
-                    <Store className="h-4 w-4 shrink-0" />
-                  )}
-                  {purchase.entityName ?? purchase.storeName}
-                </CardDescription>
-              )}
+      {/* Card */}
+      <div
+        onClick={() => {
+          if (isMobile) {
+            setShowActionsDrawer(true);
+          } else {
+            setShowInlineActions(!showInlineActions);
+          }
+        }}
+        className={`rounded-2xl border bg-card p-4 transition-colors cursor-pointer active:bg-muted/50 ${!purchase.isActive ? 'opacity-60' : ''}`}
+      >
+        {/* Top row: Icon + Info + Actions */}
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          {purchase.entityImageUrl ? (
+            <div className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-border">
+              <img
+                src={purchase.entityImageUrl}
+                alt={purchase.entityName ?? ''}
+                className="object-contain w-full h-full bg-white"
+              />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" disabled={isLoading}>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {purchase.isActive && purchase.remainingInstallments > 0 && (
-                  <DropdownMenuItem onClick={handleChargeInstallment}>
-                    <Receipt className="mr-2 h-4 w-4" />
-                    Cobrar cuota
-                  </DropdownMenuItem>
-                )}
-                {purchase.isActive && (
-                  <DropdownMenuItem onClick={handleArchive}>
-                    <Archive className="mr-2 h-4 w-4" />
-                    Archivar
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => setShowDeleteAlert(true)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Progress bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progreso</span>
-              <span className="font-medium">
-                {purchase.chargedInstallments} de {purchase.installments} cuotas
-              </span>
+          ) : (
+            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400">
+              <Store className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
-            <Progress value={purchase.progressPercentage} className="h-2" />
-          </div>
+          )}
 
-          {/* Details grid */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground block">Monto original</span>
-              <span className="font-medium">
-                {formatCurrency(parseFloat(purchase.originalAmount))}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block">Cuota mensual</span>
-              <span className="font-medium">
-                {formatCurrency(parseFloat(purchase.installmentAmount))}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block">
-                {hasInterest ? 'Total con interés' : 'Total'}
-              </span>
-              <span className="font-medium">
-                {formatCurrency(parseFloat(purchase.totalAmount))}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block">Interés</span>
-              {hasInterest ? (
-                <span className="font-medium text-destructive">
-                  +{formatCurrency(parseFloat(purchase.interestAmount))}
-                  {purchase.interestRate && (
-                    <span className="text-xs ml-1">({purchase.interestRate}%)</span>
+          {/* Info + Amount (desktop) */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-base truncate">{purchase.description}</p>
+                  {purchase.isExternalDebt && (
+                    <Badge variant="outline" className="gap-1 shrink-0 text-[10px] px-1.5 py-0">
+                      <Users className="h-3 w-3" />
+                      Externa
+                    </Badge>
                   )}
-                </span>
-              ) : (
-                <span className="font-medium text-emerald-600 dark:text-emerald-400">Sin interés</span>
-              )}
-            </div>
-            <div>
-              <span className="text-muted-foreground block">Restante</span>
-              <span className="font-medium">
-                {formatCurrency(purchase.remainingAmount)}
-              </span>
-            </div>
-            {purchase.nextChargeDate && purchase.isActive && (
-              <div>
-                <span className="text-muted-foreground block">Próximo vencimiento</span>
-                <span className={`font-medium ${isOverdue ? 'text-destructive' : ''}`}>
-                  {formatDateLong(purchase.nextChargeDate)}
-                </span>
+                  {!purchase.isActive && (
+                    <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">Completada</Badge>
+                  )}
+                  {isOverdue && purchase.isActive && (
+                    <Badge variant="destructive" className="shrink-0 text-[10px] px-1.5 py-0">Pendiente</Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground truncate">
+                  {description}
+                </p>
               </div>
-            )}
-          </div>
 
-          {/* Footer info */}
-          <Separator />
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
+              {/* Desktop: Amount + Actions inline */}
+              <div className="hidden sm:flex items-center gap-3">
+                <CardActions
+                  actions={actions}
+                  title={purchase.description}
+                  description={description}
+                  isPending={isPending}
+                  showInline={showInlineActions}
+                  onToggleInline={() => setShowInlineActions(!showInlineActions)}
+                  drawerOpen={showActionsDrawer}
+                  onDrawerOpenChange={setShowActionsDrawer}
+                >
+                  <div className="text-right min-w-[140px]">
+                    <p className="text-lg font-bold tabular-nums text-foreground">
+                      {formatCurrency(parseFloat(purchase.installmentAmount))}
+                      <span className="text-xs font-normal text-muted-foreground ml-1">
+                        /mes
+                      </span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {purchase.chargedInstallments}/{purchase.installments} cuotas
+                    </p>
+                  </div>
+                </CardActions>
+              </div>
+            </div>
+
+            {/* Mobile: Amount row */}
+            <div className="flex items-center justify-between mt-2 sm:hidden">
+              <p className="text-xl font-bold tabular-nums text-foreground">
+                {formatCurrency(parseFloat(purchase.installmentAmount))}
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  /mes
+                </span>
+              </p>
+              <p className="text-sm text-muted-foreground tabular-nums">
+                {purchase.chargedInstallments}/{purchase.installments} cuotas
+              </p>
+              {/* Mobile actions trigger */}
+              <CardActions
+                actions={actions}
+                title={purchase.description}
+                description={description}
+                isPending={isPending}
+                showInline={false}
+                onToggleInline={() => {}}
+                drawerOpen={showActionsDrawer}
+                onDrawerOpenChange={setShowActionsDrawer}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar - full width */}
+        <div className="mt-3">
+          <Progress value={purchase.progressPercentage} className="h-3" />
+          <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground gap-3">
+            <div className="flex items-center gap-1.5 min-w-0">
               {purchase.accountEntityImageUrl ? (
                 <img
                   src={purchase.accountEntityImageUrl}
@@ -237,61 +247,63 @@ export function CardPurchaseCard({ purchase, userId, onUpdate }: CardPurchaseCar
               ) : (
                 <CreditCard className="h-3 w-3 shrink-0" />
               )}
-              {purchase.accountName}
+              <span className="truncate">{purchase.accountName}</span>
             </div>
-            {purchase.categoryName && (
-              <div className="flex items-center gap-1">
-                <div
-                  className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: purchase.categoryColor || '#6b7280' }}
-                />
-                {purchase.categoryName}
-              </div>
-            )}
-            <div>
-              {formatDateLong(purchase.purchaseDate)}
-            </div>
+            <span className="shrink-0 tabular-nums">
+              {hasInterest ? (
+                <span className="text-red-500 dark:text-red-400">
+                  +{formatCurrency(parseFloat(purchase.interestAmount))}
+                </span>
+              ) : (
+                <span className="text-emerald-600 dark:text-emerald-400">Sin interés</span>
+              )}
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {formatCurrency(purchase.remainingAmount)}
+            </span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <AlertDialog open={showDeleteAlert} onOpenChange={handleCloseDeleteAlert}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              ¿Eliminar compra permanentemente?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <span className="block">
-                Esta acción <strong>no se puede deshacer</strong>. Se eliminará la compra
-                &quot;{purchase.description}&quot; junto con todas las{' '}
-                <strong>{purchase.chargedInstallments} transacciones</strong> asociadas.
-              </span>
-              <span className="block">
-                Para confirmar, escribe <strong>{CONFIRM_DELETE_TEXT}</strong> a continuación:
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-2">
-            <Input
-              placeholder={`Escribe ${CONFIRM_DELETE_TEXT} para confirmar`}
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
-              className={confirmText && !canDelete ? 'border-destructive' : ''}
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={!canDelete || isLoading}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
-            >
-              {isLoading ? 'Eliminando...' : 'Eliminar compra y transacciones'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Archive Confirmation */}
+      <ConfirmDialog
+        open={showArchiveDialog}
+        onOpenChange={setShowArchiveDialog}
+        icon={<Archive className="h-7 w-7" />}
+        iconVariant="default"
+        title="Archivar compra"
+        description={
+          <>
+            ¿Archivar <span className="font-medium text-foreground">{purchase.description}</span>?
+            La compra no aparecerá en el listado activo pero podrás verla desde &quot;Todas&quot;.
+          </>
+        }
+        confirmText={isPending ? 'Archivando...' : 'Archivar'}
+        size="sm"
+        isPending={isPending}
+        onConfirm={handleArchive}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        icon={<Trash2 className="h-7 w-7" />}
+        iconVariant="destructive"
+        title="Eliminar compra"
+        description={
+          <>
+            ¿Eliminar <span className="font-medium text-foreground">{purchase.description}</span> permanentemente?
+            Se eliminarán las <strong>{purchase.chargedInstallments} transacciones</strong> asociadas.
+          </>
+        }
+        confirmText={isPending ? 'Eliminando...' : 'Eliminar'}
+        variant="destructive"
+        size="sm"
+        requireConfirmText="ELIMINAR"
+        isPending={isPending}
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

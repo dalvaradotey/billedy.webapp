@@ -4,16 +4,18 @@ import { useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
-  Plus,
+  ArrowRight,
   ArrowUpCircle,
   ArrowDownCircle,
-  Filter,
+  Wallet,
+  Clock,
   Calendar,
   Receipt,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
-import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
+import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -22,13 +24,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SummaryCard } from '@/components/ui/summary-card';
+import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
 import type { TransactionWithCategory, TransactionSummary } from '../types';
 import type { AccountWithEntity } from '@/features/accounts/types';
 import type { Category } from '@/features/categories/types';
 import type { Entity } from '@/features/entities/types';
 import { TransactionDialogContent } from './transaction-form';
 import { TransactionTable } from './transaction-table';
-import { SummaryCard } from '@/components/ui/summary-card';
 
 function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -89,6 +92,7 @@ export function TransactionList({
 }: TransactionListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithCategory | null>(null);
+  const [showPeriodControls, setShowPeriodControls] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -204,51 +208,67 @@ export function TransactionList({
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <SummaryCardsSlider>
         <SummaryCard
           title="Ingresos"
           value={formatCurrency(summary.totalIncome, defaultCurrency)}
-          icon={<ArrowUpCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+          icon={<ArrowUpCircle className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="success"
         />
         <SummaryCard
           title="Gastos"
           value={formatCurrency(summary.totalExpense, defaultCurrency)}
-          icon={<ArrowDownCircle className="h-4 w-4 text-red-600 dark:text-red-400" />}
+          icon={<ArrowDownCircle className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="danger"
         />
         <SummaryCard
           title="Balance"
           value={formatCurrency(summary.balance, defaultCurrency)}
+          icon={<Wallet className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant={summary.balance >= 0 ? 'success' : 'danger'}
         />
         <SummaryCard
           title="Pendientes"
           value={`${summary.pendingCount} de ${summary.paidCount + summary.pendingCount}`}
           subtitle="transacciones"
+          icon={<Clock className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="neutral"
         />
-      </div>
+      </SummaryCardsSlider>
 
-      {/* Filters Section */}
-      <div className="space-y-4">
-        {/* Period Filter */}
-        <div className="rounded-lg border bg-card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+      {/* ═══ MOBILE FILTERS ═══ */}
+      <div className="sm:hidden space-y-3">
+        {/* Row 1: Period card + CTA */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPeriodControls(!showPeriodControls)}
+            className="flex items-center gap-2.5 flex-1 min-w-0 rounded-xl bg-muted/50 px-3 py-2.5"
+          >
+            <div className="p-1.5 rounded-lg bg-background shadow-sm shrink-0">
               <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Período</span>
             </div>
-            {dateRangeFeedback && (
-              <span className="text-sm text-muted-foreground">{dateRangeFeedback}</span>
-            )}
-          </div>
+            <span className="text-sm font-medium truncate">
+              {dateRangeFeedback || 'Últimos 30 días'}
+            </span>
+            <ChevronDown
+              className={`h-4 w-4 text-muted-foreground shrink-0 ml-auto transition-transform duration-200 ${
+                showPeriodControls ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+          <Button variant="cta-sm" className="shrink-0" onClick={handleOpenDialog}>
+            Nueva
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Cycle Selector - solo si hay ciclos */}
+        {/* Period expanded */}
+        {showPeriodControls && (
+          <div className="rounded-xl bg-muted/30 border border-border/50 p-3 space-y-2.5">
             {hasCycles && (
               <Select value={currentCycleId} onValueChange={handleCycleChange}>
-                <SelectTrigger className="w-[180px] h-9">
+                <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Seleccionar ciclo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -261,76 +281,191 @@ export function TransactionList({
                 </SelectContent>
               </Select>
             )}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">
+                  Desde
+                </label>
+                <Input
+                  type="date"
+                  value={currentStartDate}
+                  onChange={(e) => handleDateChange('startDate', e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">
+                  Hasta
+                </label>
+                <Input
+                  type="date"
+                  value={currentEndDate}
+                  onChange={(e) => handleDateChange('endDate', e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
+        {/* Row 2: Toggle filter pills */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() =>
+              handleFilterChange('type', currentType === 'income' ? 'all' : 'income')
+            }
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              currentType === 'income'
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
+                : 'bg-muted/50 text-muted-foreground'
+            }`}
+          >
+            Ingresos
+          </button>
+          <button
+            onClick={() =>
+              handleFilterChange('type', currentType === 'expense' ? 'all' : 'expense')
+            }
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              currentType === 'expense'
+                ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
+                : 'bg-muted/50 text-muted-foreground'
+            }`}
+          >
+            Gastos
+          </button>
+          <div className="w-px h-4 bg-border" />
+          <button
+            onClick={() =>
+              handleFilterChange('paid', currentPaid === 'true' ? 'all' : 'true')
+            }
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              currentPaid === 'true'
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                : 'bg-muted/50 text-muted-foreground'
+            }`}
+          >
+            Pagados
+          </button>
+          <button
+            onClick={() =>
+              handleFilterChange('paid', currentPaid === 'false' ? 'all' : 'false')
+            }
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+              currentPaid === 'false'
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
+                : 'bg-muted/50 text-muted-foreground'
+            }`}
+          >
+            Pendientes
+          </button>
+        </div>
+      </div>
+
+      {/* ═══ DESKTOP FILTERS ═══ */}
+      <div className="hidden sm:flex items-center gap-3 flex-wrap">
+        <div className="inline-flex rounded-lg border bg-muted/50 p-0.5">
+          {([
+            { value: 'all', label: 'Todos' },
+            { value: 'income', label: 'Ingresos' },
+            { value: 'expense', label: 'Gastos' },
+          ] as const).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => handleFilterChange('type', opt.value)}
+              className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                currentType === opt.value
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="inline-flex rounded-lg border bg-muted/50 p-0.5">
+          {([
+            { value: 'all', label: 'Todos' },
+            { value: 'true', label: 'Pagados' },
+            { value: 'false', label: 'Pendientes' },
+          ] as const).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => handleFilterChange('paid', opt.value)}
+              className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                currentPaid === opt.value
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 ml-auto">
+          <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+          {hasCycles && (
+            <Select value={currentCycleId} onValueChange={handleCycleChange}>
+              <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectValue placeholder="Seleccionar ciclo" />
+              </SelectTrigger>
+              <SelectContent>
+                {cycles.map((cycle) => (
+                  <SelectItem key={cycle.id} value={cycle.id}>
+                    {cycle.name} {cycle.status === 'open' && '(actual)'}
+                  </SelectItem>
+                ))}
+                <SelectItem value="custom">Personalizado</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          <div className="flex items-center gap-1.5">
             <Input
               type="date"
               value={currentStartDate}
               onChange={(e) => handleDateChange('startDate', e.target.value)}
-              className="w-[140px] h-9"
-              placeholder="Desde"
+              className="w-[125px] h-8 text-xs"
             />
-            <span className="text-muted-foreground">-</span>
+            <span className="text-xs text-muted-foreground">—</span>
             <Input
               type="date"
               value={currentEndDate}
               onChange={(e) => handleDateChange('endDate', e.target.value)}
-              className="w-[140px] h-9"
-              placeholder="Hasta"
+              className="w-[125px] h-8 text-xs"
             />
           </div>
+          {dateRangeFeedback && (
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {dateRangeFeedback}
+            </span>
+          )}
         </div>
 
-        {/* Other Filters and Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={currentType} onValueChange={(v) => handleFilterChange('type', v)}>
-              <SelectTrigger className="w-[130px] h-9">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="income">Ingresos</SelectItem>
-                <SelectItem value="expense">Gastos</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={currentPaid} onValueChange={(v) => handleFilterChange('paid', v)}>
-              <SelectTrigger className="w-[130px] h-9">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="true">Pagados</SelectItem>
-                <SelectItem value="false">Pendientes</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DrawerTrigger asChild>
-            <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
-              <Plus className="h-4 w-4" />
-              Nueva transacción
-            </Button>
-          </DrawerTrigger>
-          <TransactionDialogContent
-            projectId={projectId}
-            userId={userId}
-            categories={categories}
-            accounts={accounts}
-            budgets={budgets}
-            entities={entities}
-            transaction={editingTransaction}
-            defaultCurrency={defaultCurrency}
-            onSuccess={handleDialogClose}
-            onMutationStart={onMutationStart}
-            onMutationSuccess={onMutationSuccess}
-            onMutationError={onMutationError}
-          />
-        </ResponsiveDrawer>
-        </div>
+        <Button variant="cta-sm" className="shrink-0" onClick={handleOpenDialog}>
+          Nueva transacción
+          <ArrowRight className="h-4 w-4" />
+        </Button>
       </div>
+
+      {/* Transaction Dialog */}
+      <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <TransactionDialogContent
+          projectId={projectId}
+          userId={userId}
+          categories={categories}
+          accounts={accounts}
+          budgets={budgets}
+          entities={entities}
+          transaction={editingTransaction}
+          defaultCurrency={defaultCurrency}
+          onSuccess={handleDialogClose}
+          onMutationStart={onMutationStart}
+          onMutationSuccess={onMutationSuccess}
+          onMutationError={onMutationError}
+        />
+      </ResponsiveDrawer>
 
       {/* Transaction Table */}
       {transactions.length === 0 ? (

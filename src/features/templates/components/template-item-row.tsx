@@ -39,56 +39,73 @@ export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: Template
   };
 
   return (
-    <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-muted/50">
-      <div className="flex items-center gap-3">
-        {item.entityImageUrl && (
-          <img
-            src={item.entityImageUrl}
-            alt={item.entityName ?? ''}
-            className="h-6 w-6 rounded-full object-cover"
-          />
-        )}
-        <div>
-          <p className="text-sm font-medium">{item.description}</p>
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            {item.entityName && <span>{item.entityName} • </span>}
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: item.categoryColor }}
-            />
-            {item.categoryName}
-            {item.accountName && <span> • {item.accountName}</span>}
-          </p>
+    <div className="flex items-start gap-3 py-2.5 px-3 rounded-xl hover:bg-muted/50 transition-colors">
+      {/* Entity image */}
+      {item.entityImageUrl ? (
+        <img
+          src={item.entityImageUrl}
+          alt={item.entityName ?? ''}
+          className="h-9 w-9 rounded-xl object-cover shrink-0 mt-0.5"
+        />
+      ) : (
+        <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center shrink-0 mt-0.5">
+          <span className="text-xs font-semibold text-muted-foreground">
+            {(item.entityName ?? item.description)?.[0]?.toUpperCase()}
+          </span>
         </div>
-      </div>
+      )}
 
-      <div className="flex items-center gap-2">
-        <span
-          className={`text-sm font-medium ${
-            item.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-          }`}
-        >
-          {item.type === 'income' ? '+' : '-'}
-          {formatCurrency(item.baseAmount, baseCurrency)}
-        </span>
+      {/* Content */}
+      <div className="min-w-0 flex-1">
+        {/* Row 1: Title + Amount + Actions */}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium truncate">{item.description}</p>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span
+              className={`text-sm font-semibold tabular-nums ${
+                item.type === 'income'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-red-600 dark:text-red-400'
+              }`}
+            >
+              {item.type === 'income' ? '+' : '-'}
+              {formatCurrency(item.baseAmount, baseCurrency)}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0">
+                  <MoreVertical className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-              <MoreVertical className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Editar
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Row 2: Metadata - full width */}
+        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
+          {item.entityName && <span>{item.entityName}</span>}
+          <span
+            className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+            style={{ backgroundColor: item.categoryColor }}
+          />
+          <span>{item.categoryName}</span>
+          {item.accountName && (
+            <>
+              <span className="text-muted-foreground/50">·</span>
+              <span>{item.accountName}</span>
+            </>
+          )}
+        </p>
       </div>
     </div>
   );

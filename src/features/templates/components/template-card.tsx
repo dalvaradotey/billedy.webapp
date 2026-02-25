@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useIsMobile } from '@/hooks';
 import { toast } from 'sonner';
 import { toastActions } from '@/lib/toast-messages';
 import {
   Plus,
   Pencil,
   Trash2,
-  MoreVertical,
   Archive,
   ChevronDown,
   ChevronRight,
@@ -17,25 +17,9 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { ResponsiveDrawer } from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { CardActions } from '@/components/card-actions';
 
 import { formatCurrency } from '@/lib/formatting';
 import { deleteTemplate, archiveTemplate, toggleTemplateActive } from '../actions';
@@ -69,26 +53,17 @@ export function TemplateCard({
   const [isPending, startTransition] = useTransition();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [confirmText, setConfirmText] = useState('');
   const [showItemDialog, setShowItemDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<TemplateItemWithDetails | null>(null);
-
-  const canDelete = confirmText === CONFIRM_DELETE_TEXT;
-
-  const handleCloseDeleteDialog = (open: boolean) => {
-    setShowDeleteDialog(open);
-    if (!open) {
-      setConfirmText('');
-    }
-  };
+  const [showActionsDrawer, setShowActionsDrawer] = useState(false);
+  const [showInlineActions, setShowInlineActions] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleDelete = () => {
-    if (!canDelete) return;
     const { onSuccess, onError } = toastActions.deleting('plantilla');
     startTransition(async () => {
       const result = await deleteTemplate(template.id, userId);
       setShowDeleteDialog(false);
-      setConfirmText('');
       if (result.success) {
         onSuccess();
       } else {
@@ -142,45 +117,95 @@ export function TemplateCard({
 
   const netAmount = template.totalIncome - template.totalExpense;
 
+  const actions = [
+    {
+      key: 'edit',
+      label: 'Editar',
+      icon: <Pencil />,
+      onClick: onEdit,
+    },
+    {
+      key: 'toggle',
+      label: template.isActive ? 'Desactivar' : 'Activar',
+      icon: template.isActive ? <PowerOff /> : <Power />,
+      onClick: handleToggleActive,
+    },
+    {
+      key: 'archive',
+      label: 'Archivar',
+      icon: <Archive />,
+      onClick: handleArchive,
+    },
+    {
+      key: 'delete',
+      label: 'Eliminar',
+      icon: <Trash2 />,
+      onClick: () => setShowDeleteDialog(true),
+      variant: 'destructive' as const,
+    },
+  ];
+
   return (
     <>
       <div
-        className={`rounded-lg border ${template.isArchived ? 'opacity-60' : ''} ${
+        className={`rounded-2xl border bg-card transition-colors ${template.isArchived ? 'opacity-60' : ''} ${
           !template.isActive && !template.isArchived ? 'border-dashed' : ''
         }`}
       >
-        {/* Header */}
-        <div className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
+        {/* Header - clickable for expand/collapse */}
+        <div
+          className="p-4 flex items-center justify-between cursor-pointer active:bg-muted/50 transition-colors rounded-2xl"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {/* Chevron */}
+            <div className="shrink-0 text-muted-foreground">
               {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-5 w-5" />
               ) : (
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-5 w-5" />
               )}
-            </Button>
-            <div>
+            </div>
+
+            {/* Name + badges */}
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="font-medium">{template.name}</p>
+                <p className="font-semibold text-base truncate">{template.name}</p>
                 {!template.isActive && !template.isArchived && (
-                  <Badge variant="secondary">Inactiva</Badge>
+                  <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">Inactiva</Badge>
                 )}
-                {template.isArchived && <Badge variant="outline">Archivada</Badge>}
+                {template.isArchived && (
+                  <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0">Archivada</Badge>
+                )}
               </div>
               {template.description && (
-                <p className="text-sm text-muted-foreground">{template.description}</p>
+                <p className="text-sm text-muted-foreground truncate">{template.description}</p>
               )}
+
+              {/* Mobile: income/expense row */}
+              <div className="flex items-center gap-3 mt-1 sm:hidden text-xs">
+                <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  +{formatCurrency(template.totalIncome, baseCurrency)}
+                </span>
+                <span className="text-red-600 dark:text-red-400 tabular-nums">
+                  -{formatCurrency(template.totalExpense, baseCurrency)}
+                </span>
+                <span
+                  className={`font-medium tabular-nums ${
+                    netAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                  }`}
+                >
+                  = {formatCurrency(netAmount, baseCurrency)}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Right side: totals + badge + actions */}
+          <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+            {/* Desktop: income/expense */}
             <div className="text-right hidden sm:block">
-              <p className="text-sm">
+              <p className="text-sm tabular-nums">
                 <span className="text-emerald-600 dark:text-emerald-400">
                   +{formatCurrency(template.totalIncome, baseCurrency)}
                 </span>
@@ -190,57 +215,30 @@ export function TemplateCard({
                 </span>
               </p>
               <p
-                className={`text-sm font-medium ${
+                className={`text-sm font-medium tabular-nums ${
                   netAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
                 }`}
               >
                 Neto: {formatCurrency(netAmount, baseCurrency)}
               </p>
             </div>
-            <Badge variant="outline">{template.itemsCount} items</Badge>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEdit}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleToggleActive}>
-                  {template.isActive ? (
-                    <>
-                      <PowerOff className="mr-2 h-4 w-4" />
-                      Desactivar
-                    </>
-                  ) : (
-                    <>
-                      <Power className="mr-2 h-4 w-4" />
-                      Activar
-                    </>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleArchive}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archivar
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Badge variant="outline" className="tabular-nums">{template.itemsCount} items</Badge>
+
+            <CardActions
+              actions={actions}
+              title={template.name}
+              description={template.description ?? undefined}
+              isPending={isPending}
+              showInline={showInlineActions}
+              onToggleInline={() => setShowInlineActions(!showInlineActions)}
+              drawerOpen={showActionsDrawer}
+              onDrawerOpenChange={setShowActionsDrawer}
+            />
           </div>
         </div>
 
-        {/* Items */}
+        {/* Expanded Items */}
         {isExpanded && (
           <div className="border-t px-4 py-3 space-y-2">
             {template.items.length === 0 ? (
@@ -272,44 +270,26 @@ export function TemplateCard({
         )}
       </div>
 
-      {/* Delete Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={handleCloseDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              ¿Eliminar plantilla permanentemente?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <span className="block">
-                Esta acción <strong>no se puede deshacer</strong>. Se eliminará la plantilla
-                &quot;{template.name}&quot; junto con todos sus{' '}
-                <strong>{template.itemsCount} items</strong>.
-              </span>
-              <span className="block">
-                Para confirmar, escribe <strong>{CONFIRM_DELETE_TEXT}</strong> a continuación:
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="py-2">
-            <Input
-              placeholder={`Escribe ${CONFIRM_DELETE_TEXT} para confirmar`}
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
-              className={confirmText && !canDelete ? 'border-destructive' : ''}
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={!canDelete || isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
-            >
-              {isPending ? 'Eliminando...' : 'Eliminar plantilla'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        icon={<Trash2 className="h-7 w-7" />}
+        iconVariant="destructive"
+        title="Eliminar plantilla"
+        description={
+          <>
+            ¿Eliminar <span className="font-medium text-foreground">{template.name}</span> permanentemente?
+            Se eliminarán los <strong>{template.itemsCount} items</strong> asociados.
+          </>
+        }
+        confirmText={isPending ? 'Eliminando...' : 'Eliminar plantilla'}
+        variant="destructive"
+        size="sm"
+        requireConfirmText={CONFIRM_DELETE_TEXT}
+        isPending={isPending}
+        onConfirm={handleDelete}
+      />
 
       {/* Item Dialog */}
       <ResponsiveDrawer open={showItemDialog} onOpenChange={setShowItemDialog}>

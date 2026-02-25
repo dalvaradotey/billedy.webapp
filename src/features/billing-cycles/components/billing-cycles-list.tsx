@@ -2,15 +2,22 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Calendar } from 'lucide-react';
+import {
+  ArrowRight,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
+import { SummaryCard } from '@/components/ui/summary-card';
+import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
 
 import { formatCurrency } from '@/lib/formatting';
 import type { BillingCycleWithTotals, BillingCycleSummary } from '../types';
-import { SummaryCard } from '@/components/ui/summary-card';
 import { BillingCycleCard } from './billing-cycle-card';
 import { BillingCycleDialogContent } from './billing-cycle-dialog';
 
@@ -60,59 +67,57 @@ export function BillingCyclesList({
   };
 
   const hasOpenCycle = cycles.some((c) => c.status === 'open');
+  const cc = summary.currentCycle;
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <SummaryCardsSlider>
         <SummaryCard
           title="Ciclos"
           value={String(summary.totalCycles)}
           subtitle={`${summary.openCycles} abierto, ${summary.closedCycles} cerrados`}
-          icon={<Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+          icon={<Calendar className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="info"
         />
-        {summary.currentCycle && (
-          <>
-            <SummaryCard
-              title="Ingresos del ciclo"
-              value={formatCurrency(summary.currentCycle.currentIncome)}
-              variant="success"
-            />
-            <SummaryCard
-              title="Gastos del ciclo"
-              value={formatCurrency(summary.currentCycle.currentExpenses)}
-              variant="danger"
-            />
-            <SummaryCard
-              title="Balance"
-              value={formatCurrency(summary.currentCycle.currentBalance)}
-              subtitle={`${summary.currentCycle.daysRemaining} días restantes`}
-              variant={summary.currentCycle.currentBalance >= 0 ? 'success' : 'danger'}
-            />
-          </>
-        )}
-        {!summary.currentCycle && (
-          <div className="col-span-3 flex items-center justify-center p-4 border rounded-lg bg-muted/50">
-            <p className="text-muted-foreground text-sm">No hay ciclo abierto</p>
-          </div>
-        )}
-      </div>
+        <SummaryCard
+          title="Ingresos del Ciclo"
+          value={cc ? formatCurrency(cc.currentIncome) : '—'}
+          subtitle={cc ? 'ciclo actual' : 'sin ciclo abierto'}
+          icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="success"
+        />
+        <SummaryCard
+          title="Gastos del Ciclo"
+          value={cc ? formatCurrency(cc.currentExpenses) : '—'}
+          subtitle={cc ? 'ciclo actual' : 'sin ciclo abierto'}
+          icon={<TrendingDown className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="danger"
+        />
+        <SummaryCard
+          title="Balance"
+          value={cc ? formatCurrency(cc.currentBalance) : '—'}
+          subtitle={cc ? `${cc.daysRemaining} días restantes` : 'sin ciclo abierto'}
+          icon={<Wallet className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant={!cc ? 'neutral' : cc.currentBalance >= 0 ? 'success' : 'danger'}
+        />
+      </SummaryCardsSlider>
 
       {/* Actions */}
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">{cycles.length} ciclos</div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {cycles.length} {cycles.length === 1 ? 'ciclo' : 'ciclos'}
+        </p>
 
         <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DrawerTrigger asChild>
             <Button
-              size="sm"
-              className="gap-2"
+              variant="cta-sm"
               onClick={handleOpenDialog}
               disabled={hasOpenCycle}
             >
-              <Plus className="h-4 w-4" />
               Nuevo ciclo
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </DrawerTrigger>
           <BillingCycleDialogContent

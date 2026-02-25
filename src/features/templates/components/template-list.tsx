@@ -1,12 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, FileText } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import {
+  ArrowRight,
+  FileText,
+  Layers,
+  TrendingUp,
+  TrendingDown,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
+import { SummaryCard } from '@/components/ui/summary-card';
+import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
 
 import { formatCurrency } from '@/lib/formatting';
 import type { TemplateWithItems, TemplatesSummary } from '../types';
@@ -37,6 +45,8 @@ export function TemplateList({
   baseCurrency,
   showArchived,
 }: TemplateListProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TemplateWithItems | null>(null);
 
@@ -55,76 +65,84 @@ export function TemplateList({
     setIsDialogOpen(true);
   };
 
-  const activeTemplates = templates.filter((t) => !t.isArchived);
-  const archivedTemplates = templates.filter((t) => t.isArchived);
+  const handleFilterChange = (archived: boolean) => {
+    if (archived) {
+      router.push(`${pathname}?archived=true`);
+    } else {
+      router.push(pathname);
+    }
+  };
+
+  // Filter templates based on the selected tab
+  const displayedTemplates = showArchived
+    ? templates.filter((t) => t.isArchived)
+    : templates.filter((t) => !t.isArchived);
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Plantillas Activas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.activeTemplates}</div>
-            <p className="text-xs text-muted-foreground">
-              de {summary.totalTemplates} totales
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Items Totales
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary.totalItems}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ingresos Mensuales
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-              {formatCurrency(summary.totalMonthlyIncome, baseCurrency)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Gastos Mensuales
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {formatCurrency(summary.totalMonthlyExpense, baseCurrency)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <SummaryCardsSlider>
+        <SummaryCard
+          title="Plantillas Activas"
+          value={String(summary.activeTemplates)}
+          subtitle={`de ${summary.totalTemplates} totales · ${summary.totalItems} items`}
+          icon={<FileText className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="info"
+        />
+        <SummaryCard
+          title="Items Totales"
+          value={String(summary.totalItems)}
+          subtitle="en todas las plantillas"
+          icon={<Layers className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="neutral"
+        />
+        <SummaryCard
+          title="Ingresos Mensuales"
+          value={formatCurrency(summary.totalMonthlyIncome, baseCurrency)}
+          subtitle="estimado por ciclo"
+          icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="success"
+        />
+        <SummaryCard
+          title="Gastos Mensuales"
+          value={formatCurrency(summary.totalMonthlyExpense, baseCurrency)}
+          subtitle="estimado por ciclo"
+          icon={<TrendingDown className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant="danger"
+        />
+      </SummaryCardsSlider>
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div>
-          <h2 className="text-lg font-medium">Plantillas</h2>
-          <p className="text-sm text-muted-foreground">
-            Configura los items recurrentes que se cargarán en cada ciclo
-          </p>
+      {/* Actions */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border bg-muted/50 p-0.5">
+          <button
+            onClick={() => handleFilterChange(false)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              !showArchived
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Activas
+            <span className="ml-1 tabular-nums opacity-60">{summary.activeTemplates}</span>
+          </button>
+          <button
+            onClick={() => handleFilterChange(true)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              showArchived
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Archivadas
+          </button>
         </div>
 
         <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DrawerTrigger asChild>
-            <Button size="sm" className="gap-2" onClick={handleOpenDialog}>
-              <Plus className="h-4 w-4" />
+            <Button variant="cta-sm" onClick={handleOpenDialog}>
               Nueva plantilla
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </DrawerTrigger>
           <TemplateDialogContent
@@ -137,50 +155,31 @@ export function TemplateList({
       </div>
 
       {/* Templates List */}
-      {activeTemplates.length === 0 && archivedTemplates.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="No hay plantillas configuradas"
-          description="Crea una plantilla para automatizar tus transacciones recurrentes."
-        />
-      ) : (
-        <div className="space-y-4">
-          {activeTemplates.map((template) => (
-            <TemplateCard
-              key={template.id}
-              template={template}
-              categories={categories}
-              accounts={accounts}
-              entities={entities}
-              projectId={projectId}
-              userId={userId}
-              baseCurrency={baseCurrency}
-              onEdit={() => handleEdit(template)}
-            />
-          ))}
-
-          {showArchived && archivedTemplates.length > 0 && (
-            <div className="pt-4 border-t">
-              <h3 className="text-sm font-medium text-muted-foreground mb-4">
-                Plantillas archivadas
-              </h3>
-              {archivedTemplates.map((template) => (
-                <TemplateCard
-                  key={template.id}
-                  template={template}
-                  categories={categories}
-                  accounts={accounts}
-                  entities={entities}
-                  projectId={projectId}
-                  userId={userId}
-                  baseCurrency={baseCurrency}
-                  onEdit={() => handleEdit(template)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <div>
+        {displayedTemplates.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title={showArchived ? 'No hay plantillas archivadas' : 'No hay plantillas configuradas'}
+            description="Crea una plantilla para automatizar tus transacciones recurrentes."
+          />
+        ) : (
+          <div className="space-y-3">
+            {displayedTemplates.map((template) => (
+              <TemplateCard
+                key={template.id}
+                template={template}
+                categories={categories}
+                accounts={accounts}
+                entities={entities}
+                projectId={projectId}
+                userId={userId}
+                baseCurrency={baseCurrency}
+                onEdit={() => handleEdit(template)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

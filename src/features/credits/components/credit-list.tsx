@@ -1,18 +1,26 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, CreditCard as CreditCardIcon } from 'lucide-react';
+import {
+  ArrowRight,
+  CreditCard as CreditCardIcon,
+  TrendingUp,
+  CheckCircle,
+  Calendar,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
+import { SummaryCard } from '@/components/ui/summary-card';
+import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
 
 import { formatCurrency } from '@/lib/formatting';
 import type { Entity } from '@/features/entities/types';
 import type { AccountWithEntity } from '@/features/accounts/types';
 import type { CreditWithProgress, CreditSummary } from '../types';
-import { SummaryCard } from '@/components/ui/summary-card';
 import { CreditCard } from './credit-card';
 import { CreditDialogContent } from './credit-dialog';
 
@@ -37,6 +45,8 @@ export function CreditList({
   userId,
   showArchived,
 }: CreditListProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCredit, setEditingCredit] = useState<CreditWithProgress | null>(null);
 
@@ -67,46 +77,79 @@ export function CreditList({
     setIsDialogOpen(true);
   };
 
+  const handleFilterChange = (archived: boolean) => {
+    if (archived) {
+      router.push(`${pathname}?archived=true`);
+    } else {
+      router.push(pathname);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <SummaryCardsSlider>
         <SummaryCard
-          title="Créditos activos"
+          title="Créditos Activos"
           value={String(summary.activeCredits)}
           subtitle={`de ${summary.totalCredits} total`}
-          icon={<CreditCardIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />}
+          icon={<CreditCardIcon className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="info"
         />
         <SummaryCard
-          title="Deuda total"
+          title="Deuda Total"
           value={formatCurrency(summary.totalDebt)}
+          subtitle="en cuotas pendientes"
+          icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="danger"
         />
         <SummaryCard
-          title="Total pagado"
+          title="Total Pagado"
           value={formatCurrency(summary.totalPaid)}
+          subtitle="acumulado"
+          icon={<CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="success"
         />
         <SummaryCard
-          title="Cuota mensual"
+          title="Cuota Mensual"
           value={formatCurrency(summary.monthlyPayment)}
-          subtitle="aproximado"
+          subtitle="aproximado por mes"
+          icon={<Calendar className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="neutral"
         />
-      </div>
+      </SummaryCardsSlider>
 
       {/* Actions */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">
-          {showArchived ? 'Mostrando archivados' : `${credits.length} créditos`}
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border bg-muted/50 p-0.5">
+          <button
+            onClick={() => handleFilterChange(false)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              !showArchived
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Activos
+            <span className="ml-1 tabular-nums opacity-60">{summary.activeCredits}</span>
+          </button>
+          <button
+            onClick={() => handleFilterChange(true)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              showArchived
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Archivados
+          </button>
         </div>
 
         <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DrawerTrigger asChild>
-            <Button size="sm" className="gap-2 w-full sm:w-auto" onClick={handleOpenDialog}>
-              <Plus className="h-4 w-4" />
+            <Button variant="cta-sm" onClick={handleOpenDialog}>
               Nuevo crédito
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </DrawerTrigger>
           <CreditDialogContent

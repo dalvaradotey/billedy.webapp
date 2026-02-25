@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Plus, ArrowRight, Settings, Pencil, Store } from 'lucide-react';
+import { ArrowRight, Settings, Pencil, Store } from 'lucide-react';
 
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SubmitButton } from '@/components/submit-button';
@@ -200,9 +200,9 @@ export function CreatePurchaseDialog({
   return (
     <ResponsiveDrawer open={open} onOpenChange={setOpen}>
       <DrawerTrigger asChild>
-        <Button className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva compra en cuotas
+        <Button variant="cta-sm" className="flex-1 sm:flex-none">
+          Nueva compra
+          <ArrowRight className="h-4 w-4" />
         </Button>
       </DrawerTrigger>
       <FormDrawer
@@ -237,7 +237,7 @@ export function CreatePurchaseDialog({
             />
 
             {/* Dates */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
               <FormField
                 control={form.control}
                 name="purchaseDate"

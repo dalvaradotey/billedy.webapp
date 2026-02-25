@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useIsMobile } from '@/hooks';
 import { toast } from 'sonner';
 import {
   Pencil,
@@ -24,23 +25,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { CardActions } from '@/components/card-actions';
 
 import { formatCurrency, formatDate } from '@/lib/formatting';
 import {
@@ -73,6 +59,9 @@ export function BillingCycleCard({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [closeEndDate, setCloseEndDate] = useState<Date>(new Date(cycle.endDate));
+  const [showActionsDrawer, setShowActionsDrawer] = useState(false);
+  const [showInlineActions, setShowInlineActions] = useState(false);
+  const isMobile = useIsMobile();
 
   const isOpen = cycle.status === 'open';
   const progressPercentage =
@@ -137,187 +126,247 @@ export function BillingCycleCard({
     });
   };
 
+  const actions = [
+    ...(isOpen
+      ? [
+          {
+            key: 'edit',
+            label: 'Editar',
+            icon: <Pencil />,
+            onClick: onEdit,
+          },
+          {
+            key: 'close',
+            label: 'Cerrar ciclo',
+            icon: <Lock />,
+            onClick: handleOpenCloseDialog,
+            closeOnClick: false,
+          },
+        ]
+      : [
+          {
+            key: 'reopen',
+            label: 'Reabrir',
+            icon: <Unlock />,
+            onClick: handleReopen,
+          },
+          {
+            key: 'recalculate',
+            label: 'Recalcular snapshot',
+            icon: <RefreshCw />,
+            onClick: handleRecalculate,
+          },
+        ]),
+    {
+      key: 'delete',
+      label: 'Eliminar',
+      icon: <Trash2 />,
+      onClick: () => setShowDeleteDialog(true),
+      variant: 'destructive' as const,
+    },
+  ];
+
   return (
-    <div className={`rounded-lg border p-4 space-y-3 ${!isOpen ? 'opacity-75' : ''}`}>
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
+    <>
+      {/* Card */}
+      <div
+        onClick={() => {
+          if (isMobile) {
+            setShowActionsDrawer(true);
+          } else {
+            setShowInlineActions(!showInlineActions);
+          }
+        }}
+        className={`rounded-2xl border bg-card p-4 transition-colors cursor-pointer active:bg-muted/50 ${!isOpen ? 'opacity-75' : ''}`}
+      >
+        {/* Header: Icon + Info + Actions */}
+        <div className="flex items-start gap-3">
+          {/* Status Icon */}
           {isOpen ? (
-            <Clock className="h-5 w-5 text-blue-600" />
-          ) : (
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-          )}
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="font-medium">{cycle.name}</p>
-              <Badge variant={isOpen ? 'default' : 'secondary'}>
-                {isOpen ? 'Abierto' : 'Cerrado'}
-              </Badge>
+            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+              <Clock className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              {formatDate(cycle.startDate)} - {formatDate(cycle.endDate)}
+          ) : (
+            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+              <CheckCircle2 className="h-6 w-6 sm:h-5 sm:w-5" />
+            </div>
+          )}
+
+          {/* Info */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-base truncate">{cycle.name}</p>
+                  <Badge
+                    variant={isOpen ? 'default' : 'secondary'}
+                    className="shrink-0 text-[10px] px-1.5 py-0"
+                  >
+                    {isOpen ? 'Abierto' : 'Cerrado'}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {formatDate(cycle.startDate)} - {formatDate(cycle.endDate)}
+                </p>
+              </div>
+
+              {/* Desktop: Balance + Actions inline */}
+              <div className="hidden sm:flex items-center gap-3">
+                <CardActions
+                  actions={actions}
+                  title={cycle.name}
+                  description={`${formatDate(cycle.startDate)} - ${formatDate(cycle.endDate)}`}
+                  isPending={isPending}
+                  showInline={showInlineActions}
+                  onToggleInline={() => setShowInlineActions(!showInlineActions)}
+                  drawerOpen={showActionsDrawer}
+                  onDrawerOpenChange={setShowActionsDrawer}
+                >
+                  <div className="text-right min-w-[120px]">
+                    <p
+                      className={`text-lg font-bold tabular-nums ${
+                        cycle.currentBalance >= 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}
+                    >
+                      {formatCurrency(cycle.currentBalance)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">balance</p>
+                  </div>
+                </CardActions>
+              </div>
+            </div>
+
+            {/* Mobile: Balance row */}
+            <div className="flex items-center justify-between mt-2 sm:hidden">
+              <p
+                className={`text-xl font-bold tabular-nums ${
+                  cycle.currentBalance >= 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-red-600 dark:text-red-400'
+                }`}
+              >
+                {formatCurrency(cycle.currentBalance)}
+              </p>
+              <p className="text-sm text-muted-foreground">balance</p>
+              <CardActions
+                actions={actions}
+                title={cycle.name}
+                description={`${formatDate(cycle.startDate)} - ${formatDate(cycle.endDate)}`}
+                isPending={isPending}
+                showInline={false}
+                onToggleInline={() => {}}
+                drawerOpen={showActionsDrawer}
+                onDrawerOpenChange={setShowActionsDrawer}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Progress (for open cycles) */}
+        {isOpen && (
+          <div className="mt-3">
+            <Progress value={progressPercentage} className="h-3" />
+            <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
+              <span>{cycle.daysElapsed} días transcurridos</span>
+              <span>{cycle.daysRemaining} días restantes</span>
+            </div>
+          </div>
+        )}
+
+        {/* Totals */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+          <div className="text-center p-2.5 rounded-xl bg-muted/50">
+            <p className="text-xs text-muted-foreground">Ingresos</p>
+            <p className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+              {formatCurrency(cycle.currentIncome)}
+            </p>
+          </div>
+          <div className="text-center p-2.5 rounded-xl bg-muted/50">
+            <p className="text-xs text-muted-foreground">Gastos</p>
+            <p className="font-semibold tabular-nums text-red-600 dark:text-red-400">
+              {formatCurrency(cycle.currentExpenses)}
+            </p>
+          </div>
+          <div className="text-center p-2.5 rounded-xl bg-muted/50">
+            <p className="text-xs text-muted-foreground">Ahorro</p>
+            <p className="font-semibold tabular-nums text-blue-600 dark:text-blue-400">
+              {formatCurrency(cycle.currentSavings)}
+            </p>
+          </div>
+          <div className="text-center p-2.5 rounded-xl bg-muted/50">
+            <p className="text-xs text-muted-foreground">Balance</p>
+            <p
+              className={`font-semibold tabular-nums ${
+                cycle.currentBalance >= 0
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-red-600 dark:text-red-400'
+              }`}
+            >
+              {formatCurrency(cycle.currentBalance)}
             </p>
           </div>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
-              <span className="sr-only">Acciones</span>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v.01M12 12v.01M12 18v.01"
+        {cycle.notes && (
+          <p className="text-sm text-muted-foreground mt-2">{cycle.notes}</p>
+        )}
+      </div>
+
+      {/* Close Cycle Drawer */}
+      <ResponsiveDrawer open={showCloseDialog} onOpenChange={setShowCloseDialog}>
+        <DrawerContent>
+          <div className="mx-auto w-full max-w-lg">
+            <DrawerHeader>
+              <DrawerTitle>Cerrar ciclo</DrawerTitle>
+              <DrawerDescription>
+                Ajusta la fecha de cierre si es necesario. Se guardará un snapshot de los
+                totales.
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="space-y-4 px-4 pb-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Fecha de cierre</label>
+                <Input
+                  type="date"
+                  value={formatDateInput(closeEndDate)}
+                  onChange={(e) =>
+                    setCloseEndDate(
+                      e.target.value
+                        ? new Date(e.target.value + 'T12:00:00')
+                        : new Date(cycle.endDate)
+                    )
+                  }
                 />
-              </svg>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {isOpen ? (
-              <>
-                <DropdownMenuItem onClick={onEdit}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleOpenCloseDialog}>
-                  <Lock className="mr-2 h-4 w-4" />
-                  Cerrar ciclo
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <>
-                <DropdownMenuItem onClick={handleReopen}>
-                  <Unlock className="mr-2 h-4 w-4" />
-                  Reabrir
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleRecalculate}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Recalcular snapshot
-                </DropdownMenuItem>
-              </>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => setShowDeleteDialog(true)}
-              className="text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* Close Confirmation */}
-        <ResponsiveDrawer open={showCloseDialog} onOpenChange={setShowCloseDialog}>
-          <DrawerContent>
-            <div className="mx-auto w-full max-w-lg">
-              <DrawerHeader>
-                <DrawerTitle>Cerrar ciclo</DrawerTitle>
-                <DrawerDescription>
-                  Ajusta la fecha de cierre si es necesario. Se guardará un snapshot de los
-                  totales.
-                </DrawerDescription>
-              </DrawerHeader>
-              <div className="space-y-4 px-4 pb-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Fecha de cierre</label>
-                  <Input
-                    type="date"
-                    value={formatDateInput(closeEndDate)}
-                    onChange={(e) =>
-                      setCloseEndDate(
-                        e.target.value
-                          ? new Date(e.target.value + 'T12:00:00')
-                          : new Date(cycle.endDate)
-                      )
-                    }
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Fecha original: {formatDate(cycle.endDate)}
-                  </p>
-                </div>
-                <DrawerFooter className="pt-4">
-                  <Button onClick={handleClose} disabled={isPending} className="w-full">
-                    {isPending ? 'Cerrando...' : 'Cerrar ciclo'}
-                  </Button>
-                </DrawerFooter>
+                <p className="text-xs text-muted-foreground">
+                  Fecha original: {formatDate(cycle.endDate)}
+                </p>
               </div>
+              <DrawerFooter className="pt-4">
+                <Button onClick={handleClose} disabled={isPending} className="w-full">
+                  {isPending ? 'Cerrando...' : 'Cerrar ciclo'}
+                </Button>
+              </DrawerFooter>
             </div>
-          </DrawerContent>
-        </ResponsiveDrawer>
-
-        {/* Delete Confirmation */}
-        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Eliminar ciclo</AlertDialogTitle>
-              <AlertDialogDescription>
-                ¿Eliminar este ciclo? Esta acción no se puede deshacer.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                disabled={isPending}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {isPending ? 'Eliminando...' : 'Eliminar'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-
-      {/* Progress (for open cycles) */}
-      {isOpen && (
-        <div className="space-y-1">
-          <Progress value={progressPercentage} className="h-2" />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{cycle.daysElapsed} días transcurridos</span>
-            <span>{cycle.daysRemaining} días restantes</span>
           </div>
-        </div>
-      )}
+        </DrawerContent>
+      </ResponsiveDrawer>
 
-      {/* Totals */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-        <div className="text-center p-2 rounded-md bg-muted/50">
-          <p className="text-xs text-muted-foreground">Ingresos</p>
-          <p className="font-semibold text-emerald-600 dark:text-emerald-400">
-            {formatCurrency(cycle.currentIncome)}
-          </p>
-        </div>
-        <div className="text-center p-2 rounded-md bg-muted/50">
-          <p className="text-xs text-muted-foreground">Gastos</p>
-          <p className="font-semibold text-red-600 dark:text-red-400">
-            {formatCurrency(cycle.currentExpenses)}
-          </p>
-        </div>
-        <div className="text-center p-2 rounded-md bg-muted/50">
-          <p className="text-xs text-muted-foreground">Ahorro</p>
-          <p className="font-semibold text-blue-600">
-            {formatCurrency(cycle.currentSavings)}
-          </p>
-        </div>
-        <div className="text-center p-2 rounded-md bg-muted/50">
-          <p className="text-xs text-muted-foreground">Balance</p>
-          <p
-            className={`font-semibold ${cycle.currentBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
-          >
-            {formatCurrency(cycle.currentBalance)}
-          </p>
-        </div>
-      </div>
-
-      {cycle.notes && <p className="text-sm text-muted-foreground pt-2">{cycle.notes}</p>}
-    </div>
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        icon={<Trash2 className="h-7 w-7" />}
+        iconVariant="destructive"
+        title="Eliminar ciclo"
+        description="¿Eliminar este ciclo? Esta acción no se puede deshacer."
+        confirmText={isPending ? 'Eliminando...' : 'Eliminar'}
+        variant="destructive"
+        size="sm"
+        isPending={isPending}
+        onConfirm={handleDelete}
+      />
+    </>
   );
 }

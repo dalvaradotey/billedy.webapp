@@ -1,70 +1,68 @@
 'use client';
 
-import { CreditCard, Calendar, Percent, TrendingUp } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CreditCard, Calendar, Percent, TrendingUp, AlertTriangle, Shield } from 'lucide-react';
+import { SummaryCard } from '@/components/ui/summary-card';
+import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
 import { formatCurrency } from '@/lib/formatting';
-import type { CardPurchasesSummary } from '../types';
+import type { CardPurchasesSummary, DebtCapacityReport } from '../types';
 
 interface SummaryCardsProps {
   summary: CardPurchasesSummary;
+  debtCapacity: DebtCapacityReport;
 }
 
-export function SummaryCards({ summary }: SummaryCardsProps) {
+export function SummaryCards({ summary, debtCapacity }: SummaryCardsProps) {
+  const hasCapacityLimit = debtCapacity.maxInstallmentAmount !== null;
+  const capacityVariant = debtCapacity.isOverLimit
+    ? 'danger' as const
+    : debtCapacity.usedPercentage >= 80
+      ? 'danger' as const
+      : 'success' as const;
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Compras Activas</CardTitle>
-          <CreditCard className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{summary.activePurchases}</div>
-          <p className="text-xs text-muted-foreground">
-            de {summary.totalPurchases} totales
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Deuda Total</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(summary.totalDebt)}</div>
-          <p className="text-xs text-muted-foreground">
-            en cuotas pendientes
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Cargo Mensual</CardTitle>
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(summary.monthlyCharge)}</div>
-          <p className="text-xs text-muted-foreground">
-            aproximado por mes
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Intereses Pagados</CardTitle>
-          <Percent className="h-4 w-4 text-destructive" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-destructive">
-            {formatCurrency(summary.totalInterestPaid)}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            total acumulado
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <SummaryCardsSlider>
+      <SummaryCard
+        title="Compras Activas"
+        value={String(summary.activePurchases)}
+        subtitle={`de ${summary.totalPurchases} totales`}
+        icon={<CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />}
+        variant="info"
+      />
+      <SummaryCard
+        title="Deuda Total"
+        value={formatCurrency(summary.totalDebt)}
+        subtitle="en cuotas pendientes"
+        icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
+        variant="danger"
+      />
+      <SummaryCard
+        title="Cargo Mensual"
+        value={formatCurrency(summary.monthlyCharge)}
+        subtitle="aproximado por mes"
+        icon={<Calendar className="h-4 w-4 sm:h-5 sm:w-5" />}
+        variant="neutral"
+      />
+      {hasCapacityLimit ? (
+        <SummaryCard
+          title="Capacidad"
+          value={`${debtCapacity.usedPercentage}%`}
+          subtitle={`Disponible: ${formatCurrency(debtCapacity.availableCapacity)}`}
+          icon={
+            debtCapacity.isOverLimit
+              ? <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
+              : <Shield className="h-4 w-4 sm:h-5 sm:w-5" />
+          }
+          variant={capacityVariant}
+        />
+      ) : (
+        <SummaryCard
+          title="Intereses"
+          value={formatCurrency(summary.totalInterestPaid)}
+          subtitle="total acumulado"
+          icon={<Percent className="h-4 w-4 sm:h-5 sm:w-5" />}
+          variant={summary.totalInterestPaid > 0 ? 'danger' : 'neutral'}
+        />
+      )}
+    </SummaryCardsSlider>
   );
 }
