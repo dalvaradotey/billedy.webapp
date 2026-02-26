@@ -13,6 +13,8 @@ import {
   Target,
   Check,
   ArrowRight,
+  MoreVertical,
+  X,
 } from 'lucide-react';
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SubmitButton } from '@/components/submit-button';
@@ -38,7 +40,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { CardActions } from '@/components/card-actions';
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
+import { cn } from '@/lib/utils';
+import { cardStyles } from '@/components/card-styles';
 import { useIsMobile } from '@/hooks';
 import { Badge } from '@/components/ui/badge';
 import { CategorySelector } from '@/components/category-selector';
@@ -236,71 +240,176 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
     },
   ];
 
+  const description = budget.categoryName || undefined;
+
   return (
     <>
       <div
         onClick={() => {
           if (isMobile) {
             setShowActionsDrawer(true);
-          } else {
-            setShowInlineActions(!showInlineActions);
           }
         }}
-        className={`rounded-2xl border bg-card p-4 transition-colors cursor-pointer active:bg-muted/50 ${!budget.isActive ? 'opacity-60' : ''}`}
+        className={cn(
+          cardStyles.base,
+          isMobile && 'cursor-pointer',
+          !budget.isActive && cardStyles.inactive
+        )}
       >
-        <div className="flex items-center justify-between gap-3">
-          {/* Budget Info */}
-          <div className="flex items-center gap-3 min-w-0">
-            {budget.categoryColor ? (
+        {/* Top row: Icon + Info + Actions */}
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          {budget.categoryColor ? (
+            <div
+              className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
+              style={{ backgroundColor: budget.categoryColor + '30' }}
+            >
               <div
-                className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl flex-shrink-0"
-                style={{ backgroundColor: budget.categoryColor + '30' }}
-              >
-                <div
-                  className="w-full h-full rounded-xl flex items-center justify-center"
-                >
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: budget.categoryColor }}
-                  />
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: budget.categoryColor }}
+              />
+            </div>
+          ) : (
+            <div className="p-3 sm:p-2.5 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+              <Target className="h-6 w-6 sm:h-5 sm:w-5 text-muted-foreground" />
+            </div>
+          )}
+
+          {/* Info */}
+          <div className="min-w-0 flex-1">
+            {/* Row 1: Title + Amount + actions */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-base truncate">{budget.name}</p>
+                  {!budget.isActive && (
+                    <Badge variant="secondary" className="text-xs flex-shrink-0">Inactivo</Badge>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-                <Target className="h-5 w-5 sm:h-4 sm:w-4 text-muted-foreground" />
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-base truncate">{budget.name}</p>
-                {!budget.isActive && (
-                  <Badge variant="secondary" className="text-xs flex-shrink-0">Inactivo</Badge>
+                {budget.categoryName && (
+                  <p className="text-sm text-muted-foreground truncate">{budget.categoryName}</p>
                 )}
               </div>
-              {budget.categoryName && (
-                <p className="text-sm text-muted-foreground truncate">{budget.categoryName}</p>
-              )}
-            </div>
-          </div>
 
-          {/* Actions & Amount */}
-          <div className="flex items-center gap-2">
-            <CardActions
-              actions={actions}
-              title={budget.name}
-              description={budget.categoryName || undefined}
-              isPending={isPending}
-              showInline={showInlineActions}
-              onToggleInline={() => setShowInlineActions(!showInlineActions)}
-              drawerOpen={showActionsDrawer}
-              onDrawerOpenChange={setShowActionsDrawer}
-            >
-              <span className="text-lg sm:text-base font-bold tabular-nums sm:text-right sm:min-w-[120px]">
+              {/* Desktop: Amount */}
+              <p className="hidden sm:block text-2xl font-bold tabular-nums text-foreground shrink-0">
                 {formatCurrency(budget.defaultAmount, budget.currency)}
-              </span>
-            </CardActions>
+              </p>
+
+              {/* Actions toggle */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isMobile) {
+                    setShowActionsDrawer(true);
+                  } else {
+                    setShowInlineActions(!showInlineActions);
+                  }
+                }}
+                disabled={isPending}
+                className={cn(
+                  cardStyles.actionsButton,
+                  showInlineActions && 'sm:rotate-90'
+                )}
+              >
+                {showInlineActions && !isMobile ? (
+                  <X className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="sr-only">Acciones</span>
+              </button>
+            </div>
+
+            {/* Mobile: Amount below description */}
+            <p className="text-2xl font-bold tabular-nums text-foreground mt-1 sm:hidden">
+              {formatCurrency(budget.defaultAmount, budget.currency)}
+            </p>
+
+            {/* Mobile actions drawer */}
+            <Drawer open={showActionsDrawer} onOpenChange={setShowActionsDrawer}>
+              <DrawerContent>
+                <DrawerHeader className="text-left pb-2">
+                  <DrawerTitle>{budget.name}</DrawerTitle>
+                  {description && <DrawerDescription>{description}</DrawerDescription>}
+                </DrawerHeader>
+                <div className="px-2 pb-2">
+                  {actions.map((action) => (
+                    <DrawerClose key={action.key} asChild>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); action.onClick(); }}
+                        disabled={isPending}
+                        className={cn(
+                          cardStyles.drawerAction,
+                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                        )}
+                      >
+                        <div className={cn(
+                          cardStyles.drawerActionIconBox,
+                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                        )}>
+                          <span className={cn(
+                            '[&>svg]:h-5 [&>svg]:w-5',
+                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                          )}>
+                            {action.icon}
+                          </span>
+                        </div>
+                        <span className={cn(
+                          'text-base font-medium',
+                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                        )}>
+                          {action.label}
+                        </span>
+                      </button>
+                    </DrawerClose>
+                  ))}
+                </div>
+                <div className="px-4 pb-4 pt-2 border-t">
+                  <DrawerClose asChild>
+                    <button className={cardStyles.drawerCancelButton}>
+                      Cancelar
+                    </button>
+                  </DrawerClose>
+                </div>
+              </DrawerContent>
+            </Drawer>
           </div>
         </div>
+
+        {/* Desktop: Inline actions */}
+        {showInlineActions && (
+          <div className="mt-3 hidden sm:block animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className={cardStyles.inlineActionsGrid}>
+              {actions.map((action) => (
+                <button
+                  key={action.key}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    action.onClick();
+                  }}
+                  disabled={isPending}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-colors disabled:opacity-50',
+                    action.variant === 'destructive'
+                      ? cardStyles.inlineActionDestructive
+                      : cardStyles.inlineActionDefault
+                  )}
+                >
+                  <span className={cn(
+                    '[&>svg]:h-5 [&>svg]:w-5',
+                    action.variant === 'destructive'
+                      ? 'text-red-500 dark:text-red-400'
+                      : 'text-muted-foreground'
+                  )}>
+                    {action.icon}
+                  </span>
+                  <span className="text-sm font-medium">{action.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation */}

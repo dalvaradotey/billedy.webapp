@@ -39,7 +39,7 @@ export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: Template
   };
 
   return (
-    <div className="flex items-start gap-3 py-2.5 px-3 rounded-xl hover:bg-muted/50 transition-colors">
+    <div className="flex items-start gap-3 py-2.5 px-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors">
       {/* Entity image */}
       {item.entityImageUrl ? (
         <img

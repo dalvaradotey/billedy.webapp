@@ -1,8 +1,9 @@
 import { Skeleton } from '@/components/ui/skeleton';
+import { cardStyles } from '@/components/card-styles';
 
 export function BillingCycleCardSkeleton() {
   return (
-    <div className="rounded-2xl border bg-card p-4">
+    <div className={cardStyles.base}>
       {/* Header: Icon + Info */}
       <div className="flex items-start gap-3">
         <Skeleton className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0" />
@@ -16,27 +17,27 @@ export function BillingCycleCardSkeleton() {
               </div>
               <Skeleton className="h-4 w-48" />
             </div>
-            {/* Desktop balance */}
-            <div className="hidden sm:block text-right space-y-1">
-              <Skeleton className="h-6 w-24 ml-auto" />
-              <Skeleton className="h-3 w-12 ml-auto" />
+            {/* Desktop: Balance + actions button */}
+            <div className="hidden sm:flex items-center gap-3">
+              <Skeleton className="h-7 w-28" />
+              <Skeleton className="h-8 w-8 rounded-full" />
             </div>
           </div>
 
-          {/* Mobile balance row */}
-          <div className="flex items-center justify-between mt-2 sm:hidden">
-            <Skeleton className="h-7 w-28" />
-            <Skeleton className="h-4 w-14" />
-          </div>
+          {/* Mobile: Balance */}
+          <Skeleton className="h-7 w-32 mt-1 sm:hidden" />
         </div>
       </div>
 
-      {/* Progress */}
-      <div className="mt-3 space-y-1.5">
-        <Skeleton className="h-3 w-full rounded-full" />
-        <div className="flex justify-between">
-          <Skeleton className="h-3 w-28" />
-          <Skeleton className="h-3 w-28" />
+      {/* Progress section (gradient) */}
+      <div className={`mt-3 ${cardStyles.progressSection}`}>
+        <div className="flex items-baseline justify-between mb-2.5">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="h-6 flex-1 rounded-full" />
+          <Skeleton className="h-5 w-10" />
         </div>
       </div>
 

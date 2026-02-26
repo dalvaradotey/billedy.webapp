@@ -11,22 +11,27 @@ import {
   RefreshCw,
   CheckCircle2,
   Clock,
+  MoreVertical,
+  X,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
-  ResponsiveDrawer,
+  Drawer,
+  DrawerClose,
   DrawerContent,
   DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
+  ResponsiveDrawer,
 } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { CardActions } from '@/components/card-actions';
+import { cn } from '@/lib/utils';
+import { cardStyles } from '@/components/card-styles';
 
 import { formatCurrency, formatDate } from '@/lib/formatting';
 import {
@@ -166,6 +171,12 @@ export function BillingCycleCard({
     },
   ];
 
+  const description = `${formatDate(cycle.startDate)} - ${formatDate(cycle.endDate)}`;
+
+  const balanceColor = cycle.currentBalance >= 0
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : 'text-red-600 dark:text-red-400';
+
   return (
     <>
       {/* Card */}
@@ -173,11 +184,13 @@ export function BillingCycleCard({
         onClick={() => {
           if (isMobile) {
             setShowActionsDrawer(true);
-          } else {
-            setShowInlineActions(!showInlineActions);
           }
         }}
-        className={`rounded-2xl border bg-card p-4 transition-colors cursor-pointer active:bg-muted/50 ${!isOpen ? 'opacity-75' : ''}`}
+        className={cn(
+          cardStyles.base,
+          isMobile && 'cursor-pointer',
+          !isOpen && 'opacity-75'
+        )}
       >
         {/* Header: Icon + Info + Actions */}
         <div className="flex items-start gap-3">
@@ -194,6 +207,7 @@ export function BillingCycleCard({
 
           {/* Info */}
           <div className="min-w-0 flex-1">
+            {/* Row 1: Title + Balance + actions */}
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -206,104 +220,143 @@ export function BillingCycleCard({
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {formatDate(cycle.startDate)} - {formatDate(cycle.endDate)}
+                  {description}
                 </p>
               </div>
 
-              {/* Desktop: Balance + Actions inline */}
-              <div className="hidden sm:flex items-center gap-3">
-                <CardActions
-                  actions={actions}
-                  title={cycle.name}
-                  description={`${formatDate(cycle.startDate)} - ${formatDate(cycle.endDate)}`}
-                  isPending={isPending}
-                  showInline={showInlineActions}
-                  onToggleInline={() => setShowInlineActions(!showInlineActions)}
-                  drawerOpen={showActionsDrawer}
-                  onDrawerOpenChange={setShowActionsDrawer}
-                >
-                  <div className="text-right min-w-[120px]">
-                    <p
-                      className={`text-lg font-bold tabular-nums ${
-                        cycle.currentBalance >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400'
-                      }`}
-                    >
-                      {formatCurrency(cycle.currentBalance)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">balance</p>
-                  </div>
-                </CardActions>
-              </div>
-            </div>
-
-            {/* Mobile: Balance row */}
-            <div className="flex items-center justify-between mt-2 sm:hidden">
-              <p
-                className={`text-xl font-bold tabular-nums ${
-                  cycle.currentBalance >= 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-red-600 dark:text-red-400'
-                }`}
-              >
+              {/* Desktop: Balance */}
+              <p className={cn('hidden sm:block text-2xl font-bold tabular-nums shrink-0', balanceColor)}>
                 {formatCurrency(cycle.currentBalance)}
               </p>
-              <p className="text-sm text-muted-foreground">balance</p>
-              <CardActions
-                actions={actions}
-                title={cycle.name}
-                description={`${formatDate(cycle.startDate)} - ${formatDate(cycle.endDate)}`}
-                isPending={isPending}
-                showInline={false}
-                onToggleInline={() => {}}
-                drawerOpen={showActionsDrawer}
-                onDrawerOpenChange={setShowActionsDrawer}
-              />
+
+              {/* Actions toggle */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isMobile) {
+                    setShowActionsDrawer(true);
+                  } else {
+                    setShowInlineActions(!showInlineActions);
+                  }
+                }}
+                disabled={isPending}
+                className={cn(
+                  cardStyles.actionsButton,
+                  showInlineActions && 'sm:rotate-90'
+                )}
+              >
+                {showInlineActions && !isMobile ? (
+                  <X className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="sr-only">Acciones</span>
+              </button>
             </div>
+
+            {/* Mobile: Balance below description */}
+            <p className={cn('text-2xl font-bold tabular-nums mt-1 sm:hidden', balanceColor)}>
+              {formatCurrency(cycle.currentBalance)}
+            </p>
+
+            {/* Mobile actions drawer */}
+            <Drawer open={showActionsDrawer} onOpenChange={setShowActionsDrawer}>
+              <DrawerContent>
+                <DrawerHeader className="text-left pb-2">
+                  <DrawerTitle>{cycle.name}</DrawerTitle>
+                  <DrawerDescription>{description}</DrawerDescription>
+                </DrawerHeader>
+                <div className="px-2 pb-2">
+                  {actions.map((action) => (
+                    <DrawerClose key={action.key} asChild>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); action.onClick(); }}
+                        disabled={isPending}
+                        className={cn(
+                          cardStyles.drawerAction,
+                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                        )}
+                      >
+                        <div className={cn(
+                          cardStyles.drawerActionIconBox,
+                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                        )}>
+                          <span className={cn(
+                            '[&>svg]:h-5 [&>svg]:w-5',
+                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                          )}>
+                            {action.icon}
+                          </span>
+                        </div>
+                        <span className={cn(
+                          'text-base font-medium',
+                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                        )}>
+                          {action.label}
+                        </span>
+                      </button>
+                    </DrawerClose>
+                  ))}
+                </div>
+                <div className="px-4 pb-4 pt-2 border-t">
+                  <DrawerClose asChild>
+                    <button className={cardStyles.drawerCancelButton}>
+                      Cancelar
+                    </button>
+                  </DrawerClose>
+                </div>
+              </DrawerContent>
+            </Drawer>
           </div>
         </div>
 
         {/* Progress (for open cycles) */}
         {isOpen && (
-          <div className="mt-3">
-            <Progress value={progressPercentage} className="h-3" />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
-              <span>{cycle.daysElapsed} días transcurridos</span>
-              <span>{cycle.daysRemaining} días restantes</span>
+          <div className={cn('mt-3', cardStyles.progressSection)}>
+            <div className="flex items-baseline justify-between mb-2.5">
+              <p className="text-sm">
+                <span className={cardStyles.progressLabel}>{cycle.daysElapsed}</span>
+                <span className={cardStyles.progressSecondary}> de {cycle.daysTotal} días</span>
+              </p>
+              <p className="text-sm text-right">
+                <span className={cn(cardStyles.progressLabel, 'font-semibold')}>
+                  {cycle.daysRemaining}
+                </span>
+                <span className={cardStyles.progressSecondary}> días restantes</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Progress value={progressPercentage} className={cardStyles.progressBar} indicatorClassName={cardStyles.progressIndicator} />
+              <span className={cn('text-lg', cardStyles.progressPercentage)}>
+                {progressPercentage}%
+              </span>
             </div>
           </div>
         )}
 
         {/* Totals */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-          <div className="text-center p-2.5 rounded-xl bg-muted/50">
+          <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
             <p className="text-xs text-muted-foreground">Ingresos</p>
             <p className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
               {formatCurrency(cycle.currentIncome)}
             </p>
           </div>
-          <div className="text-center p-2.5 rounded-xl bg-muted/50">
+          <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
             <p className="text-xs text-muted-foreground">Gastos</p>
             <p className="font-semibold tabular-nums text-red-600 dark:text-red-400">
               {formatCurrency(cycle.currentExpenses)}
             </p>
           </div>
-          <div className="text-center p-2.5 rounded-xl bg-muted/50">
+          <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
             <p className="text-xs text-muted-foreground">Ahorro</p>
             <p className="font-semibold tabular-nums text-blue-600 dark:text-blue-400">
               {formatCurrency(cycle.currentSavings)}
             </p>
           </div>
-          <div className="text-center p-2.5 rounded-xl bg-muted/50">
+          <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
             <p className="text-xs text-muted-foreground">Balance</p>
-            <p
-              className={`font-semibold tabular-nums ${
-                cycle.currentBalance >= 0
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-red-600 dark:text-red-400'
-              }`}
-            >
+            <p className={cn('font-semibold tabular-nums', balanceColor)}>
               {formatCurrency(cycle.currentBalance)}
             </p>
           </div>
@@ -311,6 +364,40 @@ export function BillingCycleCard({
 
         {cycle.notes && (
           <p className="text-sm text-muted-foreground mt-2">{cycle.notes}</p>
+        )}
+
+        {/* Desktop: Inline actions */}
+        {showInlineActions && (
+          <div className="mt-3 hidden sm:block animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className={cardStyles.inlineActionsGrid}>
+              {actions.map((action) => (
+                <button
+                  key={action.key}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    action.onClick();
+                  }}
+                  disabled={isPending}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-colors disabled:opacity-50',
+                    action.variant === 'destructive'
+                      ? cardStyles.inlineActionDestructive
+                      : cardStyles.inlineActionDefault
+                  )}
+                >
+                  <span className={cn(
+                    '[&>svg]:h-5 [&>svg]:w-5',
+                    action.variant === 'destructive'
+                      ? 'text-red-500 dark:text-red-400'
+                      : 'text-muted-foreground'
+                  )}>
+                    {action.icon}
+                  </span>
+                  <span className="text-sm font-medium">{action.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 

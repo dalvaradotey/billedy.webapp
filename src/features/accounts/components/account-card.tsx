@@ -10,10 +10,14 @@ import {
   Archive,
   ArchiveRestore,
   Star,
+  MoreVertical,
+  X,
 } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { CardActions } from '@/components/card-actions';
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
+import { cn } from '@/lib/utils';
+import { cardStyles } from '@/components/card-styles';
 
 import { formatCurrency } from '@/lib/formatting';
 import { archiveAccount, restoreAccount, deleteAccount } from '../actions';
@@ -127,6 +131,14 @@ export function AccountCard({
     },
   ];
 
+  const balanceColor = isCredit
+    ? balance > 0
+      ? 'text-red-600 dark:text-red-400'
+      : 'text-muted-foreground'
+    : balance >= 0
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : 'text-red-600 dark:text-red-400';
+
   return (
     <>
       {/* Card */}
@@ -134,74 +146,59 @@ export function AccountCard({
         onClick={() => {
           if (isMobile) {
             setShowActionsDrawer(true);
-          } else {
-            setShowInlineActions(!showInlineActions);
           }
         }}
-        className={`rounded-2xl border bg-card p-4 transition-colors cursor-pointer active:bg-muted/50 ${account.isArchived ? 'opacity-60' : ''}`}
+        className={cn(
+          cardStyles.base,
+          isMobile && 'cursor-pointer',
+          account.isArchived && cardStyles.inactive
+        )}
       >
-        {/* Mobile: Stack vertical, Desktop: Horizontal */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Account Info */}
-          <div className="flex items-center gap-3 min-w-0">
-            {account.entity?.imageUrl ? (
-              <div className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-border">
-                <Image
-                  src={account.entity.imageUrl}
-                  alt={account.entity.name}
-                  width={48}
-                  height={48}
-                  className="object-cover w-full h-full"
-                />
-              </div>
-            ) : (
-              <div
-                className={`p-3 sm:p-2.5 rounded-xl flex-shrink-0 ${
-                  isCredit
-                    ? 'bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400'
-                    : 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
-                }`}
-              >
-                <AccountTypeIcon type={account.type as AccountType} className="h-6 w-6 sm:h-5 sm:w-5" />
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-base truncate">{account.name}</p>
-                {account.isDefault && (
-                  <Star className="h-4 w-4 flex-shrink-0 text-amber-500 fill-amber-500" />
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground truncate">
-                {description}
-              </p>
+        {/* Top row: Icon + Info + Actions */}
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          {account.entity?.imageUrl ? (
+            <div className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-border">
+              <Image
+                src={account.entity.imageUrl}
+                alt={account.entity.name}
+                width={48}
+                height={48}
+                className="object-cover w-full h-full"
+              />
             </div>
-          </div>
-
-          {/* Balance & Actions */}
-          <div className="flex items-center justify-between sm:justify-end gap-3 ml-[60px] sm:ml-0">
-            <CardActions
-              actions={actions}
-              title={account.name}
-              description={description}
-              isPending={isPending}
-              showInline={showInlineActions}
-              onToggleInline={() => setShowInlineActions(!showInlineActions)}
-              drawerOpen={showActionsDrawer}
-              onDrawerOpenChange={setShowActionsDrawer}
+          ) : (
+            <div
+              className={cn(
+                'p-3 sm:p-2.5 rounded-xl flex-shrink-0',
+                isCredit
+                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400'
+                  : 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
+              )}
             >
-              <div className="sm:text-right sm:min-w-[140px]">
-                <p
-                  className={`text-xl sm:text-lg font-bold tabular-nums ${
-                    isCredit
-                      ? balance > 0
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-muted-foreground'
-                      : balance >= 0
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
+              <AccountTypeIcon type={account.type as AccountType} className="h-6 w-6 sm:h-5 sm:w-5" />
+            </div>
+          )}
+
+          {/* Info */}
+          <div className="min-w-0 flex-1">
+            {/* Row 1: Title + Amount + actions */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-base truncate">{account.name}</p>
+                  {account.isDefault && (
+                    <Star className="h-4 w-4 flex-shrink-0 text-amber-500 fill-amber-500" />
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground truncate">
+                  {description}
+                </p>
+              </div>
+
+              {/* Desktop: Balance */}
+              <div className="hidden sm:block text-right shrink-0">
+                <p className={cn('text-2xl font-bold tabular-nums', balanceColor)}>
                   {isCredit && balance > 0 && '-'}
                   {formatCurrency(Math.abs(balance))}
                 </p>
@@ -211,9 +208,129 @@ export function AccountCard({
                   </p>
                 )}
               </div>
-            </CardActions>
+
+              {/* Actions toggle */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isMobile) {
+                    setShowActionsDrawer(true);
+                  } else {
+                    setShowInlineActions(!showInlineActions);
+                  }
+                }}
+                disabled={isPending}
+                className={cn(
+                  cardStyles.actionsButton,
+                  showInlineActions && 'sm:rotate-90'
+                )}
+              >
+                {showInlineActions && !isMobile ? (
+                  <X className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="sr-only">Acciones</span>
+              </button>
+            </div>
+
+            {/* Mobile: Balance below description */}
+            <div className="mt-1 sm:hidden">
+              <p className={cn('text-2xl font-bold tabular-nums', balanceColor)}>
+                {isCredit && balance > 0 && '-'}
+                {formatCurrency(Math.abs(balance))}
+              </p>
+              {isCredit && account.creditLimit && (
+                <p className="text-xs text-muted-foreground">
+                  Disponible: {formatCurrency(parseFloat(account.creditLimit) - balance)}
+                </p>
+              )}
+            </div>
+
+            {/* Mobile actions drawer */}
+            <Drawer open={showActionsDrawer} onOpenChange={setShowActionsDrawer}>
+              <DrawerContent>
+                <DrawerHeader className="text-left pb-2">
+                  <DrawerTitle>{account.name}</DrawerTitle>
+                  {description && <DrawerDescription>{description}</DrawerDescription>}
+                </DrawerHeader>
+                <div className="px-2 pb-2">
+                  {actions.map((action) => (
+                    <DrawerClose key={action.key} asChild>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); action.onClick(); }}
+                        disabled={isPending}
+                        className={cn(
+                          cardStyles.drawerAction,
+                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                        )}
+                      >
+                        <div className={cn(
+                          cardStyles.drawerActionIconBox,
+                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                        )}>
+                          <span className={cn(
+                            '[&>svg]:h-5 [&>svg]:w-5',
+                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                          )}>
+                            {action.icon}
+                          </span>
+                        </div>
+                        <span className={cn(
+                          'text-base font-medium',
+                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                        )}>
+                          {action.label}
+                        </span>
+                      </button>
+                    </DrawerClose>
+                  ))}
+                </div>
+                <div className="px-4 pb-4 pt-2 border-t">
+                  <DrawerClose asChild>
+                    <button className={cardStyles.drawerCancelButton}>
+                      Cancelar
+                    </button>
+                  </DrawerClose>
+                </div>
+              </DrawerContent>
+            </Drawer>
           </div>
         </div>
+
+        {/* Desktop: Inline actions */}
+        {showInlineActions && (
+          <div className="mt-3 hidden sm:block animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className={cardStyles.inlineActionsGrid}>
+              {actions.map((action) => (
+                <button
+                  key={action.key}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    action.onClick();
+                  }}
+                  disabled={isPending}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-colors disabled:opacity-50',
+                    action.variant === 'destructive'
+                      ? cardStyles.inlineActionDestructive
+                      : cardStyles.inlineActionDefault
+                  )}
+                >
+                  <span className={cn(
+                    '[&>svg]:h-5 [&>svg]:w-5',
+                    action.variant === 'destructive'
+                      ? 'text-red-500 dark:text-red-400'
+                      : 'text-muted-foreground'
+                  )}>
+                    {action.icon}
+                  </span>
+                  <span className="text-sm font-medium">{action.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Archive Confirmation */}

@@ -36,6 +36,7 @@ import {
 import type { TransactionWithCategory } from '../types';
 import type { Account } from '@/features/accounts/types';
 import { formatCurrency, formatDate } from '@/lib/formatting';
+import { cardStyles } from '@/components/card-styles';
 import { BulkPayCreditCardDialog } from './bulk-pay-cc-dialog';
 import {
   DeleteTransactionDialog,
@@ -46,7 +47,7 @@ import {
 
 export function TransactionTableSkeleton({ rowCount = 5 }: { rowCount?: number }) {
   return (
-    <div className="rounded-lg border">
+    <div className={`${cardStyles.base} p-0 overflow-hidden`}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -287,7 +288,7 @@ export function TransactionTable({
         </div>
       )}
 
-      <div className="rounded-lg border">
+      <div className={`${cardStyles.base} p-0 overflow-hidden`}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -311,7 +312,7 @@ export function TransactionTable({
             const isCC = isCreditCardTransaction(transaction);
             const settled = isSettled(transaction);
             return (
-            <TableRow key={transaction.id} className={(isCC ? settled : transaction.isPaid) ? 'opacity-60' : ''}>
+            <TableRow key={transaction.id} className={`hover:bg-blue-50 dark:hover:bg-blue-950/30 ${(isCC ? settled : transaction.isPaid) ? 'opacity-60' : ''}`}>
               <TableCell>
                 <Checkbox
                   checked={selectedIds.has(transaction.id)}

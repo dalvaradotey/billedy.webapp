@@ -13,13 +13,24 @@ import {
   ChevronRight,
   Power,
   PowerOff,
+  MoreVertical,
+  X,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { ResponsiveDrawer } from '@/components/ui/drawer';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  ResponsiveDrawer,
+} from '@/components/ui/drawer';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { CardActions } from '@/components/card-actions';
+import { cn } from '@/lib/utils';
+import { cardStyles } from '@/components/card-styles';
 
 import { formatCurrency } from '@/lib/formatting';
 import { deleteTemplate, archiveTemplate, toggleTemplateActive } from '../actions';
@@ -145,19 +156,27 @@ export function TemplateCard({
     },
   ];
 
+  const netColor = netAmount >= 0
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : 'text-red-600 dark:text-red-400';
+
   return (
     <>
       <div
-        className={`rounded-2xl border bg-card transition-colors ${template.isArchived ? 'opacity-60' : ''} ${
-          !template.isActive && !template.isArchived ? 'border-dashed' : ''
-        }`}
+        className={cn(
+          cardStyles.base,
+          'p-0',
+          template.isArchived && cardStyles.inactive,
+          !template.isActive && !template.isArchived && 'ring-1 ring-dashed ring-border'
+        )}
       >
         {/* Header - clickable for expand/collapse */}
         <div
-          className="p-4 flex items-center justify-between cursor-pointer active:bg-muted/50 transition-colors rounded-2xl"
+          className="p-4 cursor-pointer active:bg-muted/50 transition-colors rounded-2xl space-y-1"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+          {/* Top row: Chevron + Title + amounts + actions (centered) */}
+          <div className="flex items-center gap-3">
             {/* Chevron */}
             <div className="shrink-0 text-muted-foreground">
               {isExpanded ? (
@@ -167,45 +186,31 @@ export function TemplateCard({
               )}
             </div>
 
-            {/* Name + badges */}
+            {/* Title + badges */}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="font-semibold text-base truncate">{template.name}</p>
+                <p className="font-semibold text-base sm:text-lg truncate">{template.name}</p>
                 {!template.isActive && !template.isArchived && (
                   <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">Inactiva</Badge>
                 )}
                 {template.isArchived && (
                   <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0">Archivada</Badge>
                 )}
+                <Badge variant="outline" className="shrink-0 tabular-nums text-[10px] px-1.5 py-0">
+                  {template.itemsCount} items
+                </Badge>
               </div>
               {template.description && (
                 <p className="text-sm text-muted-foreground truncate">{template.description}</p>
               )}
-
-              {/* Mobile: income/expense row */}
-              <div className="flex items-center gap-3 mt-1 sm:hidden text-xs">
-                <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">
-                  +{formatCurrency(template.totalIncome, baseCurrency)}
-                </span>
-                <span className="text-red-600 dark:text-red-400 tabular-nums">
-                  -{formatCurrency(template.totalExpense, baseCurrency)}
-                </span>
-                <span
-                  className={`font-medium tabular-nums ${
-                    netAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  = {formatCurrency(netAmount, baseCurrency)}
-                </span>
-              </div>
             </div>
-          </div>
 
-          {/* Right side: totals + badge + actions */}
-          <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-            {/* Desktop: income/expense */}
-            <div className="text-right hidden sm:block">
-              <p className="text-sm tabular-nums">
+            {/* Desktop: Net amount */}
+            <div className="text-right hidden sm:block shrink-0">
+              <p className={cn('text-2xl font-bold tabular-nums', netColor)}>
+                {formatCurrency(netAmount, baseCurrency)}
+              </p>
+              <p className="text-xs text-muted-foreground tabular-nums">
                 <span className="text-emerald-600 dark:text-emerald-400">
                   +{formatCurrency(template.totalIncome, baseCurrency)}
                 </span>
@@ -214,33 +219,135 @@ export function TemplateCard({
                   -{formatCurrency(template.totalExpense, baseCurrency)}
                 </span>
               </p>
-              <p
-                className={`text-sm font-medium tabular-nums ${
-                  netAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                }`}
-              >
-                Neto: {formatCurrency(netAmount, baseCurrency)}
-              </p>
             </div>
 
-            <Badge variant="outline" className="tabular-nums">{template.itemsCount} items</Badge>
-
-            <CardActions
-              actions={actions}
-              title={template.name}
-              description={template.description ?? undefined}
-              isPending={isPending}
-              showInline={showInlineActions}
-              onToggleInline={() => setShowInlineActions(!showInlineActions)}
-              drawerOpen={showActionsDrawer}
-              onDrawerOpenChange={setShowActionsDrawer}
-            />
+            {/* Actions toggle */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isMobile) {
+                  setShowActionsDrawer(true);
+                } else {
+                  setShowInlineActions(!showInlineActions);
+                }
+              }}
+              disabled={isPending}
+              className={cn(
+                cardStyles.actionsButton,
+                showInlineActions && 'sm:rotate-90'
+              )}
+            >
+              {showInlineActions && !isMobile ? (
+                <X className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className="sr-only">Acciones</span>
+            </button>
           </div>
+
+          {/* Mobile: Compact totals row */}
+          <div className="pl-8 flex items-center gap-2 text-sm sm:hidden">
+            <span className="text-emerald-600 dark:text-emerald-400 tabular-nums font-medium">
+              +{formatCurrency(template.totalIncome, baseCurrency)}
+            </span>
+            <span className="text-muted-foreground/40">/</span>
+            <span className="text-red-600 dark:text-red-400 tabular-nums font-medium">
+              -{formatCurrency(template.totalExpense, baseCurrency)}
+            </span>
+            <span className="text-muted-foreground/40">=</span>
+            <span className={cn('tabular-nums font-bold', netColor)}>
+              {formatCurrency(netAmount, baseCurrency)}
+            </span>
+          </div>
+
+          {/* Mobile actions drawer */}
+          <Drawer open={showActionsDrawer} onOpenChange={setShowActionsDrawer}>
+            <DrawerContent>
+              <DrawerHeader className="text-left pb-2">
+                <DrawerTitle>{template.name}</DrawerTitle>
+                {template.description && <DrawerDescription>{template.description}</DrawerDescription>}
+              </DrawerHeader>
+              <div className="px-2 pb-2">
+                {actions.map((action) => (
+                  <DrawerClose key={action.key} asChild>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); action.onClick(); }}
+                      disabled={isPending}
+                      className={cn(
+                        cardStyles.drawerAction,
+                        action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                      )}
+                    >
+                      <div className={cn(
+                        cardStyles.drawerActionIconBox,
+                        action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                      )}>
+                        <span className={cn(
+                          '[&>svg]:h-5 [&>svg]:w-5',
+                          action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                        )}>
+                          {action.icon}
+                        </span>
+                      </div>
+                      <span className={cn(
+                        'text-base font-medium',
+                        action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                      )}>
+                        {action.label}
+                      </span>
+                    </button>
+                  </DrawerClose>
+                ))}
+              </div>
+              <div className="px-4 pb-4 pt-2 border-t">
+                <DrawerClose asChild>
+                  <button className={cardStyles.drawerCancelButton}>
+                    Cancelar
+                  </button>
+                </DrawerClose>
+              </div>
+            </DrawerContent>
+          </Drawer>
         </div>
+
+        {/* Desktop: Inline actions */}
+        {showInlineActions && (
+          <div className="px-4 pb-4 hidden sm:block animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className={cardStyles.inlineActionsGrid}>
+              {actions.map((action) => (
+                <button
+                  key={action.key}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    action.onClick();
+                  }}
+                  disabled={isPending}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-colors disabled:opacity-50',
+                    action.variant === 'destructive'
+                      ? cardStyles.inlineActionDestructive
+                      : cardStyles.inlineActionDefault
+                  )}
+                >
+                  <span className={cn(
+                    '[&>svg]:h-5 [&>svg]:w-5',
+                    action.variant === 'destructive'
+                      ? 'text-red-500 dark:text-red-400'
+                      : 'text-muted-foreground'
+                  )}>
+                    {action.icon}
+                  </span>
+                  <span className="text-sm font-medium">{action.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Expanded Items */}
         {isExpanded && (
-          <div className="border-t px-4 py-3 space-y-2">
+          <div className="border-t border-border/50 px-4 py-3 space-y-2">
             {template.items.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No hay items en esta plantilla
