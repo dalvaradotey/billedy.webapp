@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, StickyNote, X, Calendar, ArrowRight, Check, ArrowRightLeft, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, StickyNote, X, Calendar, ArrowRight, Check, ArrowRightLeft, CheckCircle2, XCircle, Settings } from 'lucide-react';
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SuccessOverlay } from '@/components/success-overlay';
 import { SubmitButton } from '@/components/submit-button';
@@ -31,6 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { SwitchCard } from '@/components/switch-card';
 import { CategorySelector } from '@/components/category-selector';
 import { CurrencyInput } from '@/components/currency-input';
 import { EntitySelector } from '@/components/entity-selector';
@@ -127,7 +128,7 @@ export function TransactionDialogContent({
   const [formMode, setFormMode] = useState<FormMode>('expense');
   const [useManualDescription, setUseManualDescription] = useState(false);
   const [showManualCategory, setShowManualCategory] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showDate, setShowDate] = useState(false);
 
   // Transfer form state (separate from main form)
@@ -232,10 +233,10 @@ export function TransactionDialogContent({
     setUseManualDescription(false);
     // Reset manual category toggle - show budget selector if initialValues has budgetId
     setShowManualCategory(false);
-    // Reset notes toggle
-    setShowNotes(false);
-    // Reset date toggle (show if editing, hide if new)
-    setShowDate(!!transaction);
+    // Reset advanced options (expanded when editing, collapsed for new)
+    setShowAdvancedOptions(!!transaction);
+    // Reset date toggle for transfer form
+    setShowDate(false);
     // Reset form mode
     if (transaction) {
       setFormMode(transaction.type as FormMode);
@@ -758,96 +759,132 @@ export function TransactionDialogContent({
               </div>
             )}
 
-            {/* Budget or Category toggle */}
-            {budgets.length > 0 && !showManualCategory ? (
-              <div className="space-y-2">
-                <FormField
-                  control={form.control}
-                  name="budgetId"
-                  render={({ field, fieldState }) => (
-                    <FormItem data-field="budgetId">
-                      <FormControl>
-                        <BudgetSelector
-                          budgets={budgets}
-                          value={field.value}
-                          onValueChange={(budgetId) => {
-                            field.onChange(budgetId);
-                            // Auto-select category and account if budget has them
-                            if (budgetId) {
-                              const selectedBudget = budgets.find((b) => b.id === budgetId);
-                              if (selectedBudget?.categoryId) {
-                                form.setValue('categoryId', selectedBudget.categoryId);
-                              }
-                              if (selectedBudget?.defaultAccountId) {
-                                form.setValue('accountId', selectedBudget.defaultAccountId);
-                              }
-                            }
-                          }}
-                          label="Presupuesto (opcional)"
-                          searchPlaceholder="Buscar presupuesto..."
-                          valid={!!field.value}
-                          invalid={!!fieldState.error}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground h-auto p-0"
-                  onClick={() => setShowManualCategory(true)}
-                >
-                  <Tag className="mr-1.5 h-3 w-3" />
-                  Seleccionar categoría manualmente
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <FormField
-                  control={form.control}
-                  name="categoryId"
-                  render={({ field, fieldState }) => (
-                    <FormItem data-field="categoryId">
-                      <FormControl>
-                        <CategorySelector
-                          categories={activeCategories}
-                          value={field.value ?? undefined}
-                          onValueChange={(value) => field.onChange(value ?? null)}
-                          projectId={projectId}
-                          userId={userId}
-                          label="Categoría (opcional)"
-                          placeholder="Sin categoría"
-                          searchPlaceholder="Buscar categoría..."
-                          onCategoryCreated={handleCategoryCreated}
-                          valid={!!field.value}
-                          invalid={!!fieldState.error}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {budgets.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-auto p-0"
-                    onClick={() => setShowManualCategory(false)}
-                  >
-                    <Wallet className="mr-1.5 h-3 w-3" />
-                    Usar presupuesto
-                  </Button>
-                )}
-              </div>
+            {/* Otras opciones toggle */}
+            {!showAdvancedOptions && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground h-auto p-0"
+                onClick={() => setShowAdvancedOptions(true)}
+              >
+                <Settings className="mr-1.5 h-3 w-3" />
+                Otras opciones
+              </Button>
             )}
 
-            {/* Date (optional) */}
-            {showDate && (
-              <div className="space-y-2">
+            {/* Otras opciones section */}
+            {showAdvancedOptions && (
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Otras opciones</span>
+                  {!isEditing && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-auto p-0"
+                      onClick={() => {
+                        form.setValue('date', new Date());
+                        form.setValue('notes', '');
+                        form.setValue('budgetId', undefined);
+                        form.setValue('categoryId', undefined);
+                        setShowManualCategory(false);
+                        setShowAdvancedOptions(false);
+                      }}
+                    >
+                      Ocultar
+                    </Button>
+                  )}
+                </div>
+
+                {/* Budget or Category toggle */}
+                {budgets.length > 0 && !showManualCategory ? (
+                  <div className="space-y-2">
+                    <FormField
+                      control={form.control}
+                      name="budgetId"
+                      render={({ field, fieldState }) => (
+                        <FormItem data-field="budgetId">
+                          <FormControl>
+                            <BudgetSelector
+                              budgets={budgets}
+                              value={field.value}
+                              onValueChange={(budgetId) => {
+                                field.onChange(budgetId);
+                                if (budgetId) {
+                                  const selectedBudget = budgets.find((b) => b.id === budgetId);
+                                  if (selectedBudget?.categoryId) {
+                                    form.setValue('categoryId', selectedBudget.categoryId);
+                                  }
+                                  if (selectedBudget?.defaultAccountId) {
+                                    form.setValue('accountId', selectedBudget.defaultAccountId);
+                                  }
+                                }
+                              }}
+                              label="Presupuesto (opcional)"
+                              searchPlaceholder="Buscar presupuesto..."
+                              valid={!!field.value}
+                              invalid={!!fieldState.error}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-auto p-0"
+                      onClick={() => setShowManualCategory(true)}
+                    >
+                      <Tag className="mr-1.5 h-3 w-3" />
+                      Seleccionar categoría manualmente
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <FormField
+                      control={form.control}
+                      name="categoryId"
+                      render={({ field, fieldState }) => (
+                        <FormItem data-field="categoryId">
+                          <FormControl>
+                            <CategorySelector
+                              categories={activeCategories}
+                              value={field.value ?? undefined}
+                              onValueChange={(value) => field.onChange(value ?? null)}
+                              projectId={projectId}
+                              userId={userId}
+                              label="Categoría (opcional)"
+                              placeholder="Sin categoría"
+                              searchPlaceholder="Buscar categoría..."
+                              onCategoryCreated={handleCategoryCreated}
+                              valid={!!field.value}
+                              invalid={!!fieldState.error}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {budgets.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground h-auto p-0"
+                        onClick={() => setShowManualCategory(false)}
+                      >
+                        <Wallet className="mr-1.5 h-3 w-3" />
+                        Usar presupuesto
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* Date */}
                 <FormField
                   control={form.control}
                   name="date"
@@ -888,25 +925,8 @@ export function TransactionDialogContent({
                     );
                   }}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground h-auto p-0"
-                  onClick={() => {
-                    form.setValue('date', new Date());
-                    setShowDate(false);
-                  }}
-                >
-                  <X className="mr-1.5 h-3 w-3" />
-                  Usar fecha de hoy
-                </Button>
-              </div>
-            )}
 
-            {/* Notes (optional) */}
-            {showNotes && (
-              <div className="space-y-2">
+                {/* Notes */}
                 <FormField
                   control={form.control}
                   name="notes"
@@ -914,7 +934,7 @@ export function TransactionDialogContent({
                     <FormItem data-field="notes">
                       <FormControl>
                         <FloatingLabelTextarea
-                          label="Notas"
+                          label="Notas (opcional)"
                           value={field.value ?? ''}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
@@ -927,66 +947,23 @@ export function TransactionDialogContent({
                     </FormItem>
                   )}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground h-auto p-0"
-                  onClick={() => {
-                    form.setValue('notes', '');
-                    setShowNotes(false);
-                  }}
-                >
-                  <X className="mr-1.5 h-3 w-3" />
-                  Ocultar notas
-                </Button>
-              </div>
-            )}
 
-            {/* Optional toggles row */}
-            {(!showDate || !showNotes || !isCreditCardExpense) && (
-              <div className="flex flex-wrap gap-3 pt-2 border-t">
-                {!showDate && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-auto py-1 px-2"
-                    onClick={() => setShowDate(true)}
-                  >
-                    <Calendar className="mr-1.5 h-3 w-3" />
-                    Fecha
-                  </Button>
-                )}
-                {!showNotes && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-auto py-1 px-2"
-                    onClick={() => setShowNotes(true)}
-                  >
-                    <StickyNote className="mr-1.5 h-3 w-3" />
-                    Notas
-                  </Button>
-                )}
+                {/* isPaid switch */}
                 {!isCreditCardExpense && (
                   <FormField
                     control={form.control}
                     name="isPaid"
                     render={({ field }) => (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className={cn(
-                          "h-auto py-1 px-2",
-                          field.value ? "text-emerald-600" : "text-muted-foreground"
-                        )}
-                        onClick={() => field.onChange(!field.value)}
-                      >
-                        {field.value ? "✓ Pagado" : "Marcar pagado"}
-                      </Button>
+                      <FormItem data-field="isPaid">
+                        <FormControl>
+                          <SwitchCard
+                            title="Pagado"
+                            description="Marca si esta transacción ya fue pagada"
+                            checked={field.value ?? false}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
                     )}
                   />
                 )}

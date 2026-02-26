@@ -11,12 +11,17 @@ import {
   Receipt,
   Users,
   RefreshCw,
+  Calendar,
+  ChevronDown,
+  MoreVertical,
+  X,
 } from 'lucide-react';
 
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { CardActions } from '@/components/card-actions';
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
+import { cn } from '@/lib/utils';
 
 import { formatCurrency, formatDateLong } from '@/lib/formatting';
 import { chargeInstallment, archiveCardPurchase, deleteCardPurchase, regenerateInstallments } from '../actions';
@@ -45,6 +50,7 @@ export function CardPurchaseCard({
   const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
   const [showActionsDrawer, setShowActionsDrawer] = useState(false);
   const [showInlineActions, setShowInlineActions] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const isMobile = useIsMobile();
 
   const hasInterest = parseFloat(purchase.interestAmount) > 0;
@@ -157,11 +163,13 @@ export function CardPurchaseCard({
         onClick={() => {
           if (isMobile) {
             setShowActionsDrawer(true);
-          } else {
-            setShowInlineActions(!showInlineActions);
           }
         }}
-        className={`rounded-2xl border bg-card p-4 transition-colors cursor-pointer active:bg-muted/50 ${!purchase.isActive ? 'opacity-60' : ''}`}
+        className={cn(
+          'rounded-2xl bg-card dark:bg-slate-900 p-4 transition-colors active:bg-muted/50',
+          isMobile && 'cursor-pointer',
+          !purchase.isActive && 'opacity-60'
+        )}
       >
         {/* Top row: Icon + Info + Actions */}
         <div className="flex items-start gap-3">
@@ -180,17 +188,18 @@ export function CardPurchaseCard({
             </div>
           )}
 
-          {/* Info + Amount (desktop) */}
+          {/* Info */}
           <div className="min-w-0 flex-1">
+            {/* Row 1: Title + badges + Amount + actions */}
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-base truncate">{purchase.description}</p>
                   {purchase.isExternalDebt && (
-                    <Badge variant="outline" className="gap-1 shrink-0 text-[10px] px-1.5 py-0">
+                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0">
                       <Users className="h-3 w-3" />
                       Externa
-                    </Badge>
+                    </span>
                   )}
                   {!purchase.isActive && (
                     <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0">Completada</Badge>
@@ -204,88 +213,320 @@ export function CardPurchaseCard({
                 </p>
               </div>
 
-              {/* Desktop: Amount + Actions inline */}
-              <div className="hidden sm:flex items-center gap-3">
-                <CardActions
-                  actions={actions}
-                  title={purchase.description}
-                  description={description}
-                  isPending={isPending}
-                  showInline={showInlineActions}
-                  onToggleInline={() => setShowInlineActions(!showInlineActions)}
-                  drawerOpen={showActionsDrawer}
-                  onDrawerOpenChange={setShowActionsDrawer}
-                >
-                  <div className="text-right min-w-[140px]">
-                    <p className="text-lg font-bold tabular-nums text-foreground">
-                      {formatCurrency(parseFloat(purchase.installmentAmount))}
-                      <span className="text-xs font-normal text-muted-foreground ml-1">
-                        /mes
-                      </span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {purchase.chargedInstallments}/{purchase.installments} cuotas
-                    </p>
-                  </div>
-                </CardActions>
-              </div>
-            </div>
-
-            {/* Mobile: Amount row */}
-            <div className="flex items-center justify-between mt-2 sm:hidden">
-              <p className="text-xl font-bold tabular-nums text-foreground">
+              {/* Desktop: Amount */}
+              <p className="hidden sm:block text-2xl font-bold tabular-nums text-foreground shrink-0">
                 {formatCurrency(parseFloat(purchase.installmentAmount))}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
                   /mes
                 </span>
               </p>
-              <p className="text-sm text-muted-foreground tabular-nums">
-                {purchase.chargedInstallments}/{purchase.installments} cuotas
-              </p>
-              {/* Mobile actions trigger */}
-              <CardActions
-                actions={actions}
-                title={purchase.description}
-                description={description}
-                isPending={isPending}
-                showInline={false}
-                onToggleInline={() => {}}
-                drawerOpen={showActionsDrawer}
-                onDrawerOpenChange={setShowActionsDrawer}
-              />
+              {/* Actions toggle (mobile: opens drawer, desktop: toggles inline) */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isMobile) {
+                    setShowActionsDrawer(true);
+                  } else {
+                    setShowInlineActions(!showInlineActions);
+                  }
+                }}
+                disabled={isPending}
+                className={cn(
+                  'flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 disabled:opacity-50 shrink-0',
+                  'bg-slate-700/20 hover:bg-slate-700/40',
+                  showInlineActions && 'sm:rotate-90'
+                )}
+              >
+                {showInlineActions && !isMobile ? (
+                  <X className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span className="sr-only">Acciones</span>
+              </button>
+            </div>
+
+            {/* Mobile: Amount below description */}
+            <p className="text-2xl font-bold tabular-nums text-foreground mt-1 sm:hidden">
+              {formatCurrency(parseFloat(purchase.installmentAmount))}
+              <span className="text-xs font-normal text-muted-foreground ml-1">
+                /mes
+              </span>
+            </p>
+
+            {/* Mobile actions drawer */}
+            <Drawer open={showActionsDrawer} onOpenChange={setShowActionsDrawer}>
+              <DrawerContent>
+                <DrawerHeader className="text-left pb-2">
+                  <DrawerTitle>{purchase.description}</DrawerTitle>
+                  {description && <DrawerDescription>{description}</DrawerDescription>}
+                </DrawerHeader>
+                <div className="px-2 pb-2">
+                  {actions.map((action) => (
+                    <DrawerClose key={action.key} asChild>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); action.onClick(); }}
+                        disabled={isPending}
+                        className={cn(
+                          'w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors disabled:opacity-50',
+                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                        )}
+                      >
+                        <div className={cn(
+                          'w-10 h-10 rounded-xl flex items-center justify-center',
+                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                        )}>
+                          <span className={cn(
+                            '[&>svg]:h-5 [&>svg]:w-5',
+                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                          )}>
+                            {action.icon}
+                          </span>
+                        </div>
+                        <span className={cn(
+                          'text-base font-medium',
+                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                        )}>
+                          {action.label}
+                        </span>
+                      </button>
+                    </DrawerClose>
+                  ))}
+                </div>
+                <div className="px-4 pb-4 pt-2 border-t">
+                  <DrawerClose asChild>
+                    <button className="w-full py-3 text-base font-medium text-muted-foreground active:text-foreground transition-colors">
+                      Cancelar
+                    </button>
+                  </DrawerClose>
+                </div>
+              </DrawerContent>
+            </Drawer>
+          </div>
+        </div>
+
+        {/* Swappable content: Details ↔ Actions (desktop) */}
+        <div className="mt-3 hidden sm:grid [&>*]:col-start-1 [&>*]:row-start-1">
+          {/* Details panel */}
+          <div className={cn(
+            'transition-all duration-300',
+            showInlineActions ? 'opacity-0 scale-95 pointer-events-none h-0 overflow-hidden' : 'opacity-100 scale-100'
+          )}>
+            {/* Progress section */}
+            <div className="rounded-xl bg-gradient-to-r from-blue-500/5 to-blue-500/10 dark:from-blue-500/10 dark:to-blue-500/20 p-3 ring-1 ring-blue-500/10">
+              <div className="flex items-baseline justify-between mb-2.5">
+                <p className="text-sm">
+                  <span className="font-bold text-blue-700 dark:text-blue-300 tabular-nums">{purchase.chargedInstallments}</span>
+                  <span className="text-blue-600/60 dark:text-blue-400/60"> de {purchase.installments} cuotas</span>
+                </p>
+                <p className="text-sm text-right">
+                  <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+                    {formatCurrency(Math.max(0, parseFloat(purchase.totalAmount) - purchase.remainingAmount))}
+                  </span>
+                  <span className="text-blue-600/60 dark:text-blue-400/60"> / {formatCurrency(parseFloat(purchase.totalAmount))}</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Progress value={purchase.progressPercentage} className="h-6 flex-1" indicatorClassName="bg-gradient-to-r from-blue-600 to-blue-400" />
+                <span className="text-lg font-bold tabular-nums text-blue-600 dark:text-blue-400 shrink-0">
+                  {Math.round(purchase.progressPercentage)}%
+                </span>
+              </div>
+            </div>
+            {/* Details toggle + Account chip row */}
+            <div className="flex items-center justify-between mt-3">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', showDetails && 'rotate-180')} />
+                <span>{showDetails ? 'Ocultar detalle' : 'Ver detalle'}</span>
+              </button>
+              {/* Account chip */}
+              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-500/5 dark:bg-blue-500/10 ring-1 ring-blue-500/10">
+                {purchase.accountEntityImageUrl ? (
+                  <div className="w-5 h-5 rounded overflow-hidden ring-1 ring-white/20 shrink-0">
+                    <img
+                      src={purchase.accountEntityImageUrl}
+                      alt={purchase.accountEntityName ?? purchase.accountName}
+                      className="object-contain w-full h-full bg-white"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center shrink-0">
+                    <CreditCard className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                )}
+                <span className="text-xs font-medium truncate">{purchase.accountName}</span>
+              </div>
+            </div>
+            {/* Collapsible details */}
+            {showDetails && (
+              <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="rounded-xl bg-muted/30 dark:bg-muted/20 p-3 space-y-3">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-[11px] text-muted-foreground mb-0.5">Original</p>
+                      <p className="text-sm font-semibold tabular-nums">{formatCurrency(parseFloat(purchase.originalAmount))}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground mb-0.5">Total</p>
+                      <p className="text-sm font-semibold tabular-nums">{formatCurrency(parseFloat(purchase.totalAmount))}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground mb-0.5">Intereses</p>
+                      {hasInterest ? (
+                        <p className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
+                      ) : (
+                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Sin interés</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="border-t border-border/50" />
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-[11px] text-muted-foreground mb-0.5">Restante</p>
+                      <p className="text-sm font-semibold tabular-nums">{formatCurrency(purchase.remainingAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground mb-0.5">Próximo pago</p>
+                      <p className="text-sm font-medium">{purchase.nextChargeDate ? formatDateLong(purchase.nextChargeDate) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-muted-foreground mb-0.5">Fecha compra</p>
+                      <p className="text-sm font-medium">{formatDateLong(purchase.purchaseDate)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions panel */}
+          <div className={cn(
+            'transition-all duration-300 flex items-center',
+            showInlineActions ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0 overflow-hidden'
+          )}>
+            <div className="grid grid-cols-2 gap-3 w-full">
+              {actions.map((action) => (
+                <button
+                  key={action.key}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    action.onClick();
+                  }}
+                  disabled={isPending}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-colors disabled:opacity-50',
+                    action.variant === 'destructive'
+                      ? 'bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400'
+                      : 'bg-slate-700/30 hover:bg-slate-700/50 text-foreground'
+                  )}
+                >
+                  <span className={cn(
+                    '[&>svg]:h-5 [&>svg]:w-5',
+                    action.variant === 'destructive'
+                      ? 'text-red-500 dark:text-red-400'
+                      : 'text-muted-foreground'
+                  )}>
+                    {action.icon}
+                  </span>
+                  <span className="text-sm font-medium">{action.label}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Progress bar - full width */}
-        <div className="mt-3">
-          <Progress value={purchase.progressPercentage} className="h-3" />
-          <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground gap-3">
-            <div className="flex items-center gap-1.5 min-w-0">
-              {purchase.accountEntityImageUrl ? (
-                <img
-                  src={purchase.accountEntityImageUrl}
-                  alt={purchase.accountEntityName ?? purchase.accountName}
-                  className="h-4 w-4 rounded object-contain bg-white shrink-0"
-                />
-              ) : (
-                <CreditCard className="h-3 w-3 shrink-0" />
-              )}
-              <span className="truncate">{purchase.accountName}</span>
-            </div>
-            <span className="shrink-0 tabular-nums">
-              {hasInterest ? (
-                <span className="text-red-500 dark:text-red-400">
-                  +{formatCurrency(parseFloat(purchase.interestAmount))}
+        {/* Mobile-only: Details (always visible) */}
+        <div className="mt-3 sm:hidden">
+          <div className="rounded-xl bg-gradient-to-r from-blue-500/5 to-blue-500/10 dark:from-blue-500/10 dark:to-blue-500/20 p-3 ring-1 ring-blue-500/10">
+            <div className="flex items-baseline justify-between mb-2.5">
+              <p className="text-base">
+                <span className="font-bold text-blue-700 dark:text-blue-300 tabular-nums">{purchase.chargedInstallments}</span>
+                <span className="text-blue-600/60 dark:text-blue-400/60"> de {purchase.installments} cuotas</span>
+              </p>
+              <p className="text-base text-right">
+                <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+                  {formatCurrency(Math.max(0, parseFloat(purchase.totalAmount) - purchase.remainingAmount))}
                 </span>
-              ) : (
-                <span className="text-emerald-600 dark:text-emerald-400">Sin interés</span>
-              )}
-            </span>
-            <span className="shrink-0 tabular-nums">
-              {formatCurrency(purchase.remainingAmount)}
-            </span>
+                <span className="text-blue-600/60 dark:text-blue-400/60"> / {formatCurrency(parseFloat(purchase.totalAmount))}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Progress value={purchase.progressPercentage} className="h-6 flex-1" indicatorClassName="bg-gradient-to-r from-blue-600 to-blue-400" />
+              <span className="text-xl font-bold tabular-nums text-blue-600 dark:text-blue-400 shrink-0">
+                {Math.round(purchase.progressPercentage)}%
+              </span>
+            </div>
           </div>
+          {/* Details toggle + Account chip row */}
+          <div className="flex items-center justify-between mt-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', showDetails && 'rotate-180')} />
+              <span>{showDetails ? 'Ocultar detalle' : 'Ver detalle'}</span>
+            </button>
+            {/* Account chip */}
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-500/5 dark:bg-blue-500/10 ring-1 ring-blue-500/10">
+              {purchase.accountEntityImageUrl ? (
+                <div className="w-5 h-5 rounded overflow-hidden ring-1 ring-white/20 shrink-0">
+                  <img
+                    src={purchase.accountEntityImageUrl}
+                    alt={purchase.accountEntityName ?? purchase.accountName}
+                    className="object-contain w-full h-full bg-white"
+                  />
+                </div>
+              ) : (
+                <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center shrink-0">
+                  <CreditCard className="h-3 w-3 text-muted-foreground" />
+                </div>
+              )}
+              <span className="text-xs font-medium truncate">{purchase.accountName}</span>
+            </div>
+          </div>
+          {/* Collapsible details */}
+          {showDetails && (
+            <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="rounded-xl bg-muted/30 dark:bg-muted/20 p-3 space-y-3">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-0.5">Original</p>
+                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(parseFloat(purchase.originalAmount))}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-0.5">Total</p>
+                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(parseFloat(purchase.totalAmount))}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-0.5">Intereses</p>
+                    {hasInterest ? (
+                      <p className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
+                    ) : (
+                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Sin interés</p>
+                    )}
+                  </div>
+                </div>
+                <div className="border-t border-border/50" />
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-0.5">Restante</p>
+                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(purchase.remainingAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-0.5">Próximo pago</p>
+                    <p className="text-sm font-medium">{purchase.nextChargeDate ? formatDateLong(purchase.nextChargeDate) : '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-0.5">Fecha compra</p>
+                    <p className="text-sm font-medium">{formatDateLong(purchase.purchaseDate)}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
