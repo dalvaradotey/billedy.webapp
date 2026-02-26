@@ -128,7 +128,7 @@ export function InstallmentSelector({
             type="button"
             onClick={handleStartEditing}
             className={cn(
-              "h-10 w-16 rounded-md border border-input bg-background text-center font-medium text-lg hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation",
+              "h-10 w-16 rounded-md border border-input bg-background dark:bg-slate-800/60 text-center font-medium text-lg hover:bg-accent dark:hover:bg-slate-800/80 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation",
               valid && "ring-1 ring-emerald-500",
               invalid && "ring-1 ring-destructive"
             )}
