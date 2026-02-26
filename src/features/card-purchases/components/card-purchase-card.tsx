@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
+import { cardStyles } from '@/components/card-styles';
 
 import { formatCurrency, formatDateLong } from '@/lib/formatting';
 import { chargeInstallment, archiveCardPurchase, deleteCardPurchase, regenerateInstallments } from '../actions';
@@ -166,9 +167,9 @@ export function CardPurchaseCard({
           }
         }}
         className={cn(
-          'rounded-2xl bg-card dark:bg-slate-900 p-4 transition-colors active:bg-muted/50',
+          cardStyles.base,
           isMobile && 'cursor-pointer',
-          !purchase.isActive && 'opacity-60'
+          !purchase.isActive && cardStyles.inactive
         )}
       >
         {/* Top row: Icon + Info + Actions */}
@@ -232,8 +233,7 @@ export function CardPurchaseCard({
                 }}
                 disabled={isPending}
                 className={cn(
-                  'flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 disabled:opacity-50 shrink-0',
-                  'bg-slate-700/20 hover:bg-slate-700/40',
+                  cardStyles.actionsButton,
                   showInlineActions && 'sm:rotate-90'
                 )}
               >
@@ -268,12 +268,12 @@ export function CardPurchaseCard({
                         onClick={(e) => { e.stopPropagation(); action.onClick(); }}
                         disabled={isPending}
                         className={cn(
-                          'w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors disabled:opacity-50',
+                          cardStyles.drawerAction,
                           action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
                         )}
                       >
                         <div className={cn(
-                          'w-10 h-10 rounded-xl flex items-center justify-center',
+                          cardStyles.drawerActionIconBox,
                           action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
                         )}>
                           <span className={cn(
@@ -295,7 +295,7 @@ export function CardPurchaseCard({
                 </div>
                 <div className="px-4 pb-4 pt-2 border-t">
                   <DrawerClose asChild>
-                    <button className="w-full py-3 text-base font-medium text-muted-foreground active:text-foreground transition-colors">
+                    <button className={cardStyles.drawerCancelButton}>
                       Cancelar
                     </button>
                   </DrawerClose>
@@ -306,29 +306,29 @@ export function CardPurchaseCard({
         </div>
 
         {/* Swappable content: Details ↔ Actions (desktop) */}
-        <div className="mt-3 hidden sm:grid [&>*]:col-start-1 [&>*]:row-start-1">
+        <div className={cn('mt-3', cardStyles.overlayGrid)}>
           {/* Details panel */}
           <div className={cn(
             'transition-all duration-300',
             showInlineActions ? 'opacity-0 scale-95 pointer-events-none h-0 overflow-hidden' : 'opacity-100 scale-100'
           )}>
             {/* Progress section */}
-            <div className="rounded-xl bg-gradient-to-r from-blue-500/5 to-blue-500/10 dark:from-blue-500/10 dark:to-blue-500/20 p-3 ring-1 ring-blue-500/10">
+            <div className={cardStyles.progressSection}>
               <div className="flex items-baseline justify-between mb-2.5">
                 <p className="text-sm">
-                  <span className="font-bold text-blue-700 dark:text-blue-300 tabular-nums">{purchase.chargedInstallments}</span>
-                  <span className="text-blue-600/60 dark:text-blue-400/60"> de {purchase.installments} cuotas</span>
+                  <span className={cardStyles.progressLabel}>{purchase.chargedInstallments}</span>
+                  <span className={cardStyles.progressSecondary}> de {purchase.installments} cuotas</span>
                 </p>
                 <p className="text-sm text-right">
-                  <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+                  <span className={cn(cardStyles.progressLabel, 'font-semibold')}>
                     {formatCurrency(Math.max(0, parseFloat(purchase.totalAmount) - purchase.remainingAmount))}
                   </span>
-                  <span className="text-blue-600/60 dark:text-blue-400/60"> / {formatCurrency(parseFloat(purchase.totalAmount))}</span>
+                  <span className={cardStyles.progressSecondary}> / {formatCurrency(parseFloat(purchase.totalAmount))}</span>
                 </p>
               </div>
               <div className="flex items-center gap-2.5">
-                <Progress value={purchase.progressPercentage} className="h-6 flex-1" indicatorClassName="bg-gradient-to-r from-blue-600 to-blue-400" />
-                <span className="text-lg font-bold tabular-nums text-blue-600 dark:text-blue-400 shrink-0">
+                <Progress value={purchase.progressPercentage} className={cardStyles.progressBar} indicatorClassName={cardStyles.progressIndicator} />
+                <span className={cn('text-lg', cardStyles.progressPercentage)}>
                   {Math.round(purchase.progressPercentage)}%
                 </span>
               </div>
@@ -337,13 +337,13 @@ export function CardPurchaseCard({
             <div className="flex items-center justify-between mt-3">
               <button
                 onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className={cardStyles.toggleButton}
               >
                 <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', showDetails && 'rotate-180')} />
                 <span>{showDetails ? 'Ocultar detalle' : 'Ver detalle'}</span>
               </button>
               {/* Account chip */}
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-500/5 dark:bg-blue-500/10 ring-1 ring-blue-500/10">
+              <div className={cardStyles.chipBase}>
                 {purchase.accountEntityImageUrl ? (
                   <div className="w-5 h-5 rounded overflow-hidden ring-1 ring-white/20 shrink-0">
                     <img
@@ -363,18 +363,18 @@ export function CardPurchaseCard({
             {/* Collapsible details */}
             {showDetails && (
               <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="rounded-xl bg-muted/30 dark:bg-muted/20 p-3 space-y-3">
+                <div className={cardStyles.detailsContainer}>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <p className="text-[11px] text-muted-foreground mb-0.5">Original</p>
-                      <p className="text-sm font-semibold tabular-nums">{formatCurrency(parseFloat(purchase.originalAmount))}</p>
+                      <p className={cardStyles.detailsLabel}>Original</p>
+                      <p className={cardStyles.detailsValue}>{formatCurrency(parseFloat(purchase.originalAmount))}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground mb-0.5">Total</p>
-                      <p className="text-sm font-semibold tabular-nums">{formatCurrency(parseFloat(purchase.totalAmount))}</p>
+                      <p className={cardStyles.detailsLabel}>Total</p>
+                      <p className={cardStyles.detailsValue}>{formatCurrency(parseFloat(purchase.totalAmount))}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground mb-0.5">Intereses</p>
+                      <p className={cardStyles.detailsLabel}>Intereses</p>
                       {hasInterest ? (
                         <p className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
                       ) : (
@@ -382,18 +382,18 @@ export function CardPurchaseCard({
                       )}
                     </div>
                   </div>
-                  <div className="border-t border-border/50" />
+                  <div className={cardStyles.detailsDivider} />
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <p className="text-[11px] text-muted-foreground mb-0.5">Restante</p>
-                      <p className="text-sm font-semibold tabular-nums">{formatCurrency(purchase.remainingAmount)}</p>
+                      <p className={cardStyles.detailsLabel}>Restante</p>
+                      <p className={cardStyles.detailsValue}>{formatCurrency(purchase.remainingAmount)}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground mb-0.5">Próximo pago</p>
+                      <p className={cardStyles.detailsLabel}>Próximo pago</p>
                       <p className="text-sm font-medium">{purchase.nextChargeDate ? formatDateLong(purchase.nextChargeDate) : '—'}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground mb-0.5">Fecha compra</p>
+                      <p className={cardStyles.detailsLabel}>Fecha compra</p>
                       <p className="text-sm font-medium">{formatDateLong(purchase.purchaseDate)}</p>
                     </div>
                   </div>
@@ -407,7 +407,7 @@ export function CardPurchaseCard({
             'transition-all duration-300 flex items-center',
             showInlineActions ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none h-0 overflow-hidden'
           )}>
-            <div className="grid grid-cols-2 gap-3 w-full">
+            <div className={cardStyles.inlineActionsGrid}>
               {actions.map((action) => (
                 <button
                   key={action.key}
@@ -419,8 +419,8 @@ export function CardPurchaseCard({
                   className={cn(
                     'flex flex-col items-center justify-center gap-2 p-4 rounded-xl transition-colors disabled:opacity-50',
                     action.variant === 'destructive'
-                      ? 'bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400'
-                      : 'bg-slate-700/30 hover:bg-slate-700/50 text-foreground'
+                      ? cardStyles.inlineActionDestructive
+                      : cardStyles.inlineActionDefault
                   )}
                 >
                   <span className={cn(
@@ -454,8 +454,8 @@ export function CardPurchaseCard({
               </p>
             </div>
             <div className="flex items-center gap-2.5">
-              <Progress value={purchase.progressPercentage} className="h-6 flex-1" indicatorClassName="bg-gradient-to-r from-blue-600 to-blue-400" />
-              <span className="text-xl font-bold tabular-nums text-blue-600 dark:text-blue-400 shrink-0">
+              <Progress value={purchase.progressPercentage} className={cardStyles.progressBar} indicatorClassName={cardStyles.progressIndicator} />
+              <span className={cn('text-xl', cardStyles.progressPercentage)}>
                 {Math.round(purchase.progressPercentage)}%
               </span>
             </div>
@@ -464,13 +464,13 @@ export function CardPurchaseCard({
           <div className="flex items-center justify-between mt-3">
             <button
               onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className={cardStyles.toggleButton}
             >
               <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', showDetails && 'rotate-180')} />
               <span>{showDetails ? 'Ocultar detalle' : 'Ver detalle'}</span>
             </button>
             {/* Account chip */}
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-500/5 dark:bg-blue-500/10 ring-1 ring-blue-500/10">
+            <div className={cardStyles.chipBase}>
               {purchase.accountEntityImageUrl ? (
                 <div className="w-5 h-5 rounded overflow-hidden ring-1 ring-white/20 shrink-0">
                   <img
@@ -490,18 +490,18 @@ export function CardPurchaseCard({
           {/* Collapsible details */}
           {showDetails && (
             <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="rounded-xl bg-muted/30 dark:bg-muted/20 p-3 space-y-3">
+              <div className={cardStyles.detailsContainer}>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <p className="text-[11px] text-muted-foreground mb-0.5">Original</p>
-                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(parseFloat(purchase.originalAmount))}</p>
+                    <p className={cardStyles.detailsLabel}>Original</p>
+                    <p className={cardStyles.detailsValue}>{formatCurrency(parseFloat(purchase.originalAmount))}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-muted-foreground mb-0.5">Total</p>
-                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(parseFloat(purchase.totalAmount))}</p>
+                    <p className={cardStyles.detailsLabel}>Total</p>
+                    <p className={cardStyles.detailsValue}>{formatCurrency(parseFloat(purchase.totalAmount))}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-muted-foreground mb-0.5">Intereses</p>
+                    <p className={cardStyles.detailsLabel}>Intereses</p>
                     {hasInterest ? (
                       <p className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
                     ) : (
@@ -509,18 +509,18 @@ export function CardPurchaseCard({
                     )}
                   </div>
                 </div>
-                <div className="border-t border-border/50" />
+                <div className={cardStyles.detailsDivider} />
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <p className="text-[11px] text-muted-foreground mb-0.5">Restante</p>
-                    <p className="text-sm font-semibold tabular-nums">{formatCurrency(purchase.remainingAmount)}</p>
+                    <p className={cardStyles.detailsLabel}>Restante</p>
+                    <p className={cardStyles.detailsValue}>{formatCurrency(purchase.remainingAmount)}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-muted-foreground mb-0.5">Próximo pago</p>
+                    <p className={cardStyles.detailsLabel}>Próximo pago</p>
                     <p className="text-sm font-medium">{purchase.nextChargeDate ? formatDateLong(purchase.nextChargeDate) : '—'}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-muted-foreground mb-0.5">Fecha compra</p>
+                    <p className={cardStyles.detailsLabel}>Fecha compra</p>
                     <p className="text-sm font-medium">{formatDateLong(purchase.purchaseDate)}</p>
                   </div>
                 </div>
