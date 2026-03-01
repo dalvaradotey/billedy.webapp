@@ -280,7 +280,8 @@ export async function deleteAccount(
 
 /**
  * Adjust account balance manually
- * This is useful for reconciliation
+ * Recalcula initialBalance para que sea consistente con las transacciones existentes.
+ * Así, futuros recálculos o deltas sobre el balance darán resultados correctos.
  * Verifica membresía del usuario al proyecto
  */
 export async function adjustAccountBalance(
@@ -288,9 +289,9 @@ export async function adjustAccountBalance(
   userId: string,
   newBalance: number
 ): Promise<ActionResult> {
-  // Verificar acceso mediante membresía al proyecto
+  // Verificar acceso y obtener tipo de cuenta
   const existing = await db
-    .select({ id: accounts.id })
+    .select({ id: accounts.id, type: accounts.type })
     .from(accounts)
     .innerJoin(
       projectMembers,
@@ -309,9 +310,33 @@ export async function adjustAccountBalance(
     return { success: false, error: 'Cuenta no encontrada' };
   }
 
+  // Sumar transacciones pagadas para derivar el initialBalance correcto
+  const [totals] = await db
+    .select({
+      totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount}::numeric ELSE 0 END), 0)`,
+      totalExpense: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount}::numeric ELSE 0 END), 0)`,
+    })
+    .from(transactions)
+    .where(eq(transactions.accountId, accountId));
+
+  const totalIncome = parseFloat(totals?.totalIncome ?? '0');
+  const totalExpense = parseFloat(totals?.totalExpense ?? '0');
+
+  // Derivar initialBalance para que: recalculate(initialBalance + txns) = newBalance
+  // Normal: newBalance = initial + income - expense → initial = newBalance - income + expense
+  // TC:     newBalance = initial - income + expense → initial = newBalance + income - expense
+  const isCreditCard = existing[0].type === 'credit_card';
+  const newInitialBalance = isCreditCard
+    ? newBalance + totalIncome - totalExpense
+    : newBalance - totalIncome + totalExpense;
+
   await db
     .update(accounts)
-    .set({ currentBalance: String(newBalance), updatedAt: new Date() })
+    .set({
+      initialBalance: String(newInitialBalance),
+      currentBalance: String(newBalance),
+      updatedAt: new Date(),
+    })
     .where(eq(accounts.id, accountId));
 
   invalidateRelatedCache('accounts');

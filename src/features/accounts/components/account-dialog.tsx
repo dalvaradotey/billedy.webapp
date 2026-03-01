@@ -285,33 +285,35 @@ export function AccountDialogContent({
             />
           )}
 
-          {/* Initial Balance */}
-          <FormField
-            control={form.control}
-            name="initialBalance"
-            render={({ field, fieldState }) => (
-              <FormItem data-field="initialBalance">
-                <FormControl>
-                  <CurrencyInput
-                    value={field.value}
-                    onChange={field.onChange}
-                    currency={watchCurrency ?? 'CLP'}
-                    placeholder="0"
-                    size="lg"
-                    label={watchType === 'credit_card' ? 'Deuda actual' : 'Saldo inicial'}
-                    valid={field.value !== undefined && !fieldState.error}
-                    invalid={!!fieldState.error}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {watchType === 'credit_card'
-                    ? 'Cuánto debes actualmente en esta tarjeta'
-                    : 'Cuánto tienes actualmente en esta cuenta'}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* Initial Balance - Solo al crear */}
+          {!isEditing && (
+            <FormField
+              control={form.control}
+              name="initialBalance"
+              render={({ field, fieldState }) => (
+                <FormItem data-field="initialBalance">
+                  <FormControl>
+                    <CurrencyInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      currency={watchCurrency ?? 'CLP'}
+                      placeholder="0"
+                      size="lg"
+                      label={watchType === 'credit_card' ? 'Deuda actual' : 'Saldo inicial'}
+                      valid={field.value !== undefined && !fieldState.error}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {watchType === 'credit_card'
+                      ? 'Cuánto debes actualmente en esta tarjeta'
+                      : 'Cuánto tienes actualmente en esta cuenta'}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           {/* Credit Limit - Only for credit cards */}
           {watchType === 'credit_card' && (
