@@ -290,17 +290,12 @@ export function TransactionDialogContent({
       if (result.success) {
         // Notificar actualización optimista para nuevas transacciones
         if (!transaction && onTransactionCreated) {
-          const account = accountsMap.get(data.accountId);
-          const isCreditCard = account?.type === 'credit_card';
-          // Para tarjetas de crédito y gastos, siempre se marca como pagado
-          const effectiveIsPaid = (isCreditCard && data.type === 'expense') || (data.isPaid ?? false);
-
           onTransactionCreated({
             type: data.type,
             amount: data.originalAmount,
             budgetId: data.budgetId ?? undefined,
             accountId: data.accountId,
-            isPaid: effectiveIsPaid,
+            isPaid: data.isPaid ?? false,
           });
         }
 
@@ -963,24 +958,24 @@ export function TransactionDialogContent({
                 />
 
                 {/* isPaid switch */}
-                {!isCreditCardExpense && (
-                  <FormField
-                    control={form.control}
-                    name="isPaid"
-                    render={({ field }) => (
-                      <FormItem data-field="isPaid">
-                        <FormControl>
-                          <SwitchCard
-                            title="Pagado"
-                            description="Marca si esta transacción ya fue pagada"
-                            checked={field.value ?? false}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                )}
+                <FormField
+                  control={form.control}
+                  name="isPaid"
+                  render={({ field }) => (
+                    <FormItem data-field="isPaid">
+                      <FormControl>
+                        <SwitchCard
+                          title="Pagado"
+                          description={isCreditCardExpense
+                            ? "Marca si este cargo ya se aplicó a la tarjeta"
+                            : "Marca si esta transacción ya fue pagada"}
+                          checked={field.value ?? false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
               </div>
             )}
 

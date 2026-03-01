@@ -86,10 +86,7 @@ export async function createTransaction(
     ? parsed.data.originalAmount
     : String(parsed.data.originalAmount);
 
-  // Para gastos en tarjeta de crédito, siempre marcar como pagado
-  // (afecta el balance de la TC inmediatamente)
-  const isCreditCardExpense = account[0].type === 'credit_card' && parsed.data.type === 'expense';
-  const isPaid = isCreditCardExpense ? true : (parsed.data.isPaid ?? false);
+  const isPaid = parsed.data.isPaid ?? false;
 
   const [newTransaction] = await db
     .insert(transactions)

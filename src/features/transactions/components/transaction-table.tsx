@@ -143,13 +143,16 @@ export function TransactionTable({
     return transactions.filter((t) => selectedIds.has(t.id) && isCreditCardEligible(t));
   }, [transactions, selectedIds, isCreditCardEligible]);
 
-  // Obtener transacciones regulares (no TC) pendientes seleccionadas
-  const selectedRegularUnpaid = useMemo(() => {
+  // Obtener transacciones pendientes seleccionadas (incluye TC no liquidadas)
+  const selectedUnpaid = useMemo(() => {
     return transactions.filter((t) => {
       if (!selectedIds.has(t.id)) return false;
       const account = accountsMap.get(t.accountId ?? '');
       const isCC = account?.type === 'credit_card' && t.type === 'expense';
-      return !isCC && !t.isPaid;
+      // Para TC: elegible si no está pagada y no está liquidada
+      if (isCC) return !t.isPaid && !t.paidByTransferId && !t.isHistoricallyPaid;
+      // Para regulares: elegible si no está pagada
+      return !t.isPaid;
     });
   }, [transactions, selectedIds, accountsMap]);
 
@@ -249,13 +252,13 @@ export function TransactionTable({
   };
 
   const handleBulkTogglePaid = () => {
-    const toastId = toast.loading(`Marcando ${selectedRegularUnpaid.length} transacciones como pagadas...`);
+    const toastId = toast.loading(`Marcando ${selectedUnpaid.length} transacciones como pagadas...`);
     onMutationStart?.();
     setShowBulkTogglePaidDialog(false);
     startTransition(async () => {
       const result = await bulkToggleTransactionsPaid(userId, {
         projectId,
-        transactionIds: selectedRegularUnpaid.map(t => t.id),
+        transactionIds: selectedUnpaid.map(t => t.id),
         isPaid: true,
       });
       setSelectedIds(new Set());
@@ -311,7 +314,7 @@ export function TransactionTable({
             >
               Cancelar
             </Button>
-            {selectedRegularUnpaid.length > 0 && (
+            {selectedUnpaid.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
@@ -319,7 +322,7 @@ export function TransactionTable({
                 disabled={isPending}
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                Pagado ({selectedRegularUnpaid.length})
+                Pagado ({selectedUnpaid.length})
               </Button>
             )}
             <Button
@@ -407,6 +410,10 @@ export function TransactionTable({
                     <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                       Hist.
                     </span>
+                  ) : transaction.isPaid ? (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      Cargado
+                    </span>
                   ) : null
                 ) : (
                   // Para transacciones normales: mostrar estado pagado
@@ -482,8 +489,8 @@ export function TransactionTable({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {/* Toggle pagado solo para transacciones normales (no TC) */}
-                    {!isCC && (
+                    {/* Toggle pagado - para TC solo si no está liquidada */}
+                    {(!isCC || !settled) && (
                       <DropdownMenuItem onClick={() => setTransactionToTogglePaid(transaction)}>
                         {transaction.isPaid ? (
                           <>
@@ -544,7 +551,7 @@ export function TransactionTable({
       {/* Bulk Toggle Paid Confirmation Dialog */}
       <BulkTogglePaidDialog
         open={showBulkTogglePaidDialog}
-        count={selectedRegularUnpaid.length}
+        count={selectedUnpaid.length}
         isPending={isPending}
         onConfirm={handleBulkTogglePaid}
         onOpenChange={setShowBulkTogglePaidDialog}
