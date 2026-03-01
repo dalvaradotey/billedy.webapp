@@ -10,12 +10,14 @@ import {
   updateTransactionSchema,
   togglePaidSchema,
   bulkTogglePaidSchema,
+  bulkUpdateDateSchema,
 } from '../schemas';
 import type {
   CreateTransactionInput,
   UpdateTransactionInput,
   TogglePaidInput,
   BulkTogglePaidInput,
+  BulkUpdateDateInput,
 } from '../schemas';
 import type { ActionResult } from '../types';
 import { updateAccountBalance } from '@/features/accounts/actions';
@@ -445,4 +447,56 @@ export async function bulkToggleTransactionsPaid(
   invalidateRelatedCache('transactions');
 
   return { success: true, data: { updatedCount: toUpdate.length } };
+}
+
+/**
+ * Cambia la fecha de múltiples transacciones en lote
+ */
+export async function bulkUpdateTransactionDates(
+  userId: string,
+  input: BulkUpdateDateInput
+): Promise<ActionResult<{ updatedCount: number }>> {
+  const parsed = bulkUpdateDateSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+
+  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  if (!hasAccess) {
+    return { success: false, error: 'No tienes acceso a este proyecto' };
+  }
+
+  const selected = await db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.projectId, parsed.data.projectId),
+        inArray(transactions.id, parsed.data.transactionIds)
+      )
+    );
+
+  if (selected.length === 0) {
+    return { success: false, error: 'No se encontraron transacciones válidas' };
+  }
+
+  const now = new Date();
+
+  await db
+    .update(transactions)
+    .set({
+      date: parsed.data.date,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(transactions.projectId, parsed.data.projectId),
+        inArray(transactions.id, parsed.data.transactionIds)
+      )
+    );
+
+  invalidateRelatedCache('transactions');
+
+  return { success: true, data: { updatedCount: selected.length } };
 }

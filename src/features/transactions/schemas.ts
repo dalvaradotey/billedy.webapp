@@ -85,3 +85,12 @@ export const bulkTogglePaidSchema = z.object({
 });
 
 export type BulkTogglePaidInput = z.infer<typeof bulkTogglePaidSchema>;
+
+// Schema para cambiar fecha de transacciones en lote
+export const bulkUpdateDateSchema = z.object({
+  projectId: z.string().uuid('El proyecto es requerido'),
+  transactionIds: z.array(z.string().uuid()).min(1, 'Debes seleccionar al menos una transacción'),
+  date: z.date({ message: 'La fecha es requerida' }),
+});
+
+export type BulkUpdateDateInput = z.infer<typeof bulkUpdateDateSchema>;

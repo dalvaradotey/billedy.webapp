@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FloatingLabelDateInput } from '@/components/floating-label-date-input';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -201,5 +203,57 @@ export function HistoricallyPaidDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+// ============================================================================
+// BULK DATE CHANGE DIALOG
+// ============================================================================
+
+interface BulkDateChangeDialogProps {
+  open: boolean;
+  count: number;
+  isPending: boolean;
+  onConfirm: (date: Date) => void;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function BulkDateChangeDialog({
+  open,
+  count,
+  isPending,
+  onConfirm,
+  onOpenChange,
+}: BulkDateChangeDialogProps) {
+  const [newDate, setNewDate] = useState<Date | undefined>(new Date());
+
+  // Resetear fecha al abrir
+  useEffect(() => {
+    if (open) {
+      setNewDate(new Date());
+    }
+  }, [open]);
+
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Cambiar fecha"
+      description={
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Selecciona la nueva fecha para {count} transacción{count > 1 ? 'es' : ''}:
+          </p>
+          <FloatingLabelDateInput
+            label="Nueva fecha"
+            value={newDate}
+            onChange={setNewDate}
+          />
+        </div>
+      }
+      confirmText={isPending ? 'Procesando...' : 'Cambiar fecha'}
+      isPending={isPending || !newDate}
+      onConfirm={() => newDate && onConfirm(newDate)}
+    />
   );
 }

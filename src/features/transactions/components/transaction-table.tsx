@@ -7,6 +7,7 @@ import {
   Trash2,
   Check,
   CheckCircle2,
+  Calendar,
   X,
   History,
   CreditCard,
@@ -32,6 +33,7 @@ import {
 import {
   toggleTransactionPaid,
   bulkToggleTransactionsPaid,
+  bulkUpdateTransactionDates,
   deleteTransaction,
   setTransactionsHistoricallyPaid,
 } from '../actions';
@@ -45,6 +47,7 @@ import {
   TogglePaidDialog,
   BulkDeleteDialog,
   BulkTogglePaidDialog,
+  BulkDateChangeDialog,
   HistoricallyPaidDialog,
 } from './confirmation-dialogs';
 
@@ -115,6 +118,7 @@ export function TransactionTable({
   const [showHistoricallyPaidDialog, setShowHistoricallyPaidDialog] = useState(false);
   const [showPayCCDialog, setShowPayCCDialog] = useState(false);
   const [showBulkTogglePaidDialog, setShowBulkTogglePaidDialog] = useState(false);
+  const [showBulkDateChangeDialog, setShowBulkDateChangeDialog] = useState(false);
 
   // Mapa de cuentas por ID para verificar tipo
   const accountsMap = useMemo(() => {
@@ -263,6 +267,25 @@ export function TransactionTable({
     });
   };
 
+  const handleBulkDateChange = (date: Date) => {
+    const toastId = toast.loading(`Cambiando fecha de ${selectedIds.size} transacciones...`);
+    onMutationStart?.();
+    setShowBulkDateChangeDialog(false);
+    startTransition(async () => {
+      const result = await bulkUpdateTransactionDates(userId, {
+        projectId,
+        transactionIds: Array.from(selectedIds),
+        date,
+      });
+      setSelectedIds(new Set());
+      if (result.success) {
+        onMutationSuccess?.(toastId, `Fecha actualizada en ${result.data.updatedCount} transacciones`);
+      } else {
+        onMutationError?.(toastId, result.error);
+      }
+    });
+  };
+
   // Determinar si una transacción es de tarjeta de crédito (cualquier gasto en cuenta TC)
   const isCreditCardTransaction = useCallback((t: TransactionWithCategory) => {
     const account = accountsMap.get(t.accountId ?? '');
@@ -299,6 +322,15 @@ export function TransactionTable({
                 Pagado ({selectedRegularUnpaid.length})
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowBulkDateChangeDialog(true)}
+              disabled={isPending}
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              Fecha
+            </Button>
             {selectedCCTransactions.length > 0 && (
               <Button
                 variant="outline"
@@ -516,6 +548,15 @@ export function TransactionTable({
         isPending={isPending}
         onConfirm={handleBulkTogglePaid}
         onOpenChange={setShowBulkTogglePaidDialog}
+      />
+
+      {/* Bulk Date Change Dialog */}
+      <BulkDateChangeDialog
+        open={showBulkDateChangeDialog}
+        count={selectedIds.size}
+        isPending={isPending}
+        onConfirm={handleBulkDateChange}
+        onOpenChange={setShowBulkDateChangeDialog}
       />
 
       {/* Historically Paid Confirmation Dialog */}
