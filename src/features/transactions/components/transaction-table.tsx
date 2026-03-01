@@ -6,6 +6,7 @@ import {
   Pencil,
   Trash2,
   Check,
+  CheckCircle2,
   X,
   History,
   CreditCard,
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   toggleTransactionPaid,
+  bulkToggleTransactionsPaid,
   deleteTransaction,
   setTransactionsHistoricallyPaid,
 } from '../actions';
@@ -42,6 +44,7 @@ import {
   DeleteTransactionDialog,
   TogglePaidDialog,
   BulkDeleteDialog,
+  BulkTogglePaidDialog,
   HistoricallyPaidDialog,
 } from './confirmation-dialogs';
 
@@ -111,6 +114,7 @@ export function TransactionTable({
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [showHistoricallyPaidDialog, setShowHistoricallyPaidDialog] = useState(false);
   const [showPayCCDialog, setShowPayCCDialog] = useState(false);
+  const [showBulkTogglePaidDialog, setShowBulkTogglePaidDialog] = useState(false);
 
   // Mapa de cuentas por ID para verificar tipo
   const accountsMap = useMemo(() => {
@@ -134,6 +138,16 @@ export function TransactionTable({
   const selectedCCTransactions = useMemo(() => {
     return transactions.filter((t) => selectedIds.has(t.id) && isCreditCardEligible(t));
   }, [transactions, selectedIds, isCreditCardEligible]);
+
+  // Obtener transacciones regulares (no TC) pendientes seleccionadas
+  const selectedRegularUnpaid = useMemo(() => {
+    return transactions.filter((t) => {
+      if (!selectedIds.has(t.id)) return false;
+      const account = accountsMap.get(t.accountId ?? '');
+      const isCC = account?.type === 'credit_card' && t.type === 'expense';
+      return !isCC && !t.isPaid;
+    });
+  }, [transactions, selectedIds, accountsMap]);
 
   const handleConfirmTogglePaid = () => {
     if (!transactionToTogglePaid) return;
@@ -230,6 +244,25 @@ export function TransactionTable({
     });
   };
 
+  const handleBulkTogglePaid = () => {
+    const toastId = toast.loading(`Marcando ${selectedRegularUnpaid.length} transacciones como pagadas...`);
+    onMutationStart?.();
+    setShowBulkTogglePaidDialog(false);
+    startTransition(async () => {
+      const result = await bulkToggleTransactionsPaid(userId, {
+        projectId,
+        transactionIds: selectedRegularUnpaid.map(t => t.id),
+        isPaid: true,
+      });
+      setSelectedIds(new Set());
+      if (result.success) {
+        onMutationSuccess?.(toastId, `${result.data.updatedCount} transacciones marcadas como pagadas`);
+      } else {
+        onMutationError?.(toastId, result.error);
+      }
+    });
+  };
+
   // Determinar si una transacción es de tarjeta de crédito (cualquier gasto en cuenta TC)
   const isCreditCardTransaction = useCallback((t: TransactionWithCategory) => {
     const account = accountsMap.get(t.accountId ?? '');
@@ -255,6 +288,17 @@ export function TransactionTable({
             >
               Cancelar
             </Button>
+            {selectedRegularUnpaid.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowBulkTogglePaidDialog(true)}
+                disabled={isPending}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Pagado ({selectedRegularUnpaid.length})
+              </Button>
+            )}
             {selectedCCTransactions.length > 0 && (
               <Button
                 variant="outline"
@@ -463,6 +507,15 @@ export function TransactionTable({
         isPending={isPending}
         onConfirm={handleBulkDelete}
         onOpenChange={setShowBulkDeleteDialog}
+      />
+
+      {/* Bulk Toggle Paid Confirmation Dialog */}
+      <BulkTogglePaidDialog
+        open={showBulkTogglePaidDialog}
+        count={selectedRegularUnpaid.length}
+        isPending={isPending}
+        onConfirm={handleBulkTogglePaid}
+        onOpenChange={setShowBulkTogglePaidDialog}
       />
 
       {/* Historically Paid Confirmation Dialog */}

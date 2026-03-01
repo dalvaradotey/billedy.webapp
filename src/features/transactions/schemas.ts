@@ -76,3 +76,12 @@ export const setHistoricallyPaidSchema = z.object({
 });
 
 export type SetHistoricallyPaidInput = z.infer<typeof setHistoricallyPaidSchema>;
+
+// Schema para marcar/desmarcar transacciones como pagadas en lote
+export const bulkTogglePaidSchema = z.object({
+  projectId: z.string().uuid('El proyecto es requerido'),
+  transactionIds: z.array(z.string().uuid()).min(1, 'Debes seleccionar al menos una transacción'),
+  isPaid: z.boolean(),
+});
+
+export type BulkTogglePaidInput = z.infer<typeof bulkTogglePaidSchema>;

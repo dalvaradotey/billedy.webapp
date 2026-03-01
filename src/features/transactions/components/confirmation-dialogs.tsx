@@ -115,6 +115,38 @@ export function BulkDeleteDialog({
 }
 
 // ============================================================================
+// BULK TOGGLE PAID DIALOG
+// ============================================================================
+
+interface BulkTogglePaidDialogProps {
+  open: boolean;
+  count: number;
+  isPending: boolean;
+  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function BulkTogglePaidDialog({
+  open,
+  count,
+  isPending,
+  onConfirm,
+  onOpenChange,
+}: BulkTogglePaidDialogProps) {
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Marcar como pagadas"
+      description={`¿Marcar ${count} transacción${count > 1 ? 'es' : ''} como pagada${count > 1 ? 's' : ''}? Esto ajustará los balances de las cuentas asociadas.`}
+      confirmText={isPending ? 'Procesando...' : 'Marcar como pagadas'}
+      isPending={isPending}
+      onConfirm={onConfirm}
+    />
+  );
+}
+
+// ============================================================================
 // HISTORICALLY PAID DIALOG
 // (Can't use ConfirmDialog - has 3 buttons with custom actions)
 // ============================================================================

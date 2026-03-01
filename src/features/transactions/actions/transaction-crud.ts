@@ -4,15 +4,18 @@ import { db } from '@/lib/db';
 import { transactions, projects, projectMembers, accounts } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
+import { inArray } from 'drizzle-orm';
 import {
   createTransactionSchema,
   updateTransactionSchema,
   togglePaidSchema,
+  bulkTogglePaidSchema,
 } from '../schemas';
 import type {
   CreateTransactionInput,
   UpdateTransactionInput,
   TogglePaidInput,
+  BulkTogglePaidInput,
 } from '../schemas';
 import type { ActionResult } from '../types';
 import { updateAccountBalance } from '@/features/accounts/actions';
@@ -356,4 +359,90 @@ export async function deleteTransaction(
   invalidateRelatedCache('transactions');
 
   return { success: true, data: undefined };
+}
+
+/**
+ * Marca/desmarca múltiples transacciones como pagadas en lote
+ */
+export async function bulkToggleTransactionsPaid(
+  userId: string,
+  input: BulkTogglePaidInput
+): Promise<ActionResult<{ updatedCount: number }>> {
+  const parsed = bulkTogglePaidSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+
+  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  if (!hasAccess) {
+    return { success: false, error: 'No tienes acceso a este proyecto' };
+  }
+
+  // Obtener transacciones que realmente necesitan cambio
+  const selected = await db
+    .select({
+      id: transactions.id,
+      accountId: transactions.accountId,
+      type: transactions.type,
+      originalAmount: transactions.originalAmount,
+      isPaid: transactions.isPaid,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.projectId, parsed.data.projectId),
+        inArray(transactions.id, parsed.data.transactionIds)
+      )
+    );
+
+  // Filtrar solo las que necesitan cambio
+  const toUpdate = selected.filter(t => t.isPaid !== parsed.data.isPaid);
+
+  if (toUpdate.length === 0) {
+    return { success: true, data: { updatedCount: 0 } };
+  }
+
+  const now = new Date();
+  const idsToUpdate = toUpdate.map(t => t.id);
+
+  // Actualizar en batch
+  await db
+    .update(transactions)
+    .set({
+      isPaid: parsed.data.isPaid,
+      paidAt: parsed.data.isPaid ? now : null,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(transactions.projectId, parsed.data.projectId),
+        inArray(transactions.id, idsToUpdate)
+      )
+    );
+
+  // Agrupar deltas por accountId para minimizar llamadas
+  const deltasByAccount = new Map<string, number>();
+  for (const t of toUpdate) {
+    if (!t.accountId) continue;
+    const amount = parseFloat(t.originalAmount);
+    let delta: number;
+    if (parsed.data.isPaid) {
+      delta = t.type === 'income' ? amount : -amount;
+    } else {
+      delta = t.type === 'income' ? -amount : amount;
+    }
+    deltasByAccount.set(t.accountId, (deltasByAccount.get(t.accountId) ?? 0) + delta);
+  }
+
+  // Aplicar ajustes de balance por cuenta
+  await Promise.all(
+    Array.from(deltasByAccount.entries()).map(([accountId, delta]) =>
+      updateAccountBalance(accountId, delta)
+    )
+  );
+
+  invalidateRelatedCache('transactions');
+
+  return { success: true, data: { updatedCount: toUpdate.length } };
 }

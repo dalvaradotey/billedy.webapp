@@ -894,7 +894,7 @@ export function TransactionDialogContent({
                     return (
                       <FormItem data-field="date">
                         <FormControl>
-                          <div className="relative">
+                          <div className="relative" data-vaul-no-drag>
                             <span
                               className={cn(
                                 "absolute left-3 top-1.5 text-xs flex items-center gap-1 pointer-events-none",
@@ -907,11 +907,25 @@ export function TransactionDialogContent({
                             </span>
                             <Input
                               type="date"
+                              data-vaul-no-drag
                               {...field}
-                              value={field.value instanceof Date
+                              value={field.value instanceof Date && !isNaN(field.value.getTime())
                                 ? field.value.toISOString().split('T')[0]
-                                : String(field.value).split('T')[0]}
-                              onChange={(e) => field.onChange(new Date(e.target.value + 'T12:00:00'))}
+                                : typeof field.value === 'string'
+                                  ? String(field.value).split('T')[0]
+                                  : ''}
+                              onClick={(e) => {
+                                try {
+                                  (e.currentTarget as HTMLInputElement).showPicker();
+                                } catch {
+                                  // Some browsers may throw if picker is already open
+                                }
+                              }}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  field.onChange(new Date(e.target.value + 'T12:00:00'));
+                                }
+                              }}
                               className={cn(
                                 "h-14 pt-5 pb-1",
                                 hasValue && "ring-1 ring-emerald-500",
