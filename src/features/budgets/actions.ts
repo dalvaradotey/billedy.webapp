@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { budgets, projectMembers } from '@/lib/db/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and, isNotNull, sql } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
 import {
   createBudgetSchema,
@@ -54,6 +54,12 @@ export async function createBudget(
     return { success: false, error: 'No tienes acceso a este proyecto' };
   }
 
+  // Calcular siguiente sort_order
+  const [maxOrder] = await db
+    .select({ max: sql<number>`COALESCE(MAX(${budgets.sortOrder}), 0)` })
+    .from(budgets)
+    .where(eq(budgets.projectId, parsed.data.projectId));
+
   const [newBudget] = await db
     .insert(budgets)
     .values({
@@ -63,6 +69,7 @@ export async function createBudget(
       defaultAccountId: parsed.data.defaultAccountId ?? null,
       defaultAmount: String(parsed.data.defaultAmount),
       currency: parsed.data.currency,
+      sortOrder: (maxOrder?.max ?? 0) + 1000,
     })
     .returning({ id: budgets.id });
 
@@ -165,4 +172,38 @@ export async function toggleBudgetActive(
   isActive: boolean
 ): Promise<ActionResult> {
   return updateBudget(budgetId, userId, { isActive });
+}
+
+/**
+ * Reordena los presupuestos (actualiza sort_order en batch)
+ */
+export async function reorderBudgets(
+  projectId: string,
+  userId: string,
+  orderedIds: string[]
+): Promise<ActionResult> {
+  const hasAccess = await verifyProjectAccess(projectId, userId);
+  if (!hasAccess) {
+    return { success: false, error: 'No tienes acceso a este proyecto' };
+  }
+
+  if (orderedIds.length === 0) {
+    return { success: false, error: 'No se proporcionaron presupuestos' };
+  }
+
+  const updates = orderedIds.map((id, index) =>
+    db
+      .update(budgets)
+      .set({
+        sortOrder: (index + 1) * 1000,
+        updatedAt: new Date(),
+      })
+      .where(eq(budgets.id, id))
+  );
+
+  await Promise.all(updates);
+
+  invalidateRelatedCache('budgets');
+
+  return { success: true, data: undefined };
 }

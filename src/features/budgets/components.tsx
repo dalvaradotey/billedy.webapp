@@ -1,9 +1,27 @@
 'use client';
 
-import { useState, useTransition, useEffect, useCallback } from 'react';
+import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  TouchSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   Plus,
   Pencil,
@@ -15,6 +33,8 @@ import {
   ArrowRight,
   MoreVertical,
   X,
+  GripVertical,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SubmitButton } from '@/components/submit-button';
@@ -51,6 +71,7 @@ import {
   updateBudget,
   deleteBudget,
   toggleBudgetActive,
+  reorderBudgets,
 } from './actions';
 import { createBudgetSchema } from './schemas';
 import type { CreateBudgetInput, UpdateBudgetInput } from './schemas';
@@ -87,6 +108,51 @@ export function BudgetList({
 }: BudgetListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<BudgetWithCategory | null>(null);
+  const [isReorderMode, setIsReorderMode] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [localBudgets, setLocalBudgets] = useState(budgets);
+
+  // Sincronizar cuando llegan nuevos datos del server
+  useEffect(() => {
+    setLocalBudgets(budgets);
+  }, [budgets]);
+
+  const activeBudgets = useMemo(() => localBudgets.filter((b) => b.isActive), [localBudgets]);
+  const inactiveBudgets = useMemo(() => localBudgets.filter((b) => !b.isActive), [localBudgets]);
+
+  // Sensores DnD
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = activeBudgets.findIndex((b) => b.id === active.id);
+    const newIndex = activeBudgets.findIndex((b) => b.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(activeBudgets, oldIndex, newIndex);
+    setLocalBudgets([...reordered, ...inactiveBudgets]);
+
+    const orderedIds = reordered.map((b) => b.id);
+    startTransition(async () => {
+      const result = await reorderBudgets(projectId, userId, orderedIds);
+      if (!result.success) {
+        toast.error(result.error);
+        setLocalBudgets(budgets);
+      }
+    });
+  };
 
   const handleEdit = (budget: BudgetWithCategory) => {
     setEditingBudget(budget);
@@ -103,9 +169,6 @@ export function BudgetList({
     setIsDialogOpen(true);
   };
 
-  const activeBudgets = budgets.filter((b) => b.isActive);
-  const inactiveBudgets = budgets.filter((b) => !b.isActive);
-
   return (
     <div className="space-y-6">
       {/* Actions */}
@@ -114,24 +177,42 @@ export function BudgetList({
           {budgets.length} presupuestos
         </div>
 
-        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DrawerTrigger asChild>
-            <Button variant="cta-sm" onClick={handleOpenDialog}>
-              Nuevo presupuesto
-              <ArrowRight className="h-4 w-4" />
+        <div className="flex items-center gap-2">
+          {activeBudgets.length > 1 && (
+            <Button
+              variant={isReorderMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setIsReorderMode(!isReorderMode)}
+              disabled={isPending}
+            >
+              <ArrowUpDown className="h-4 w-4" />
+              <span className="ml-1.5">
+                {isReorderMode ? 'Listo' : 'Ordenar'}
+              </span>
             </Button>
-          </DrawerTrigger>
-          <BudgetDialogContent
-            projectId={projectId}
-            userId={userId}
-            categories={categories}
-            accounts={accounts}
-            currencies={currencies}
-            budget={editingBudget}
-            onSuccess={handleDialogClose}
-            defaultCurrency={defaultCurrency}
-          />
-        </ResponsiveDrawer>
+          )}
+
+          {!isReorderMode && (
+            <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DrawerTrigger asChild>
+                <Button variant="cta-sm" onClick={handleOpenDialog}>
+                  Nuevo presupuesto
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </DrawerTrigger>
+              <BudgetDialogContent
+                projectId={projectId}
+                userId={userId}
+                categories={categories}
+                accounts={accounts}
+                currencies={currencies}
+                budget={editingBudget}
+                onSuccess={handleDialogClose}
+                defaultCurrency={defaultCurrency}
+              />
+            </ResponsiveDrawer>
+          )}
+        </div>
       </div>
 
       {/* Budgets */}
@@ -145,19 +226,37 @@ export function BudgetList({
         <>
           {activeBudgets.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-muted-foreground">Activos</h3>
-              {activeBudgets.map((budget) => (
-                <BudgetCard
-                  key={budget.id}
-                  budget={budget}
-                  userId={userId}
-                  onEdit={() => handleEdit(budget)}
-                />
-              ))}
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {isReorderMode ? 'Arrastra para reordenar' : 'Activos'}
+              </h3>
+
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={activeBudgets.map((b) => b.id)}
+                  strategy={verticalListSortingStrategy}
+                  disabled={!isReorderMode}
+                >
+                  <div className="space-y-3">
+                    {activeBudgets.map((budget) => (
+                      <SortableBudgetCard
+                        key={budget.id}
+                        budget={budget}
+                        userId={userId}
+                        onEdit={() => handleEdit(budget)}
+                        isReorderMode={isReorderMode}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </div>
           )}
 
-          {inactiveBudgets.length > 0 && (
+          {inactiveBudgets.length > 0 && !isReorderMode && (
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-muted-foreground">Inactivos</h3>
               {inactiveBudgets.map((budget) => (
@@ -172,6 +271,82 @@ export function BudgetList({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// ============================================================================
+// SORTABLE BUDGET CARD WRAPPER
+// ============================================================================
+
+interface SortableBudgetCardProps {
+  budget: BudgetWithCategory;
+  userId: string;
+  onEdit: () => void;
+  isReorderMode: boolean;
+}
+
+function SortableBudgetCard({ budget, userId, onEdit, isReorderMode }: SortableBudgetCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: budget.id, disabled: !isReorderMode });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  if (!isReorderMode) {
+    return (
+      <BudgetCard
+        budget={budget}
+        userId={userId}
+        onEdit={onEdit}
+      />
+    );
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <div
+        className={cn(
+          cardStyles.base,
+          'flex items-center gap-3 cursor-grab active:cursor-grabbing select-none',
+          isDragging && 'opacity-50 shadow-lg ring-2 ring-primary/20 z-10'
+        )}
+        {...listeners}
+      >
+        {/* Drag handle */}
+        <div className="flex items-center justify-center w-10 h-10 -ml-1 touch-none">
+          <GripVertical className="h-5 w-5 text-muted-foreground" />
+        </div>
+
+        {/* Category color dot */}
+        {budget.categoryColor && (
+          <div
+            className="w-3 h-3 rounded-full shrink-0"
+            style={{ backgroundColor: budget.categoryColor }}
+          />
+        )}
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-base truncate">{budget.name}</p>
+          {budget.categoryName && (
+            <p className="text-sm text-muted-foreground truncate">{budget.categoryName}</p>
+          )}
+        </div>
+
+        {/* Amount */}
+        <p className="text-lg font-bold tabular-nums text-foreground shrink-0">
+          {formatCurrency(budget.defaultAmount, budget.currency)}
+        </p>
+      </div>
     </div>
   );
 }

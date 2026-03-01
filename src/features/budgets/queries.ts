@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { budgets, categories, projectMembers, accounts, transactions } from '@/lib/db/schema';
-import { eq, and, isNotNull, sql, gte, lte } from 'drizzle-orm';
+import { eq, and, isNotNull, sql, gte, lte, asc } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { BudgetWithCategory, BudgetProgress } from './types';
 
@@ -43,6 +43,7 @@ async function _getBudgetsWithCategory(
       defaultAmount: budgets.defaultAmount,
       currency: budgets.currency,
       isActive: budgets.isActive,
+      sortOrder: budgets.sortOrder,
       createdAt: budgets.createdAt,
       updatedAt: budgets.updatedAt,
       categoryName: categories.name,
@@ -53,7 +54,7 @@ async function _getBudgetsWithCategory(
     .leftJoin(categories, eq(budgets.categoryId, categories.id))
     .leftJoin(accounts, eq(budgets.defaultAccountId, accounts.id))
     .where(eq(budgets.projectId, projectId))
-    .orderBy(budgets.name);
+    .orderBy(asc(budgets.sortOrder), asc(budgets.name));
 
   return budgetsList;
 }
@@ -102,7 +103,7 @@ async function _getActiveBudgets(
         eq(budgets.isActive, true)
       )
     )
-    .orderBy(budgets.name);
+    .orderBy(asc(budgets.sortOrder), asc(budgets.name));
 
   return result;
 }
@@ -202,10 +203,11 @@ async function _getBudgetsProgress(
       budgets.defaultAmount,
       budgets.categoryId,
       budgets.defaultAccountId,
+      budgets.sortOrder,
       categories.name,
       categories.color
     )
-    .orderBy(budgets.name);
+    .orderBy(asc(budgets.sortOrder), asc(budgets.name));
 
   return result.map((budget) => {
     const budgetedAmount = parseFloat(budget.budgetedAmount);

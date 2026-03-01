@@ -218,6 +218,7 @@ export const budgets = pgTable('n1n4_budgets', {
   defaultAmount: decimal('default_amount', { precision: 15, scale: 2 }).notNull(),
   currency: varchar('currency', { length: 3 }).default('CLP').notNull(),
   isActive: boolean('is_active').default(true).notNull(),
+  sortOrder: integer('sort_order').default(10000).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
