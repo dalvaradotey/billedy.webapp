@@ -38,7 +38,7 @@ import {
   setTransactionsHistoricallyPaid,
 } from '../actions';
 import type { TransactionWithCategory } from '../types';
-import type { Account } from '@/features/accounts/types';
+import type { AccountWithEntity } from '@/features/accounts/types';
 import { formatCurrency, formatDate } from '@/lib/formatting';
 import { cardStyles } from '@/components/card-styles';
 import { BulkPayCreditCardDialog } from './bulk-pay-cc-dialog';
@@ -89,7 +89,7 @@ export function TransactionTableSkeleton({ rowCount = 5 }: { rowCount?: number }
 
 export interface TransactionTableProps {
   transactions: TransactionWithCategory[];
-  accounts: Account[];
+  accounts: AccountWithEntity[];
   projectId: string;
   userId: string;
   defaultCurrency: string;
@@ -122,7 +122,7 @@ export function TransactionTable({
 
   // Mapa de cuentas por ID para verificar tipo
   const accountsMap = useMemo(() => {
-    const map = new Map<string, Account>();
+    const map = new Map<string, AccountWithEntity>();
     accounts.forEach((acc) => map.set(acc.id, acc));
     return map;
   }, [accounts]);

@@ -2,8 +2,9 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { toast } from 'sonner';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/submit-button';
 import {
   ResponsiveDrawer,
   DrawerContent,
@@ -14,13 +15,6 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -29,12 +23,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { FloatingLabelDateInput } from '@/components/floating-label-date-input';
+import { AccountSelector } from '@/components/account-selector';
 import { formatCurrency, formatDate } from '@/lib/formatting';
 import { payCreditCardTransactions, fetchUnpaidCCTransactions } from '../actions';
 import type { TransactionWithCategory } from '../types';
-import type { Account } from '@/features/accounts/types';
-import { type AccountType } from '@/features/accounts/types';
-import { AccountTypeIcon } from '@/features/accounts/components/account-type-icon';
+import type { Account, AccountWithEntity } from '@/features/accounts/types';
 
 // ============================================================================
 // SHARED TRANSACTION SELECTOR TABLE
@@ -138,6 +132,7 @@ export function PayCreditCardDialog({
   const [isPending, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sourceAccountId, setSourceAccountId] = useState('');
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
 
   const unpaidTransactions = transactions.filter(
@@ -156,6 +151,7 @@ export function PayCreditCardDialog({
     if (open) {
       setSelectedIds(new Set());
       setSourceAccountId('');
+      setPaymentDate(new Date());
       setError(null);
     }
   }, [open]);
@@ -197,7 +193,7 @@ export function PayCreditCardDialog({
         transactionIds: Array.from(selectedIds),
         sourceAccountId,
         creditCardAccountId: creditCardAccount.id,
-        date: new Date(),
+        date: paymentDate,
       });
 
       if (result.success) {
@@ -211,9 +207,9 @@ export function PayCreditCardDialog({
     });
   };
 
-  const availableSourceAccounts = sourceAccounts.filter(
-    (a) => a.type !== 'credit_card' && !a.isArchived && a.id !== creditCardAccount.id
-  );
+  const availableSourceAccounts = sourceAccounts
+    .filter((a) => a.type !== 'credit_card' && !a.isArchived && a.id !== creditCardAccount.id)
+    .map((a) => ({ ...a, entity: null })) as AccountWithEntity[];
 
   if (unpaidTransactions.length === 0) return null;
 
@@ -234,29 +230,24 @@ export function PayCreditCardDialog({
             </DrawerDescription>
           </DrawerHeader>
 
-          <div className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+          <div className="space-y-4 px-4 pt-2 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
           {/* Source Account */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Pagar desde</label>
-            <Select value={sourceAccountId} onValueChange={setSourceAccountId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecciona cuenta de origen" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableSourceAccounts.map((acc) => (
-                  <SelectItem key={acc.id} value={acc.id}>
-                    <div className="flex items-center gap-2">
-                      <AccountTypeIcon type={acc.type as AccountType} className="h-4 w-4" />
-                      {acc.name}
-                      <span className="text-muted-foreground ml-auto">
-                        {formatCurrency(parseFloat(acc.currentBalance), acc.currency)}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <AccountSelector
+            accounts={availableSourceAccounts}
+            value={sourceAccountId || null}
+            onValueChange={(value) => setSourceAccountId(value ?? '')}
+            label="Pagar desde"
+            placeholder="Selecciona cuenta de origen"
+            searchPlaceholder="Buscar cuenta..."
+            valid={!!sourceAccountId}
+          />
+
+          {/* Payment date */}
+          <FloatingLabelDateInput
+            label="Fecha de pago"
+            value={paymentDate}
+            onChange={(date) => setPaymentDate(date ?? new Date())}
+          />
 
           <TransactionSelector
             transactions={unpaidTransactions}
@@ -277,10 +268,17 @@ export function PayCreditCardDialog({
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <DrawerFooter className="pt-4">
-              <Button onClick={handleSubmit} disabled={isPending || selectedIds.size === 0 || !sourceAccountId} className="w-full">
-                {isPending ? 'Procesando...' : `Pagar ${formatCurrency(selectedTotal, defaultCurrency)}`}
-              </Button>
+            <DrawerFooter className="pt-4 px-0">
+              <SubmitButton
+                type="button"
+                isPending={isPending}
+                pendingText="Procesando pago..."
+                disabled={selectedIds.size === 0 || !sourceAccountId}
+                icon={<Wallet className="size-6" />}
+                onClick={handleSubmit}
+              >
+                Pagar {formatCurrency(selectedTotal, defaultCurrency)}
+              </SubmitButton>
             </DrawerFooter>
           </div>
         </div>
@@ -316,6 +314,7 @@ export function PayCreditCardButton({
   const [unpaidTransactions, setUnpaidTransactions] = useState<TransactionWithCategory[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sourceAccountId, setSourceAccountId] = useState('');
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -324,6 +323,7 @@ export function PayCreditCardButton({
       setError(null);
       setSelectedIds(new Set());
       setSourceAccountId('');
+      setPaymentDate(new Date());
 
       fetchUnpaidCCTransactions(creditCardAccount.id, projectId, userId)
         .then((txns) => {
@@ -378,7 +378,7 @@ export function PayCreditCardButton({
         transactionIds: Array.from(selectedIds),
         sourceAccountId,
         creditCardAccountId: creditCardAccount.id,
-        date: new Date(),
+        date: paymentDate,
       });
 
       if (result.success) {
@@ -392,9 +392,9 @@ export function PayCreditCardButton({
     });
   };
 
-  const availableSourceAccounts = sourceAccounts.filter(
-    (a) => a.type !== 'credit_card' && !a.isArchived && a.id !== creditCardAccount.id
-  );
+  const availableSourceAccounts = sourceAccounts
+    .filter((a) => a.type !== 'credit_card' && !a.isArchived && a.id !== creditCardAccount.id)
+    .map((a) => ({ ...a, entity: null })) as AccountWithEntity[];
 
   return (
     <ResponsiveDrawer open={open} onOpenChange={setOpen}>
@@ -423,29 +423,24 @@ export function PayCreditCardButton({
               <p>No hay transacciones pendientes de pago</p>
             </div>
           ) : (
-            <div className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+            <div className="space-y-4 px-4 pt-2 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
             {/* Source Account */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Pagar desde</label>
-              <Select value={sourceAccountId} onValueChange={setSourceAccountId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona cuenta de origen" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableSourceAccounts.map((acc) => (
-                    <SelectItem key={acc.id} value={acc.id}>
-                      <div className="flex items-center gap-2">
-                        <AccountTypeIcon type={acc.type as AccountType} className="h-4 w-4" />
-                        {acc.name}
-                        <span className="text-muted-foreground ml-auto">
-                          {formatCurrency(parseFloat(acc.currentBalance), acc.currency)}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <AccountSelector
+              accounts={availableSourceAccounts}
+              value={sourceAccountId || null}
+              onValueChange={(value) => setSourceAccountId(value ?? '')}
+              label="Pagar desde"
+              placeholder="Selecciona cuenta de origen"
+              searchPlaceholder="Buscar cuenta..."
+              valid={!!sourceAccountId}
+            />
+
+            {/* Payment date */}
+            <FloatingLabelDateInput
+              label="Fecha de pago"
+              value={paymentDate}
+              onChange={(date) => setPaymentDate(date ?? new Date())}
+            />
 
             <TransactionSelector
               transactions={unpaidTransactions}
@@ -466,14 +461,17 @@ export function PayCreditCardButton({
 
               {error && <p className="text-sm text-destructive">{error}</p>}
 
-              <DrawerFooter className="pt-4">
-                <Button
+              <DrawerFooter className="pt-4 px-0">
+                <SubmitButton
+                  type="button"
+                  isPending={isPending}
+                  pendingText="Procesando pago..."
+                  disabled={selectedIds.size === 0 || !sourceAccountId || isLoading}
+                  icon={<Wallet className="size-6" />}
                   onClick={handleSubmit}
-                  disabled={isPending || selectedIds.size === 0 || !sourceAccountId || isLoading}
-                  className="w-full"
                 >
-                  {isPending ? 'Procesando...' : `Pagar ${formatCurrency(selectedTotal, defaultCurrency)}`}
-                </Button>
+                  Pagar {formatCurrency(selectedTotal, defaultCurrency)}
+                </SubmitButton>
               </DrawerFooter>
             </div>
           )}

@@ -2,8 +2,8 @@
 
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import { CreditCard } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { CreditCard, Wallet } from 'lucide-react';
+import { SubmitButton } from '@/components/submit-button';
 import {
   ResponsiveDrawer,
   DrawerContent,
@@ -12,14 +12,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { FloatingLabelDateInput } from '@/components/floating-label-date-input';
 import {
   Table,
   TableBody,
@@ -27,16 +20,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { CurrencyInput } from '@/components/currency-input';
+import { AccountSelector } from '@/components/account-selector';
 import { formatCurrency, formatDate } from '@/lib/formatting';
 import { payCreditCardTransactions } from '../actions';
 import type { TransactionWithCategory } from '../types';
-import type { Account } from '@/features/accounts/types';
-import { type AccountType } from '@/features/accounts/types';
-import { AccountTypeIcon } from '@/features/accounts/components/account-type-icon';
+import type { AccountWithEntity } from '@/features/accounts/types';
 
 interface CreditCardGroup {
   accountId: string;
   accountName: string;
+  accountImageUrl: string | null;
   transactions: TransactionWithCategory[];
   subtotal: number;
 }
@@ -45,8 +38,8 @@ export interface BulkPayCreditCardDialogProps {
   projectId: string;
   userId: string;
   transactions: TransactionWithCategory[];
-  accounts: Account[];
-  accountsMap: Map<string, Account>;
+  accounts: AccountWithEntity[];
+  accountsMap: Map<string, AccountWithEntity>;
   defaultCurrency: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -86,6 +79,7 @@ export function BulkPayCreditCardDialog({
         groups.set(accountId, {
           accountId,
           accountName: account?.name ?? 'Tarjeta desconocida',
+          accountImageUrl: account?.entity?.imageUrl ?? null,
           transactions: [],
           subtotal: 0,
         });
@@ -209,43 +203,39 @@ export function BulkPayCreditCardDialog({
             </DrawerDescription>
           </DrawerHeader>
 
-          <div className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
-          {/* Source account and date */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Pagar desde</label>
-              <Select value={sourceAccountId} onValueChange={setSourceAccountId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona cuenta" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableSourceAccounts.map((acc) => (
-                    <SelectItem key={acc.id} value={acc.id}>
-                      <div className="flex items-center gap-2">
-                        <AccountTypeIcon type={acc.type as AccountType} className="h-4 w-4" />
-                        {acc.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Fecha de pago</label>
-              <Input
-                type="date"
-                value={paymentDate.toISOString().split('T')[0]}
-                onChange={(e) => setPaymentDate(new Date(e.target.value + 'T12:00:00'))}
-              />
-            </div>
-          </div>
+          <div className="space-y-4 px-4 pt-2 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
+          {/* Source account */}
+          <AccountSelector
+            accounts={availableSourceAccounts}
+            value={sourceAccountId || null}
+            onValueChange={(value) => setSourceAccountId(value ?? '')}
+            label="Pagar desde"
+            placeholder="Selecciona cuenta de origen"
+            searchPlaceholder="Buscar cuenta..."
+            valid={!!sourceAccountId}
+          />
+
+          {/* Payment date */}
+          <FloatingLabelDateInput
+            label="Fecha de pago"
+            value={paymentDate}
+            onChange={(date) => setPaymentDate(date ?? new Date())}
+          />
 
           {/* Groups by card */}
           {groupedByCard.map((group) => (
             <div key={group.accountId} className="rounded-lg border p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  {group.accountImageUrl ? (
+                    <img
+                      src={group.accountImageUrl}
+                      alt={group.accountName}
+                      className="h-5 w-5 rounded object-contain bg-white"
+                    />
+                  ) : (
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  )}
                   <span className="font-medium">{group.accountName}</span>
                 </div>
                 <span className="text-sm text-muted-foreground">
@@ -273,19 +263,19 @@ export function BulkPayCreditCardDialog({
               </div>
 
               {/* Subtotal and interest */}
-              <div className="flex items-end gap-4 pt-2 border-t">
-                <div className="flex-1">
-                  <label className="text-xs text-muted-foreground">Subtotal compras</label>
-                  <div className="font-medium">{formatCurrency(group.subtotal, defaultCurrency)}</div>
+              <div className="flex items-end gap-3 pt-2 border-t">
+                <div className="flex-1 pb-2">
+                  <span className="text-xs text-muted-foreground">Subtotal</span>
+                  <div className="font-medium text-lg">{formatCurrency(group.subtotal, defaultCurrency)}</div>
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-muted-foreground">Intereses/Cargos (opcional)</label>
                   <CurrencyInput
                     value={interestAmounts.get(group.accountId)}
                     onChange={(v) => handleInterestChange(group.accountId, v)}
                     currency={defaultCurrency}
                     placeholder="0"
-                    className="h-9"
+                    label="Intereses"
+                    className="h-14 pt-5 pb-1"
                   />
                 </div>
               </div>
@@ -312,10 +302,17 @@ export function BulkPayCreditCardDialog({
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <DrawerFooter className="pt-4">
-              <Button onClick={handleSubmit} disabled={isPending || !sourceAccountId} className="w-full">
-                {isPending ? 'Procesando...' : `Pagar ${formatCurrency(totals.grandTotal, defaultCurrency)}`}
-              </Button>
+            <DrawerFooter className="pt-4 px-0">
+              <SubmitButton
+                type="button"
+                isPending={isPending}
+                pendingText="Procesando pago..."
+                disabled={!sourceAccountId}
+                icon={<Wallet className="size-6" />}
+                onClick={handleSubmit}
+              >
+                Pagar {formatCurrency(totals.grandTotal, defaultCurrency)}
+              </SubmitButton>
             </DrawerFooter>
           </div>
         </div>
