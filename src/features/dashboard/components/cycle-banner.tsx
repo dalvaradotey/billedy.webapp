@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AnimatedCurrency } from '@/components/animated-currency';
+import { formatCurrency } from '@/lib/formatting';
 import { useDashboard } from '../hooks';
 
 export function DashboardCycleBanner() {
@@ -46,12 +47,12 @@ export function DashboardCycleBanner() {
         </Button>
       </div>
 
-      {/* Mobile: Resumen compacto con balance y botón expandir */}
+      {/* Mobile: Resumen compacto con saldo y botón expandir */}
       <div className="md:hidden mt-4">
         <div className="bg-slate-700/30 rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-400 mb-1">Balance del ciclo</p>
+              <p className="text-xs text-slate-400 mb-1">Saldo del ciclo</p>
               <AnimatedCurrency
                 value={cycle.currentBalance}
                 className={`text-2xl font-bold ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
@@ -97,6 +98,11 @@ export function DashboardCycleBanner() {
                 Ingresos
               </p>
               <AnimatedCurrency value={cycle.currentIncome} className="text-emerald-400 font-bold" />
+              {cycle.pendingIncome > 0 && (
+                <p className="text-slate-500 text-[10px] mt-0.5">
+                  Pagado: {formatCurrency(cycle.paidIncome)} · Pend: {formatCurrency(cycle.pendingIncome)}
+                </p>
+              )}
             </div>
             <div className="bg-slate-700/30 rounded-lg p-3">
               <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
@@ -104,6 +110,11 @@ export function DashboardCycleBanner() {
                 Gastos
               </p>
               <AnimatedCurrency value={cycle.currentExpenses} className="text-red-400 font-bold" />
+              {cycle.pendingExpenses > 0 && (
+                <p className="text-slate-500 text-[10px] mt-0.5">
+                  Pagado: {formatCurrency(cycle.paidExpenses)} · Pend: {formatCurrency(cycle.pendingExpenses)}
+                </p>
+              )}
             </div>
             <div className="bg-slate-700/30 rounded-lg p-3">
               <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
@@ -115,12 +126,13 @@ export function DashboardCycleBanner() {
             <div className="bg-slate-700/30 rounded-lg p-3">
               <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
                 <Wallet className="w-3 h-3" />
-                Balance
+                Saldo
               </p>
               <AnimatedCurrency
                 value={cycle.currentBalance}
                 className={`font-bold ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
               />
+              <p className="text-slate-500 text-[10px] mt-0.5">en base a pagados</p>
             </div>
           </div>
         )}
@@ -148,6 +160,11 @@ export function DashboardCycleBanner() {
               Ingresos
             </p>
             <AnimatedCurrency value={cycle.currentIncome} className="text-emerald-400 font-bold text-lg" />
+            {cycle.pendingIncome > 0 && (
+              <p className="text-slate-500 text-[10px] mt-0.5">
+                Pagado: {formatCurrency(cycle.paidIncome)} · Pend: {formatCurrency(cycle.pendingIncome)}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
@@ -155,6 +172,11 @@ export function DashboardCycleBanner() {
               Gastos
             </p>
             <AnimatedCurrency value={cycle.currentExpenses} className="text-red-400 font-bold text-lg" />
+            {cycle.pendingExpenses > 0 && (
+              <p className="text-slate-500 text-[10px] mt-0.5">
+                Pagado: {formatCurrency(cycle.paidExpenses)} · Pend: {formatCurrency(cycle.pendingExpenses)}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
@@ -166,12 +188,13 @@ export function DashboardCycleBanner() {
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
               <Wallet className="w-3 h-3" />
-              Balance
+              Saldo
             </p>
             <AnimatedCurrency
               value={cycle.currentBalance}
               className={`font-bold text-lg ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
             />
+            <p className="text-slate-500 text-[10px] mt-0.5">en base a pagados</p>
           </div>
         </div>
       </div>

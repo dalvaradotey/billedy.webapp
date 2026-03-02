@@ -31,6 +31,7 @@ interface DashboardProviderProps {
   initialBudgetsProgress: BudgetProgress[];
   initialCycle: BillingCycleWithTotals | null;
   initialAccountsSummary: AccountsSummary;
+  initialTotalExternalDebt: number;
 }
 
 export function DashboardProvider({
@@ -38,6 +39,7 @@ export function DashboardProvider({
   initialBudgetsProgress,
   initialCycle,
   initialAccountsSummary,
+  initialTotalExternalDebt,
 }: DashboardProviderProps) {
   const router = useRouter();
   const [isRefreshing, startTransition] = useTransition();
@@ -47,6 +49,7 @@ export function DashboardProvider({
     budgetsProgress: initialBudgetsProgress,
     cycle: initialCycle,
     accountsSummary: initialAccountsSummary,
+    totalExternalDebt: initialTotalExternalDebt,
   });
 
   // Aplicar transacción optimistamente
@@ -90,8 +93,13 @@ export function DashboardProvider({
             ...prev.cycle,
             currentIncome: prev.cycle.currentIncome + incomeChange,
             currentExpenses: prev.cycle.currentExpenses + expenseChange,
-            currentBalance:
-              prev.cycle.currentBalance + (type === 'income' ? amount : -amount),
+            paidIncome: prev.cycle.paidIncome + (type === 'income' && isPaid ? amount : 0),
+            pendingIncome: prev.cycle.pendingIncome + (type === 'income' && !isPaid ? amount : 0),
+            paidExpenses: prev.cycle.paidExpenses + (type === 'expense' && isPaid ? amount : 0),
+            pendingExpenses: prev.cycle.pendingExpenses + (type === 'expense' && !isPaid ? amount : 0),
+            currentBalance: isPaid
+              ? prev.cycle.currentBalance + (type === 'income' ? amount : -amount)
+              : prev.cycle.currentBalance,
           };
         }
 
@@ -123,6 +131,7 @@ export function DashboardProvider({
           budgetsProgress: newBudgetsProgress,
           cycle: newCycle,
           accountsSummary: newAccountsSummary,
+          totalExternalDebt: prev.totalExternalDebt,
         };
       });
 
@@ -162,15 +171,17 @@ export function DashboardProvider({
         budgetsProgress: initialBudgetsProgress,
         cycle: initialCycle,
         accountsSummary: initialAccountsSummary,
+        totalExternalDebt: initialTotalExternalDebt,
       });
       pendingSync.current = false;
     }
-  }, [initialBudgetsProgress, initialCycle, initialAccountsSummary]);
+  }, [initialBudgetsProgress, initialCycle, initialAccountsSummary, initialTotalExternalDebt]);
 
   const value: DashboardContextValue = {
     budgetsProgress: state.budgetsProgress,
     cycle: state.cycle,
     accountsSummary: state.accountsSummary,
+    totalExternalDebt: state.totalExternalDebt,
     applyOptimisticTransaction: applyOptimisticTransactionWithSync,
     refreshDashboard,
     isRefreshing,

@@ -1,7 +1,7 @@
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
 import { getCurrentCycle } from '@/features/billing-cycles/queries';
-import { getAccountsSummaryWithAccounts } from '@/features/accounts/queries';
+import { getAccountsSummaryWithAccounts, getAccountDebtBreakdown } from '@/features/accounts/queries';
 import { getBudgetsProgress, getActiveBudgets } from '@/features/budgets';
 import { getActiveCategories } from '@/features/categories/queries';
 import { getEntities } from '@/features/entities/queries';
@@ -18,17 +18,19 @@ export async function getDashboardData(userId: string) {
   }
 
   // Obtener datos principales en paralelo
-  const [currentCycle, accountsData, project, categories, budgets, allEntities] = await Promise.all([
+  const [currentCycle, accountsData, project, categories, budgets, allEntities, debtBreakdown] = await Promise.all([
     getCurrentCycle(projectId, userId),
     getAccountsSummaryWithAccounts(projectId, userId),
     getProjectById(projectId, userId),
     getActiveCategories(projectId, userId),
     getActiveBudgets(projectId, userId),
     getEntities(),
+    getAccountDebtBreakdown(projectId, userId),
   ]);
 
   const { summary: accountsSummary, accounts } = accountsData;
   const isOwner = project?.userId === userId;
+  const totalExternalDebt = Object.values(debtBreakdown).reduce((sum, d) => sum + d.externalDebt, 0);
 
   // Obtener progreso de presupuestos si hay ciclo activo
   const budgetsProgress = currentCycle
@@ -52,5 +54,6 @@ export async function getDashboardData(userId: string) {
     allEntities,
     isOwner,
     budgetsProgress,
+    totalExternalDebt,
   };
 }

@@ -11,7 +11,7 @@ import { EmptyState } from '@/components/empty-state';
 import { formatCurrency } from '@/lib/formatting';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
-import type { Account, AccountsSummary, AccountWithEntity } from '../types';
+import type { Account, AccountsSummary, AccountWithEntity, AccountDebtBreakdown } from '../types';
 import type { Entity } from '@/features/entities/types';
 import { AccountCard } from './account-card';
 import { AccountCardSkeleton } from './account-card-skeleton';
@@ -25,6 +25,7 @@ interface AccountsListProps {
   userId: string;
   currencies: { id: string; code: string; name: string }[];
   entities: Entity[];
+  debtBreakdown?: Record<string, AccountDebtBreakdown>;
 }
 
 export function AccountsList({
@@ -34,6 +35,7 @@ export function AccountsList({
   userId,
   currencies,
   entities,
+  debtBreakdown,
 }: AccountsListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountWithEntity | null>(null);
@@ -117,6 +119,13 @@ export function AccountsList({
     setIsDialogOpen(true);
   };
 
+  // Calcular deuda externa total desde el mapa de desglose
+  const totalExternalDebt = debtBreakdown
+    ? Object.values(debtBreakdown).reduce((sum, d) => sum + d.externalDebt, 0)
+    : 0;
+  const totalPersonalDebt = summary.totalCreditBalance - totalExternalDebt;
+  const personalNetWorth = summary.totalDebitBalance - totalPersonalDebt;
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -131,16 +140,22 @@ export function AccountsList({
         <SummaryCard
           title="Deuda TC"
           value={formatCurrency(summary.totalCreditBalance)}
-          subtitle="Tarjetas de crédito"
+          subtitle={totalExternalDebt > 0
+            ? `Propia: ${formatCurrency(totalPersonalDebt)} · Externa: ${formatCurrency(totalExternalDebt)}`
+            : 'Tarjetas de crédito'
+          }
           icon={<CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="danger"
         />
         <SummaryCard
-          title="Patrimonio"
-          value={formatCurrency(summary.netWorth)}
-          subtitle="Disponible - Deuda"
+          title="Saldo"
+          value={formatCurrency(personalNetWorth)}
+          subtitle={totalExternalDebt > 0
+            ? 'Disponible - Deuda propia'
+            : 'Disponible - Deuda'
+          }
           icon={<Scale className="h-4 w-4 sm:h-5 sm:w-5" />}
-          variant={summary.netWorth >= 0 ? 'success' : 'danger'}
+          variant={personalNetWorth >= 0 ? 'success' : 'danger'}
         />
         <SummaryCard
           title="Cuentas"
@@ -208,6 +223,7 @@ export function AccountsList({
                 key={account.id}
                 account={account}
                 userId={userId}
+                debtBreakdown={debtBreakdown?.[account.id]}
                 onEdit={() => handleEdit(account)}
                 onMutationStart={onMutationStart}
                 onMutationSuccess={onMutationSuccess}

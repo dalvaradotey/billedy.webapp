@@ -62,6 +62,7 @@ export default async function DashboardPage() {
     isOwner,
     budgetsProgress,
     projectId,
+    totalExternalDebt,
   } = data;
 
   return (
@@ -82,6 +83,7 @@ export default async function DashboardPage() {
         budgetsProgress={budgetsProgress}
         cycle={currentCycle}
         accountsSummary={accountsSummary}
+        totalExternalDebt={totalExternalDebt}
       >
         {/* Banner de resumen de cuentas - Solo para el dueño del proyecto */}
         {isOwner && accountsSummary.totalAccounts > 0 && <DashboardAccountsBanner />}

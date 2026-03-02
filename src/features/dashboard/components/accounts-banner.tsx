@@ -1,19 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { Wallet, TrendingUp, CreditCard, ArrowRight } from 'lucide-react';
+import { Wallet, TrendingUp, CreditCard, Scale, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnimatedCurrency } from '@/components/animated-currency';
+import { formatCurrency } from '@/lib/formatting';
 import { useDashboard } from '../hooks';
 
 export function DashboardAccountsBanner() {
-  const { accountsSummary } = useDashboard();
+  const { accountsSummary, totalExternalDebt } = useDashboard();
+
+  const totalPersonalDebt = accountsSummary.totalCreditBalance - totalExternalDebt;
+  const personalNetWorth = accountsSummary.totalDebitBalance - totalPersonalDebt;
+  const hasExternalDebt = totalExternalDebt > 0;
 
   return (
     <div className="rounded-2xl bg-slate-800 dark:bg-slate-900 p-4 md:p-5">
       {/* Mobile Layout */}
       <div className="md:hidden">
-        {/* Header con título y botón */}
+        {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center">
@@ -33,7 +38,7 @@ export function DashboardAccountsBanner() {
           </Button>
         </div>
 
-        {/* Contenido compacto */}
+        {/* Row 1: Disponible + Deuda TC */}
         <div className="mt-4 flex justify-between">
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
@@ -55,11 +60,30 @@ export function DashboardAccountsBanner() {
               prefix="-"
               className="text-red-400 font-bold"
             />
+            {hasExternalDebt && (
+              <p className="text-slate-500 text-[10px] mt-0.5">
+                Propia: {formatCurrency(totalPersonalDebt)} · Ext: {formatCurrency(totalExternalDebt)}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Patrimonio */}
+        <div className="mt-3 pt-3 border-t border-slate-700/50">
+          <div className="flex items-center justify-between">
+            <p className="text-slate-500 text-xs flex items-center gap-1">
+              <Scale className="w-3 h-3" />
+              {hasExternalDebt ? 'Saldo (sin/ext)' : 'Saldo'}
+            </p>
+            <AnimatedCurrency
+              value={personalNetWorth}
+              className={personalNetWorth >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}
+            />
           </div>
         </div>
       </div>
 
-      {/* Desktop Layout - Todo en una fila */}
+      {/* Desktop Layout */}
       <div className="hidden md:flex items-center gap-6">
         {/* Info */}
         <div className="flex items-center gap-3">
@@ -74,7 +98,6 @@ export function DashboardAccountsBanner() {
           </div>
         </div>
 
-        {/* Separador */}
         <div className="w-px h-10 bg-slate-700" />
 
         {/* Cuentas */}
@@ -99,10 +122,24 @@ export function DashboardAccountsBanner() {
               prefix="-"
               className="text-red-400 font-bold"
             />
+            {hasExternalDebt && (
+              <p className="text-slate-500 text-[10px] mt-0.5">
+                Propia: {formatCurrency(totalPersonalDebt)} · Ext: {formatCurrency(totalExternalDebt)}
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
+              <Scale className="w-3 h-3" />
+              {hasExternalDebt ? 'Saldo (sin/ext)' : 'Saldo'}
+            </p>
+            <AnimatedCurrency
+              value={personalNetWorth}
+              className={personalNetWorth >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}
+            />
           </div>
         </div>
 
-        {/* Separador */}
         <div className="w-px h-10 bg-slate-700" />
 
         {/* Botón */}

@@ -341,12 +341,22 @@ export function BillingCycleCard({
             <p className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
               {formatCurrency(cycle.currentIncome)}
             </p>
+            {cycle.pendingIncome > 0 && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Pagado: {formatCurrency(cycle.paidIncome)} · Pend: {formatCurrency(cycle.pendingIncome)}
+              </p>
+            )}
           </div>
           <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
             <p className="text-xs text-muted-foreground">Gastos</p>
             <p className="font-semibold tabular-nums text-red-600 dark:text-red-400">
               {formatCurrency(cycle.currentExpenses)}
             </p>
+            {cycle.pendingExpenses > 0 && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Pagado: {formatCurrency(cycle.paidExpenses)} · Pend: {formatCurrency(cycle.pendingExpenses)}
+              </p>
+            )}
           </div>
           <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
             <p className="text-xs text-muted-foreground">Ahorro</p>
@@ -355,10 +365,11 @@ export function BillingCycleCard({
             </p>
           </div>
           <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
-            <p className="text-xs text-muted-foreground">Balance</p>
+            <p className="text-xs text-muted-foreground">Saldo</p>
             <p className={cn('font-semibold tabular-nums', balanceColor)}>
               {formatCurrency(cycle.currentBalance)}
             </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">en base a pagados</p>
           </div>
         </div>
 

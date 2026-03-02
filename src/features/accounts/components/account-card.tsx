@@ -21,13 +21,14 @@ import { cardStyles } from '@/components/card-styles';
 
 import { formatCurrency } from '@/lib/formatting';
 import { archiveAccount, restoreAccount, deleteAccount } from '../actions';
-import type { AccountWithEntity, AccountType } from '../types';
+import type { AccountWithEntity, AccountType, AccountDebtBreakdown } from '../types';
 import { ACCOUNT_TYPE_LABELS } from '../types';
 import { AccountTypeIcon } from './account-type-icon';
 
 interface AccountCardProps {
   account: AccountWithEntity;
   userId: string;
+  debtBreakdown?: AccountDebtBreakdown;
   onEdit: () => void;
   onMutationStart?: () => void;
   onMutationSuccess?: (toastId: string | number, message: string) => void;
@@ -37,6 +38,7 @@ interface AccountCardProps {
 export function AccountCard({
   account,
   userId,
+  debtBreakdown,
   onEdit,
   onMutationStart,
   onMutationSuccess,
@@ -131,6 +133,11 @@ export function AccountCard({
     },
   ];
 
+  // Desglose: personalDebt = saldo total - deuda externa
+  const externalDebt = debtBreakdown?.externalDebt ?? 0;
+  const personalDebt = isCredit && externalDebt > 0 ? Math.abs(balance) - externalDebt : 0;
+  const hasDebtBreakdown = isCredit && externalDebt > 0;
+
   const balanceColor = isCredit
     ? balance > 0
       ? 'text-red-600 dark:text-red-400'
@@ -207,6 +214,13 @@ export function AccountCard({
                     Disponible: {formatCurrency(parseFloat(account.creditLimit) - balance)}
                   </p>
                 )}
+                {hasDebtBreakdown && (
+                  <p className="text-xs text-muted-foreground">
+                    <span>Propia: {formatCurrency(personalDebt)}</span>
+                    <span> · </span>
+                    <span>Externa: {formatCurrency(externalDebt)}</span>
+                  </p>
+                )}
               </div>
 
               {/* Actions toggle */}
@@ -243,6 +257,13 @@ export function AccountCard({
               {isCredit && account.creditLimit && (
                 <p className="text-xs text-muted-foreground">
                   Disponible: {formatCurrency(parseFloat(account.creditLimit) - balance)}
+                </p>
+              )}
+              {hasDebtBreakdown && (
+                <p className="text-xs text-muted-foreground">
+                  <span>Propia: {formatCurrency(personalDebt)}</span>
+                  <span> · </span>
+                  <span>Externa: {formatCurrency(externalDebt)}</span>
                 </p>
               )}
             </div>

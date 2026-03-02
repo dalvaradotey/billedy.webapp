@@ -212,18 +212,27 @@ export function TransactionList({
         <SummaryCard
           title="Ingresos"
           value={formatCurrency(summary.totalIncome, defaultCurrency)}
+          subtitle={summary.pendingIncome > 0
+            ? `Pagado: ${formatCurrency(summary.paidIncome, defaultCurrency)} · Pend: ${formatCurrency(summary.pendingIncome, defaultCurrency)}`
+            : undefined
+          }
           icon={<ArrowUpCircle className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="success"
         />
         <SummaryCard
           title="Gastos"
           value={formatCurrency(summary.totalExpense, defaultCurrency)}
+          subtitle={summary.pendingExpense > 0
+            ? `Pagado: ${formatCurrency(summary.paidExpense, defaultCurrency)} · Pend: ${formatCurrency(summary.pendingExpense, defaultCurrency)}`
+            : undefined
+          }
           icon={<ArrowDownCircle className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="danger"
         />
         <SummaryCard
-          title="Balance"
+          title="Saldo"
           value={formatCurrency(summary.balance, defaultCurrency)}
+          subtitle="en base a pagados"
           icon={<Wallet className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant={summary.balance >= 0 ? 'success' : 'danger'}
         />

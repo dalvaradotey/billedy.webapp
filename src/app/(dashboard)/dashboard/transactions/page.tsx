@@ -105,7 +105,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   // Cargar datos en paralelo
   const [transactions, summary, categories, accounts, budgets, entities, project] = await Promise.all([
     getTransactions(projectId, session.user.id, filters),
-    getTransactionSummary(projectId, session.user.id),
+    getTransactionSummary(projectId, session.user.id, filters.startDate, filters.endDate),
     getActiveCategories(projectId, session.user.id),
     getAccounts(projectId, session.user.id),
     getActiveBudgets(projectId, session.user.id),

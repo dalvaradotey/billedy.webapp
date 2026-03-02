@@ -31,14 +31,20 @@ export function SummaryCards({ summary, debtCapacity }: SummaryCardsProps) {
       <SummaryCard
         title="Deuda Total"
         value={formatCurrency(summary.totalDebt)}
-        subtitle="en cuotas pendientes"
+        subtitle={summary.externalDebt > 0
+          ? `Propia: ${formatCurrency(summary.personalDebt)} · Ext: ${formatCurrency(summary.externalDebt)}`
+          : 'en cuotas pendientes'
+        }
         icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
         variant="danger"
       />
       <SummaryCard
         title="Cargo Mensual"
         value={formatCurrency(summary.monthlyCharge)}
-        subtitle="aproximado por mes"
+        subtitle={debtCapacity.externalDebt > 0
+          ? `Propia: ${formatCurrency(debtCapacity.personalDebt)} · Ext: ${formatCurrency(debtCapacity.externalDebt)}`
+          : 'aproximado por mes'
+        }
         icon={<Calendar className="h-4 w-4 sm:h-5 sm:w-5" />}
         variant="neutral"
       />

@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { transactions, categories, projectMembers, accounts, budgets, entities } from '@/lib/db/schema';
-import { eq, and, desc, gte, lte, like, sql, isNotNull, or } from 'drizzle-orm';
+import { eq, and, desc, gte, lte, like, sql, isNotNull, isNull, or } from 'drizzle-orm';
 import type {
   Transaction,
   TransactionWithCategory,
@@ -161,8 +161,24 @@ export async function getTransactionById(
  */
 export async function getTransactionSummary(
   projectId: string,
-  userId: string
+  userId: string,
+  startDate?: Date,
+  endDate?: Date
 ): Promise<TransactionSummary> {
+  const conditions = [
+    eq(transactions.projectId, projectId),
+    eq(projectMembers.userId, userId),
+    isNotNull(projectMembers.acceptedAt),
+    isNull(transactions.linkedTransactionId),
+  ];
+
+  if (startDate) {
+    conditions.push(gte(transactions.date, startDate));
+  }
+  if (endDate) {
+    conditions.push(lte(transactions.date, endDate));
+  }
+
   const result = await db
     .select({
       type: transactions.type,
@@ -172,17 +188,13 @@ export async function getTransactionSummary(
     })
     .from(transactions)
     .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(transactions.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
+    .where(and(...conditions))
     .groupBy(transactions.type, transactions.isPaid);
 
-  let totalIncome = 0;
-  let totalExpense = 0;
+  let paidIncome = 0;
+  let pendingIncome = 0;
+  let paidExpense = 0;
+  let pendingExpense = 0;
   let paidCount = 0;
   let pendingCount = 0;
 
@@ -191,9 +203,17 @@ export async function getTransactionSummary(
     const count = Number(row.count);
 
     if (row.type === 'income') {
-      totalIncome += amount;
+      if (row.isPaid) {
+        paidIncome += amount;
+      } else {
+        pendingIncome += amount;
+      }
     } else {
-      totalExpense += amount;
+      if (row.isPaid) {
+        paidExpense += amount;
+      } else {
+        pendingExpense += amount;
+      }
     }
 
     if (row.isPaid) {
@@ -204,9 +224,13 @@ export async function getTransactionSummary(
   }
 
   return {
-    totalIncome,
-    totalExpense,
-    balance: totalIncome - totalExpense,
+    totalIncome: paidIncome + pendingIncome,
+    totalExpense: paidExpense + pendingExpense,
+    paidIncome,
+    pendingIncome,
+    paidExpense,
+    pendingExpense,
+    balance: paidIncome - paidExpense,
     paidCount,
     pendingCount,
   };

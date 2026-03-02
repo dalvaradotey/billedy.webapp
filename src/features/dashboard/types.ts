@@ -15,6 +15,7 @@ export interface DashboardState {
   budgetsProgress: BudgetProgress[];
   cycle: BillingCycleWithTotals | null;
   accountsSummary: AccountsSummary;
+  totalExternalDebt: number;
 }
 
 export interface DashboardContextValue {
@@ -22,6 +23,7 @@ export interface DashboardContextValue {
   budgetsProgress: BudgetProgress[];
   cycle: BillingCycleWithTotals | null;
   accountsSummary: AccountsSummary;
+  totalExternalDebt: number;
 
   // Actions
   applyOptimisticTransaction: (transaction: OptimisticTransaction) => void;

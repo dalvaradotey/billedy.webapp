@@ -38,12 +38,12 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
         </Button>
       </div>
 
-      {/* Mobile: Resumen compacto con balance y botón expandir */}
+      {/* Mobile: Resumen compacto con saldo y botón expandir */}
       <div className="md:hidden mt-4">
         <div className="bg-slate-700/30 rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-slate-400 mb-1">Balance del ciclo</p>
+              <p className="text-xs text-slate-400 mb-1">Saldo del ciclo</p>
               <p className={`text-2xl font-bold tabular-nums ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {formatCurrency(cycle.currentBalance)}
               </p>
@@ -90,6 +90,11 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
               <p className="text-emerald-400 font-bold">
                 {formatCurrency(cycle.currentIncome)}
               </p>
+              {cycle.pendingIncome > 0 && (
+                <p className="text-slate-500 text-[10px] mt-0.5">
+                  Pagado: {formatCurrency(cycle.paidIncome)} · Pend: {formatCurrency(cycle.pendingIncome)}
+                </p>
+              )}
             </div>
             <div className="bg-slate-700/30 rounded-lg p-3">
               <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
@@ -99,6 +104,11 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
               <p className="text-red-400 font-bold">
                 {formatCurrency(cycle.currentExpenses)}
               </p>
+              {cycle.pendingExpenses > 0 && (
+                <p className="text-slate-500 text-[10px] mt-0.5">
+                  Pagado: {formatCurrency(cycle.paidExpenses)} · Pend: {formatCurrency(cycle.pendingExpenses)}
+                </p>
+              )}
             </div>
             <div className="bg-slate-700/30 rounded-lg p-3">
               <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
@@ -112,11 +122,12 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
             <div className="bg-slate-700/30 rounded-lg p-3">
               <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
                 <Wallet className="w-3 h-3" />
-                Balance
+                Saldo
               </p>
               <p className={`font-bold ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {formatCurrency(cycle.currentBalance)}
               </p>
+              <p className="text-slate-500 text-[10px] mt-0.5">en base a pagados</p>
             </div>
           </div>
         )}
@@ -146,6 +157,11 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
             <p className="text-emerald-400 font-bold text-lg">
               {formatCurrency(cycle.currentIncome)}
             </p>
+            {cycle.pendingIncome > 0 && (
+              <p className="text-slate-500 text-[10px] mt-0.5">
+                Pagado: {formatCurrency(cycle.paidIncome)} · Pend: {formatCurrency(cycle.pendingIncome)}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
@@ -155,6 +171,11 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
             <p className="text-red-400 font-bold text-lg">
               {formatCurrency(cycle.currentExpenses)}
             </p>
+            {cycle.pendingExpenses > 0 && (
+              <p className="text-slate-500 text-[10px] mt-0.5">
+                Pagado: {formatCurrency(cycle.paidExpenses)} · Pend: {formatCurrency(cycle.pendingExpenses)}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
@@ -168,11 +189,12 @@ export function CycleSummaryBanner({ cycle }: CycleSummaryBannerProps) {
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
               <Wallet className="w-3 h-3" />
-              Balance
+              Saldo
             </p>
             <p className={`font-bold text-lg ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {formatCurrency(cycle.currentBalance)}
             </p>
+            <p className="text-slate-500 text-[10px] mt-0.5">en base a pagados</p>
           </div>
         </div>
       </div>

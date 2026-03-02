@@ -11,6 +11,7 @@ interface DashboardClientWrapperProps {
   budgetsProgress: BudgetProgress[];
   cycle: BillingCycleWithTotals | null;
   accountsSummary: AccountsSummary;
+  totalExternalDebt: number;
 }
 
 export function DashboardClientWrapper({
@@ -18,12 +19,14 @@ export function DashboardClientWrapper({
   budgetsProgress,
   cycle,
   accountsSummary,
+  totalExternalDebt,
 }: DashboardClientWrapperProps) {
   return (
     <DashboardProvider
       initialBudgetsProgress={budgetsProgress}
       initialCycle={cycle}
       initialAccountsSummary={accountsSummary}
+      initialTotalExternalDebt={totalExternalDebt}
     >
       {children}
     </DashboardProvider>

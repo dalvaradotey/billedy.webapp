@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { billingCycles, transactions, projectMembers, savingsMovements, savingsFunds } from '@/lib/db/schema';
-import { eq, and, sql, isNotNull, desc, gte, lte, asc } from 'drizzle-orm';
+import { eq, and, sql, isNotNull, isNull, desc, gte, lte, asc } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { BillingCycleWithTotals, BillingCycleSummary } from './types';
 
@@ -22,22 +22,28 @@ async function calculateTotalsForRange(
 ): Promise<{
   income: number;
   expenses: number;
+  paidIncome: number;
+  pendingIncome: number;
+  paidExpenses: number;
+  pendingExpenses: number;
   savings: number;
   balance: number;
 }> {
-  // Ejecutar ambas queries en paralelo (antes eran secuenciales)
   const [transactionTotals, savingsTotals] = await Promise.all([
     db
       .select({
-        totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-        totalExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
+        paidIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
+        pendingIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = false THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
+        paidExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
+        pendingExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = false THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
       })
       .from(transactions)
       .where(
         and(
           eq(transactions.projectId, projectId),
           gte(transactions.date, startDate),
-          lte(transactions.date, endDate)
+          lte(transactions.date, endDate),
+          isNull(transactions.linkedTransactionId)
         )
       ),
     db
@@ -55,12 +61,16 @@ async function calculateTotalsForRange(
       ),
   ]);
 
-  const income = parseFloat(transactionTotals[0]?.totalIncome ?? '0');
-  const expenses = parseFloat(transactionTotals[0]?.totalExpenses ?? '0');
+  const paidIncome = parseFloat(transactionTotals[0]?.paidIncome ?? '0');
+  const pendingIncome = parseFloat(transactionTotals[0]?.pendingIncome ?? '0');
+  const paidExpenses = parseFloat(transactionTotals[0]?.paidExpenses ?? '0');
+  const pendingExpenses = parseFloat(transactionTotals[0]?.pendingExpenses ?? '0');
+  const income = paidIncome + pendingIncome;
+  const expenses = paidExpenses + pendingExpenses;
   const savings = parseFloat(savingsTotals[0]?.totalSavings ?? '0');
-  const balance = income - expenses - savings;
+  const balance = paidIncome - paidExpenses - savings;
 
-  return { income, expenses, savings, balance };
+  return { income, expenses, paidIncome, pendingIncome, paidExpenses, pendingExpenses, savings, balance };
 }
 
 /**
@@ -78,12 +88,18 @@ async function enrichCycleWithTotals(
   const daysElapsed = Math.min(daysTotal, Math.max(0, daysBetween(startDate, today)));
   const daysRemaining = Math.max(0, daysTotal - daysElapsed);
 
-  // Si está cerrado, usar snapshot
+  // Si está cerrado, usar snapshot (no hay desglose histórico)
   if (cycle.status === 'closed') {
+    const snapshotIncome = parseFloat(cycle.snapshotIncome ?? '0');
+    const snapshotExpenses = parseFloat(cycle.snapshotExpenses ?? '0');
     return {
       ...cycle,
-      currentIncome: parseFloat(cycle.snapshotIncome ?? '0'),
-      currentExpenses: parseFloat(cycle.snapshotExpenses ?? '0'),
+      currentIncome: snapshotIncome,
+      currentExpenses: snapshotExpenses,
+      paidIncome: snapshotIncome,
+      pendingIncome: 0,
+      paidExpenses: snapshotExpenses,
+      pendingExpenses: 0,
       currentSavings: parseFloat(cycle.snapshotSavings ?? '0'),
       currentBalance: parseFloat(cycle.snapshotBalance ?? '0'),
       daysTotal,
@@ -99,6 +115,10 @@ async function enrichCycleWithTotals(
     ...cycle,
     currentIncome: totals.income,
     currentExpenses: totals.expenses,
+    paidIncome: totals.paidIncome,
+    pendingIncome: totals.pendingIncome,
+    paidExpenses: totals.paidExpenses,
+    pendingExpenses: totals.pendingExpenses,
     currentSavings: totals.savings,
     currentBalance: totals.balance,
     daysTotal,

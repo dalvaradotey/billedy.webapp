@@ -26,6 +26,10 @@ export type TransactionFilters = {
 export type TransactionSummary = {
   totalIncome: number;
   totalExpense: number;
+  paidIncome: number;
+  pendingIncome: number;
+  paidExpense: number;
+  pendingExpense: number;
   balance: number;
   paidCount: number;
   pendingCount: number;

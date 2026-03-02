@@ -9,6 +9,10 @@ export type BillingCycleWithTotals = BillingCycle & {
   // Calculados en tiempo real (para ciclos abiertos)
   currentIncome: number;
   currentExpenses: number;
+  paidIncome: number;
+  pendingIncome: number;
+  paidExpenses: number;
+  pendingExpenses: number;
   currentSavings: number;
   currentBalance: number;
   // Días

@@ -24,6 +24,11 @@ export interface AccountsSummary {
   netWorth: number; // totalDebitBalance - totalCreditBalance
 }
 
+export interface AccountDebtBreakdown {
+  personalDebt: number;
+  externalDebt: number;
+}
+
 export const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   checking: 'Cuenta Corriente',
   savings: 'Cuenta de Ahorro',

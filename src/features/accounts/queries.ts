@@ -1,8 +1,8 @@
 import { db } from '@/lib/db';
-import { accounts, entities, projectMembers } from '@/lib/db/schema';
-import { eq, and, desc, isNotNull } from 'drizzle-orm';
+import { accounts, entities, projectMembers, cardPurchases, transactions } from '@/lib/db/schema';
+import { eq, and, desc, isNotNull, or, sql } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
-import type { Account, AccountsSummary, AccountWithEntity } from './types';
+import type { Account, AccountsSummary, AccountWithEntity, AccountDebtBreakdown } from './types';
 
 /**
  * Query interna para obtener cuentas del proyecto (sin caché)
@@ -244,4 +244,106 @@ export const getAccountsSummaryWithAccounts = cachedQuery(
   _getAccountsSummaryWithAccounts,
   ['accounts', 'summary-with-list'],
   { tags: [CACHE_TAGS.accounts, CACHE_TAGS.summary] }
+);
+
+/**
+ * Query interna para obtener desglose de deuda por cuenta TC
+ * Calcula deuda personal vs externa desde card_purchases
+ */
+async function _getAccountDebtBreakdown(
+  projectId: string,
+  userId: string
+): Promise<Record<string, AccountDebtBreakdown>> {
+  const hasAccess = await db
+    .select({ id: projectMembers.id })
+    .from(projectMembers)
+    .where(
+      and(
+        eq(projectMembers.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  if (hasAccess.length === 0) return {};
+
+  const purchases = await db
+    .select({
+      id: cardPurchases.id,
+      accountId: cardPurchases.accountId,
+      isExternalDebt: cardPurchases.isExternalDebt,
+      installments: cardPurchases.installments,
+      installmentAmount: cardPurchases.installmentAmount,
+    })
+    .from(cardPurchases)
+    .where(
+      and(
+        eq(cardPurchases.projectId, projectId),
+        eq(cardPurchases.isActive, true)
+      )
+    );
+
+  if (purchases.length === 0) return {};
+
+  const paidByPurchase = await db
+    .select({
+      cardPurchaseId: transactions.cardPurchaseId,
+      paidCount: sql<number>`COUNT(*)`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.projectId, projectId),
+        isNotNull(transactions.cardPurchaseId),
+        or(
+          eq(transactions.isHistoricallyPaid, true),
+          isNotNull(transactions.paidByTransferId)
+        )
+      )
+    )
+    .groupBy(transactions.cardPurchaseId);
+
+  const paidMap = new Map<string, number>();
+  for (const row of paidByPurchase) {
+    if (row.cardPurchaseId) {
+      paidMap.set(row.cardPurchaseId, Number(row.paidCount));
+    }
+  }
+
+  const result: Record<string, AccountDebtBreakdown> = {};
+
+  for (const p of purchases) {
+    const paidInstallments = paidMap.get(p.id) ?? 0;
+    const remaining = p.installments - paidInstallments;
+    if (remaining <= 0) continue;
+
+    const remainingAmount = remaining * parseFloat(p.installmentAmount);
+
+    if (!result[p.accountId]) {
+      result[p.accountId] = { personalDebt: 0, externalDebt: 0 };
+    }
+
+    // Solo rastreamos externalDebt desde card_purchases
+    // personalDebt se calcula en el componente como: saldo total - externalDebt
+    if (p.isExternalDebt) {
+      result[p.accountId].externalDebt += remainingAmount;
+    }
+  }
+
+  for (const key of Object.keys(result)) {
+    result[key].externalDebt = Math.round(result[key].externalDebt);
+  }
+
+  return result;
+}
+
+/**
+ * Desglose de deuda personal vs externa por cuenta TC
+ * Cacheada por 60 segundos
+ */
+export const getAccountDebtBreakdown = cachedQuery(
+  _getAccountDebtBreakdown,
+  ['accounts', 'debt-breakdown'],
+  { tags: [CACHE_TAGS.cardPurchases, CACHE_TAGS.transactions] }
 );
