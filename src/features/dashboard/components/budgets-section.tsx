@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react';
 import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { BudgetProgressSlider } from '@/features/budgets/components/budget-progress-slider';
 import { TransactionDialogContent } from '@/features/transactions';
+import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
 import { useDashboard } from '../hooks';
 import type { TransactionInitialValues } from '@/features/transactions';
 import type { Category } from '@/features/categories/types';
@@ -107,12 +108,19 @@ export function DashboardBudgetsSection({
     setIsDrawerOpen(true);
   };
 
-  // Abrir drawer sin presupuesto específico (desde el botón flotante)
-  const handleOpenNewTransaction = () => {
+  // Abrir drawer sin presupuesto específico (desde el botón flotante o bottom nav)
+  const handleOpenNewTransaction = useCallback(() => {
     drawerKeyRef.current += 1;
     setInitialValues(undefined);
     setIsDrawerOpen(true);
-  };
+  }, []);
+
+  // Registrar acción en el bottom nav móvil
+  const pageActions = useMemo<PageAction[]>(() => [
+    { label: 'Nueva transacción', icon: Plus, onClick: handleOpenNewTransaction },
+  ], [handleOpenNewTransaction]);
+
+  useRegisterPageActions(pageActions);
 
   const handleDrawerClose = () => {
     setIsDrawerOpen(false);
@@ -126,10 +134,9 @@ export function DashboardBudgetsSection({
         onAddTransaction={handleAddTransaction}
       />
 
-      {/* Floating Action Button - Aurora Glow */}
+      {/* Floating Action Button - Aurora Glow (desktop only, mobile uses bottom nav) */}
       <div
-        className="fixed bottom-6 right-4 md:bottom-8 md:right-8 z-40"
-        style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+        className="hidden md:block fixed bottom-8 right-8 z-40"
       >
         {/* Pulsing glow rings - subtle */}
         <div className="absolute inset-1 md:inset-2 rounded-full bg-gradient-to-r from-blue-500 via-emerald-400 to-cyan-400 opacity-90 blur-md md:blur-lg animate-pulse" />

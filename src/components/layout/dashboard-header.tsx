@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { toast } from 'sonner';
-import { LayoutDashboard, Wallet, PiggyBank, Target, CreditCard, Receipt, FileText, Calendar, ArrowRightLeft, Settings, LogOut, ShieldCheck, X, Bell, Check, XIcon, Crown, Pencil, Eye } from 'lucide-react';
+import { LayoutDashboard, Wallet, PiggyBank, Target, CreditCard, Receipt, FileText, Calendar, ArrowRightLeft, Settings, LogOut, ShieldCheck, X, Bell, Check, XIcon, Crown, Pencil, Eye, Sun, Moon, Monitor } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/drawer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useTheme } from 'next-themes';
 import { ProcessingOverlay, type ProcessingStatus } from '@/components/processing-overlay';
 import { ClientOnly } from '@/components/client-only';
 import { Logo } from '@/components/logo';
@@ -76,6 +77,7 @@ export function DashboardHeader({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { setTheme, theme } = useTheme();
 
   const handleProjectChange = async (projectId: string) => {
     await setCurrentProjectId(projectId);
@@ -92,7 +94,7 @@ export function DashboardHeader({
     <header className="sticky top-0 z-50 w-full">
       <div className="container relative mx-auto px-3 md:px-4 flex h-14 md:h-16 items-center justify-between gap-2 md:gap-3">
         {/* Left - Logo & Project Selector */}
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        <div className="flex flex-1 md:flex-initial items-center gap-2 md:gap-3 min-w-0">
           {/* Logo */}
           <a href="/dashboard" className="flex-shrink-0 p-2 md:p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 [color:white] shadow-lg shadow-emerald-500/20">
             <Logo className="h-7 md:h-8 w-auto" />
@@ -108,13 +110,13 @@ export function DashboardHeader({
               members={members}
               isOwner={isOwner}
               onProjectChange={handleProjectChange}
-              className="glass-island h-[44px] md:h-[46px] min-w-0 max-w-[160px] sm:max-w-[200px] md:max-w-none"
+              className="glass-island h-[44px] md:h-[46px] min-w-0 flex-1 md:flex-initial md:max-w-none"
             />
           )}
         </div>
 
-        {/* Right Island - Actions */}
-        <div className="glass-island h-[44px] md:h-[46px] flex items-center gap-0.5 md:gap-1 flex-shrink-0">
+        {/* Right Island - Actions (hidden on mobile, bottom nav handles it) */}
+        <div className="glass-island h-[44px] md:h-[46px] hidden md:flex items-center gap-0.5 md:gap-1 flex-shrink-0">
           {/* Notificaciones */}
           <NotificationsButton
             invitations={pendingInvitations}
@@ -192,6 +194,39 @@ export function DashboardHeader({
 
                   {/* Actions footer */}
                   <div className="border-t p-4 space-y-1">
+                    {/* Theme Toggle */}
+                    <div className="flex items-center justify-between px-3 py-2.5 rounded-lg">
+                      <span className="text-sm font-medium text-muted-foreground">Tema</span>
+                      <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                        <button
+                          onClick={() => setTheme('light')}
+                          className={cn(
+                            'p-1.5 rounded-md transition-colors',
+                            theme === 'light' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                          )}
+                        >
+                          <Sun className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setTheme('dark')}
+                          className={cn(
+                            'p-1.5 rounded-md transition-colors',
+                            theme === 'dark' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                          )}
+                        >
+                          <Moon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setTheme('system')}
+                          className={cn(
+                            'p-1.5 rounded-md transition-colors',
+                            theme === 'system' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                          )}
+                        >
+                          <Monitor className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
                     <a
                       href="/dashboard/settings"
                       onClick={() => setIsMenuOpen(false)}

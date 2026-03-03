@@ -2,7 +2,7 @@
 
 import { useRef, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Plus, ArrowRight, Target, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRight, Target, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatting';
 import { AnimatedCurrency } from '@/components/animated-currency';
 import { Button } from '@/components/ui/button';
@@ -46,17 +46,6 @@ function BudgetCard({ budget, onAddTransaction }: { budget: BudgetProgress; onAd
           )}
           <span className="text-white font-medium text-sm truncate">{budget.name}</span>
         </div>
-        {/* Botón + solo en desktop */}
-        {onAddTransaction && (
-          <Button
-            variant="subtle"
-            size="icon-sm"
-            className="hidden md:flex"
-            onClick={() => onAddTransaction(budget.id)}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        )}
       </div>
 
       <div className="p-4 space-y-3">

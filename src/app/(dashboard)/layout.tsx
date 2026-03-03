@@ -12,6 +12,8 @@ import {
   getPendingInvitations,
 } from '@/features/projects';
 import { isUserAdmin } from '@/features/entities';
+import { BottomNavActionProvider } from '@/components/layout/bottom-nav-context';
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -63,13 +65,20 @@ export default async function DashboardLayout({
         isOwner={isOwner}
         pendingInvitations={pendingInvitations}
       />
-      <main className="container mx-auto px-4 py-6">
-        {hasNoProjects ? (
-          <NoProjectsMessage userId={session.user.id} currencies={currencies} />
-        ) : (
-          children
-        )}
-      </main>
+      <BottomNavActionProvider>
+        <main className="container mx-auto px-4 py-6 pb-20 md:pb-6">
+          {hasNoProjects ? (
+            <NoProjectsMessage userId={session.user.id} currencies={currencies} />
+          ) : (
+            children
+          )}
+        </main>
+        <MobileBottomNav
+          user={session.user}
+          pendingInvitations={pendingInvitations}
+          isAdmin={isAdmin}
+        />
+      </BottomNavActionProvider>
     </div>
   );
 }
