@@ -2,7 +2,7 @@
 
 import { useRef, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, ArrowRight, Target, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRight, Target, AlertTriangle, Calendar, Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatting';
 import { AnimatedCurrency } from '@/components/animated-currency';
 import { Progress } from '@/components/ui/progress';
@@ -14,10 +14,16 @@ interface BudgetProgressSliderProps {
   onAddTransaction?: (budgetId: string) => void;
 }
 
+function formatSliderDateRange(start: Date, end: Date): string {
+  const fmt = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' });
+  return `${fmt.format(start)} – ${fmt.format(end)}`;
+}
+
 function BudgetCard({ budget, onAddTransaction }: { budget: BudgetProgress; onAddTransaction?: (budgetId: string) => void }) {
   const isOverBudget = budget.spentAmount > budget.budgetedAmount;
+  const isTemporary = budget.startDate != null;
   const categoryColor = budget.categoryColor || '#6366f1';
-  const accentColor = isOverBudget ? '#ef4444' : categoryColor;
+  const accentColor = isOverBudget ? '#ef4444' : isTemporary ? '#3b82f6' : categoryColor;
 
   return (
     <div
@@ -25,28 +31,49 @@ function BudgetCard({ budget, onAddTransaction }: { budget: BudgetProgress; onAd
       style={{
         background: isOverBudget
           ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%)'
-          : `linear-gradient(135deg, ${categoryColor}15 0%, ${categoryColor}05 100%)`,
-        border: `1px solid ${isOverBudget ? 'rgba(239, 68, 68, 0.4)' : `${categoryColor}30`}`
+          : isTemporary
+            ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)'
+            : `linear-gradient(135deg, ${categoryColor}15 0%, ${categoryColor}05 100%)`,
+        border: `1px solid ${isOverBudget ? 'rgba(239, 68, 68, 0.4)' : isTemporary ? 'rgba(59, 130, 246, 0.3)' : `${categoryColor}30`}`
       }}
     >
       {/* Header */}
       <div
         className="px-4 py-3 flex items-center justify-between"
-        style={{ backgroundColor: isOverBudget ? 'rgba(239, 68, 68, 0.2)' : `${categoryColor}20` }}
+        style={{ backgroundColor: isOverBudget ? 'rgba(239, 68, 68, 0.2)' : isTemporary ? 'rgba(59, 130, 246, 0.2)' : `${categoryColor}20` }}
       >
         <div className="flex items-center gap-2 min-w-0">
           {isOverBudget ? (
             <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 animate-pulse">
               <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
             </div>
+          ) : isTemporary ? (
+            <Calendar className="w-3.5 h-3.5 text-blue-300 flex-shrink-0" />
           ) : (
             <div
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: categoryColor }}
             />
           )}
-          <span className="text-white font-medium text-sm truncate">{budget.name}</span>
+          <div className="min-w-0">
+            <span className="text-white font-medium text-sm truncate block">{budget.name}</span>
+            {isTemporary && budget.startDate && budget.endDate && (
+              <span className="text-blue-300/70 text-xs truncate block">
+                {formatSliderDateRange(new Date(budget.startDate), new Date(budget.endDate))}
+              </span>
+            )}
+          </div>
         </div>
+        {onAddTransaction && (
+          <Button
+            variant="subtle"
+            size="icon-xs"
+            className="hidden md:inline-flex flex-shrink-0"
+            onClick={() => onAddTransaction(budget.id)}
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+        )}
       </div>
 
       <div className="p-4 space-y-3">

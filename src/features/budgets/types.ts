@@ -20,4 +20,6 @@ export type BudgetProgress = {
   categoryColor: string | null;
   categoryId: string | null;
   defaultAccountId: string | null;
+  startDate: Date | null;
+  endDate: Date | null;
 };

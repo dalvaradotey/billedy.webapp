@@ -35,10 +35,12 @@ import {
   X,
   GripVertical,
   ArrowUpDown,
+  Calendar,
 } from 'lucide-react';
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SubmitButton } from '@/components/submit-button';
 import { FloatingLabelInput } from '@/components/floating-label-input';
+import { FloatingLabelDateInput } from '@/components/floating-label-date-input';
 import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-drawer';
 import { ProgressIndicator } from '@/components/progress-indicator';
 import { Button } from '@/components/ui/button';
@@ -86,6 +88,29 @@ function formatCurrency(amount: number | string, currency: string = 'CLP'): stri
   }).format(num);
 }
 
+function startOfDay(d: Date): Date {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function formatDateRange(start: Date, end: Date): string {
+  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+  const fmt = new Intl.DateTimeFormat('es-CL', opts);
+  const fmtYear = new Intl.DateTimeFormat('es-CL', { ...opts, year: 'numeric' });
+  const currentYear = new Date().getFullYear();
+  if (start.getFullYear() === end.getFullYear() && start.getFullYear() === currentYear) {
+    return `${fmt.format(start)} – ${fmt.format(end)}`;
+  }
+  return `${fmtYear.format(start)} – ${fmtYear.format(end)}`;
+}
+
+function daysRemaining(endDate: Date): number {
+  const today = startOfDay(new Date());
+  const end = startOfDay(new Date(endDate));
+  return Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 interface BudgetListProps {
   budgets: BudgetWithCategory[];
   categories: { id: string; name: string; color: string }[];
@@ -116,8 +141,23 @@ export function BudgetList({
     setLocalBudgets(budgets);
   }, [budgets]);
 
-  const activeBudgets = useMemo(() => localBudgets.filter((b) => b.isActive), [localBudgets]);
+  const today = useMemo(() => startOfDay(new Date()), []);
+
+  // Separar en 4 secciones
+  const permanentBudgets = useMemo(
+    () => localBudgets.filter((b) => b.isActive && !b.startDate),
+    [localBudgets]
+  );
+  const temporalBudgets = useMemo(
+    () => localBudgets.filter((b) => b.isActive && b.endDate && startOfDay(new Date(b.endDate)) >= today),
+    [localBudgets, today]
+  );
+  const expiredBudgets = useMemo(
+    () => localBudgets.filter((b) => b.isActive && b.endDate && startOfDay(new Date(b.endDate)) < today),
+    [localBudgets, today]
+  );
   const inactiveBudgets = useMemo(() => localBudgets.filter((b) => !b.isActive), [localBudgets]);
+  const [showExpired, setShowExpired] = useState(false);
 
   // Sensores DnD
   const sensors = useSensors(
@@ -136,12 +176,12 @@ export function BudgetList({
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = activeBudgets.findIndex((b) => b.id === active.id);
-    const newIndex = activeBudgets.findIndex((b) => b.id === over.id);
+    const oldIndex = permanentBudgets.findIndex((b) => b.id === active.id);
+    const newIndex = permanentBudgets.findIndex((b) => b.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const reordered = arrayMove(activeBudgets, oldIndex, newIndex);
-    setLocalBudgets([...reordered, ...inactiveBudgets]);
+    const reordered = arrayMove(permanentBudgets, oldIndex, newIndex);
+    setLocalBudgets([...reordered, ...temporalBudgets, ...expiredBudgets, ...inactiveBudgets]);
 
     const orderedIds = reordered.map((b) => b.id);
     startTransition(async () => {
@@ -179,7 +219,7 @@ export function BudgetList({
     <div className="space-y-6">
       {/* Toolbar */}
       <PageToolbar label={`${budgets.length} presupuestos`}>
-        {activeBudgets.length > 1 && (
+        {permanentBudgets.length > 1 && (
           <Button
             variant={isReorderMode ? 'default' : 'ghost'}
             size="sm"
@@ -210,7 +250,7 @@ export function BudgetList({
       </ResponsiveDrawer>
 
       {/* Budgets */}
-      {activeBudgets.length === 0 && inactiveBudgets.length === 0 ? (
+      {budgets.length === 0 ? (
         <EmptyState
           icon={Target}
           title="No hay presupuestos configurados"
@@ -218,7 +258,8 @@ export function BudgetList({
         />
       ) : (
         <>
-          {activeBudgets.length > 0 && (
+          {/* Permanentes (con DnD) */}
+          {permanentBudgets.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-muted-foreground">
                 {isReorderMode ? 'Arrastra para reordenar' : 'Activos'}
@@ -230,12 +271,12 @@ export function BudgetList({
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={activeBudgets.map((b) => b.id)}
+                  items={permanentBudgets.map((b) => b.id)}
                   strategy={verticalListSortingStrategy}
                   disabled={!isReorderMode}
                 >
                   <div className="space-y-3">
-                    {activeBudgets.map((budget) => (
+                    {permanentBudgets.map((budget) => (
                       <SortableBudgetCard
                         key={budget.id}
                         budget={budget}
@@ -250,6 +291,50 @@ export function BudgetList({
             </div>
           )}
 
+          {/* Temporales vigentes */}
+          {temporalBudgets.length > 0 && !isReorderMode && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                Temporales
+              </h3>
+              {temporalBudgets.map((budget) => (
+                <BudgetCard
+                  key={budget.id}
+                  budget={budget}
+                  userId={userId}
+                  onEdit={() => handleEdit(budget)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Expirados */}
+          {expiredBudgets.length > 0 && !isReorderMode && (
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowExpired(!showExpired)}
+                className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors"
+              >
+                Expirados ({expiredBudgets.length})
+                <span className={cn('transition-transform', showExpired && 'rotate-180')}>▾</span>
+              </button>
+              {showExpired && (
+                <div className="space-y-3 opacity-60">
+                  {expiredBudgets.map((budget) => (
+                    <BudgetCard
+                      key={budget.id}
+                      budget={budget}
+                      userId={userId}
+                      onEdit={() => handleEdit(budget)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Inactivos */}
           {inactiveBudgets.length > 0 && !isReorderMode && (
             <div className="space-y-3">
               <h3 className="text-sm font-medium text-muted-foreground">Inactivos</h3>
@@ -410,6 +495,9 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
   ];
 
   const description = budget.categoryName || undefined;
+  const isTemporary = budget.startDate != null;
+  const isExpired = isTemporary && budget.endDate != null && startOfDay(new Date(budget.endDate)) < startOfDay(new Date());
+  const days = isTemporary && budget.endDate && !isExpired ? daysRemaining(budget.endDate) : null;
 
   return (
     <>
@@ -428,7 +516,19 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
         {/* Top row: Icon + Info + Actions */}
         <div className="flex items-start gap-3">
           {/* Icon */}
-          {budget.categoryColor ? (
+          {isTemporary ? (
+            <div
+              className={cn(
+                'w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0 flex items-center justify-center',
+                isExpired ? 'bg-muted' : 'bg-blue-500/15'
+              )}
+            >
+              <Calendar className={cn(
+                'h-5 w-5 sm:h-4 sm:w-4',
+                isExpired ? 'text-muted-foreground' : 'text-blue-600 dark:text-blue-400'
+              )} />
+            </div>
+          ) : budget.categoryColor ? (
             <div
               className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
               style={{ backgroundColor: budget.categoryColor + '30' }}
@@ -449,14 +549,27 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
             {/* Row 1: Title + Amount + actions */}
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="font-semibold text-base truncate">{budget.name}</p>
                   {!budget.isActive && (
                     <Badge variant="secondary" className="text-xs flex-shrink-0">Inactivo</Badge>
                   )}
+                  {isExpired && (
+                    <Badge variant="destructive" className="text-xs flex-shrink-0">Expirado</Badge>
+                  )}
+                  {isTemporary && !isExpired && days !== null && (
+                    <Badge variant="outline" className="text-xs flex-shrink-0 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                      {days === 0 ? 'Último día' : days === 1 ? '1 día' : `${days} días`}
+                    </Badge>
+                  )}
                 </div>
                 {budget.categoryName && (
                   <p className="text-sm text-muted-foreground truncate">{budget.categoryName}</p>
+                )}
+                {isTemporary && budget.startDate && budget.endDate && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {formatDateRange(new Date(budget.startDate), new Date(budget.endDate))}
+                  </p>
                 )}
               </div>
 
@@ -629,6 +742,7 @@ function BudgetDialogContent({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
+  const [showTemporalDates, setShowTemporalDates] = useState(false);
   const [localCategories, setLocalCategories] = useState(categories);
 
   // Form UX hooks
@@ -653,6 +767,8 @@ function BudgetDialogContent({
     defaultAccountId: budget?.defaultAccountId ?? undefined,
     defaultAmount: budget?.defaultAmount ? parseFloat(budget.defaultAmount) : undefined,
     currency: budget?.currency ?? defaultCurrency,
+    startDate: budget?.startDate ?? undefined,
+    endDate: budget?.endDate ?? undefined,
   }), [projectId, budget, defaultCurrency]);
 
   const form = useForm<CreateBudgetInput>({
@@ -663,21 +779,27 @@ function BudgetDialogContent({
   // Reset form when budget changes (for edit mode)
   useEffect(() => {
     form.reset(getDefaultValues());
-    // Show currency selector if budget has a different currency than project default
     if (budget) {
       setShowCurrencySelector(budget.currency !== defaultCurrency);
+      setShowTemporalDates(budget.startDate != null);
     } else {
       setShowCurrencySelector(false);
+      setShowTemporalDates(false);
     }
-  }, [budget, form, getDefaultValues]);
+  }, [budget, form, getDefaultValues, defaultCurrency]);
 
   // Track form progress with subscription pattern
+  const totalSteps = showTemporalDates ? 3 : 2;
   const calculateProgress = useCallback((values: Partial<CreateBudgetInput>) => {
-    return [
+    const steps = [
       !!values.name,
       values.defaultAmount !== undefined && values.defaultAmount > 0,
-    ].filter(Boolean).length;
-  }, []);
+    ];
+    if (showTemporalDates) {
+      steps.push(!!values.startDate && !!values.endDate);
+    }
+    return steps.filter(Boolean).length;
+  }, [showTemporalDates]);
 
   const [formProgress, setFormProgress] = useState(() => calculateProgress(form.getValues()));
 
@@ -704,6 +826,8 @@ function BudgetDialogContent({
             defaultAccountId: data.defaultAccountId,
             defaultAmount: data.defaultAmount,
             currency: data.currency,
+            startDate: data.startDate,
+            endDate: data.endDate,
           })
         : await createBudget(userId, data);
 
@@ -727,7 +851,7 @@ function BudgetDialogContent({
           : 'Crea una plantilla de presupuesto que podrás asignar a cada ciclo.'
       }
       showSuccess={showSuccess}
-      headerExtra={!isEditing ? <ProgressIndicator current={formProgress} total={2} /> : undefined}
+      headerExtra={!isEditing ? <ProgressIndicator current={formProgress} total={totalSteps} /> : undefined}
     >
       <Form {...form}>
         <FormDrawerBody as="form" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
@@ -866,6 +990,70 @@ function BudgetDialogContent({
                   </FormItem>
                 )}
               />
+            )}
+          </div>
+
+          {/* Temporal Budget (date range) */}
+          <div className="space-y-3">
+            <SwitchCard
+              title="Presupuesto temporal"
+              description="Define un período específico de vigencia"
+              checked={showTemporalDates}
+              onCheckedChange={(checked) => {
+                setShowTemporalDates(checked);
+                if (checked) {
+                  const today = new Date();
+                  today.setHours(12, 0, 0, 0);
+                  const nextWeek = new Date(today);
+                  nextWeek.setDate(nextWeek.getDate() + 7);
+                  form.setValue('startDate', today);
+                  form.setValue('endDate', nextWeek);
+                } else {
+                  form.setValue('startDate', null);
+                  form.setValue('endDate', null);
+                }
+              }}
+            />
+
+            {showTemporalDates && (
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="startDate">
+                      <FormControl>
+                        <FloatingLabelDateInput
+                          label="Fecha inicio"
+                          value={field.value ?? undefined}
+                          onChange={field.onChange}
+                          valid={!!field.value && !fieldState.error}
+                          invalid={!!fieldState.error}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field, fieldState }) => (
+                    <FormItem data-field="endDate">
+                      <FormControl>
+                        <FloatingLabelDateInput
+                          label="Fecha fin"
+                          value={field.value ?? undefined}
+                          onChange={field.onChange}
+                          valid={!!field.value && !fieldState.error}
+                          invalid={!!fieldState.error}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             )}
           </div>
 

@@ -69,6 +69,8 @@ export async function createBudget(
       defaultAccountId: parsed.data.defaultAccountId ?? null,
       defaultAmount: String(parsed.data.defaultAmount),
       currency: parsed.data.currency,
+      startDate: parsed.data.startDate ?? null,
+      endDate: parsed.data.endDate ?? null,
       sortOrder: (maxOrder?.max ?? 0) + 1000,
     })
     .returning({ id: budgets.id });
@@ -120,6 +122,8 @@ export async function updateBudget(
   if (parsed.data.defaultAmount !== undefined) updateData.defaultAmount = String(parsed.data.defaultAmount);
   if (parsed.data.currency !== undefined) updateData.currency = parsed.data.currency;
   if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;
+  if (parsed.data.startDate !== undefined) updateData.startDate = parsed.data.startDate;
+  if (parsed.data.endDate !== undefined) updateData.endDate = parsed.data.endDate;
 
   await db
     .update(budgets)

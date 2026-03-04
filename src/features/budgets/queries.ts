@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { budgets, categories, projectMembers, accounts, transactions } from '@/lib/db/schema';
-import { eq, and, isNotNull, sql, gte, lte, asc } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, sql, gte, lte, or, asc } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { BudgetWithCategory, BudgetProgress } from './types';
 
@@ -42,6 +42,8 @@ async function _getBudgetsWithCategory(
       defaultAccountId: budgets.defaultAccountId,
       defaultAmount: budgets.defaultAmount,
       currency: budgets.currency,
+      startDate: budgets.startDate,
+      endDate: budgets.endDate,
       isActive: budgets.isActive,
       sortOrder: budgets.sortOrder,
       createdAt: budgets.createdAt,
@@ -71,6 +73,7 @@ export const getBudgetsWithCategory = cachedQuery(
 
 /**
  * Query interna para obtener presupuestos activos con info de categoría
+ * Filtra presupuestos temporales expirados
  */
 async function _getActiveBudgets(
   projectId: string,
@@ -86,6 +89,8 @@ async function _getActiveBudgets(
   const hasAccess = await verifyProjectAccess(projectId, userId);
   if (!hasAccess) return [];
 
+  const today = new Date();
+
   const result = await db
     .select({
       id: budgets.id,
@@ -100,7 +105,15 @@ async function _getActiveBudgets(
     .where(
       and(
         eq(budgets.projectId, projectId),
-        eq(budgets.isActive, true)
+        eq(budgets.isActive, true),
+        // Excluir temporales expirados
+        or(
+          isNull(budgets.startDate),
+          and(
+            lte(budgets.startDate, today),
+            gte(budgets.endDate, today)
+          )
+        )
       )
     )
     .orderBy(asc(budgets.sortOrder), asc(budgets.name));
@@ -158,6 +171,8 @@ export const getProjectCategories = cachedQuery(
 
 /**
  * Query interna para obtener progreso de presupuestos para un rango de fechas (ciclo)
+ * Para presupuestos permanentes: usa el rango del ciclo
+ * Para presupuestos temporales: usa su propio rango de fechas
  */
 async function _getBudgetsProgress(
   projectId: string,
@@ -168,7 +183,13 @@ async function _getBudgetsProgress(
   const hasAccess = await verifyProjectAccess(projectId, userId);
   if (!hasAccess) return [];
 
+  const today = new Date();
+  // Convertir fechas a strings ISO para uso en sql`` templates (el driver pg no serializa Date objects ahí)
+  const startDateStr = startDate.toISOString().split('T')[0];
+  const endDateStr = endDate.toISOString().split('T')[0];
+
   // Obtener presupuestos activos con sus gastos en el período
+  // Para temporales: usa su propio rango; para permanentes: usa rango del ciclo
   const result = await db
     .select({
       id: budgets.id,
@@ -178,6 +199,8 @@ async function _getBudgetsProgress(
       categoryName: categories.name,
       categoryColor: categories.color,
       defaultAccountId: budgets.defaultAccountId,
+      startDate: budgets.startDate,
+      endDate: budgets.endDate,
       spentAmount: sql<string>`COALESCE(SUM(${transactions.baseAmount}), 0)`,
     })
     .from(budgets)
@@ -187,14 +210,23 @@ async function _getBudgetsProgress(
       and(
         eq(transactions.budgetId, budgets.id),
         eq(transactions.type, 'expense'),
-        gte(transactions.date, startDate),
-        lte(transactions.date, endDate)
+        // Rango dinámico: si el budget tiene fechas propias, usa esas; si no, usa las del ciclo
+        sql`${transactions.date} >= COALESCE(${budgets.startDate}, ${startDateStr}::date)`,
+        sql`${transactions.date} <= COALESCE(${budgets.endDate}, ${endDateStr}::date)`
       )
     )
     .where(
       and(
         eq(budgets.projectId, projectId),
-        eq(budgets.isActive, true)
+        eq(budgets.isActive, true),
+        // Incluir permanentes + temporales vigentes
+        or(
+          isNull(budgets.startDate),
+          and(
+            lte(budgets.startDate, today),
+            gte(budgets.endDate, today)
+          )
+        )
       )
     )
     .groupBy(
@@ -204,6 +236,8 @@ async function _getBudgetsProgress(
       budgets.categoryId,
       budgets.defaultAccountId,
       budgets.sortOrder,
+      budgets.startDate,
+      budgets.endDate,
       categories.name,
       categories.color
     )
@@ -228,6 +262,8 @@ async function _getBudgetsProgress(
       categoryColor: budget.categoryColor,
       categoryId: budget.categoryId,
       defaultAccountId: budget.defaultAccountId,
+      startDate: budget.startDate,
+      endDate: budget.endDate,
     };
   });
 }
