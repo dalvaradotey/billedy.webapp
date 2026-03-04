@@ -86,7 +86,7 @@ export async function getTransactions(
       entityImageUrl: entities.imageUrl,
     })
     .from(transactions)
-    .innerJoin(categories, eq(transactions.categoryId, categories.id))
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
     .leftJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
@@ -139,7 +139,7 @@ export async function getTransactionById(
       entityImageUrl: entities.imageUrl,
     })
     .from(transactions)
-    .innerJoin(categories, eq(transactions.categoryId, categories.id))
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
     .leftJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
@@ -279,7 +279,7 @@ export async function getRecentTransactions(
       entityImageUrl: entities.imageUrl,
     })
     .from(transactions)
-    .innerJoin(categories, eq(transactions.categoryId, categories.id))
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
     .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
     .leftJoin(accounts, eq(transactions.accountId, accounts.id))
     .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
