@@ -123,6 +123,8 @@ export function CardPurchaseCard({
   if (purchase.categoryName) descriptionParts.push(purchase.categoryName);
   const description = descriptionParts.join(' · ') || formatDateLong(purchase.purchaseDate);
 
+  const isCompleted = purchase.progressPercentage >= 100;
+
   const actions = [
     ...(purchase.isActive && purchase.remainingInstallments > 0
       ? [{
@@ -313,22 +315,22 @@ export function CardPurchaseCard({
             showInlineActions ? 'opacity-0 scale-95 pointer-events-none h-0 overflow-hidden' : 'opacity-100 scale-100'
           )}>
             {/* Progress section */}
-            <div className={cardStyles.progressSection}>
+            <div className={isCompleted ? cardStyles.progressSectionCompleted : cardStyles.progressSection}>
               <div className="flex items-baseline justify-between mb-2.5">
                 <p className="text-sm">
-                  <span className={cardStyles.progressLabel}>{purchase.chargedInstallments}</span>
-                  <span className={cardStyles.progressSecondary}> de {purchase.installments} cuotas</span>
+                  <span className={isCompleted ? cardStyles.progressLabelCompleted : cardStyles.progressLabel}>{purchase.chargedInstallments}</span>
+                  <span className={isCompleted ? cardStyles.progressSecondaryCompleted : cardStyles.progressSecondary}> de {purchase.installments} cuotas</span>
                 </p>
                 <p className="text-sm text-right">
-                  <span className={cn(cardStyles.progressLabel, 'font-semibold')}>
+                  <span className={cn(isCompleted ? cardStyles.progressLabelCompleted : cardStyles.progressLabel, 'font-semibold')}>
                     {formatCurrency(Math.max(0, parseFloat(purchase.totalAmount) - purchase.remainingAmount))}
                   </span>
-                  <span className={cardStyles.progressSecondary}> / {formatCurrency(parseFloat(purchase.totalAmount))}</span>
+                  <span className={isCompleted ? cardStyles.progressSecondaryCompleted : cardStyles.progressSecondary}> / {formatCurrency(parseFloat(purchase.totalAmount))}</span>
                 </p>
               </div>
               <div className="flex items-center gap-2.5">
-                <Progress value={purchase.progressPercentage} className={cardStyles.progressBar} indicatorClassName={cardStyles.progressIndicator} />
-                <span className={cn('text-lg', cardStyles.progressPercentage)}>
+                <Progress value={purchase.progressPercentage} className={cardStyles.progressBar} indicatorClassName={isCompleted ? cardStyles.progressIndicatorCompleted : cardStyles.progressIndicator} />
+                <span className={cn('text-lg', isCompleted ? cardStyles.progressPercentageCompleted : cardStyles.progressPercentage)}>
                   {Math.round(purchase.progressPercentage)}%
                 </span>
               </div>
@@ -440,22 +442,22 @@ export function CardPurchaseCard({
 
         {/* Mobile-only: Details (always visible) */}
         <div className="mt-3 sm:hidden">
-          <div className="rounded-xl bg-gradient-to-r from-blue-500/5 to-blue-500/10 dark:from-blue-500/10 dark:to-blue-500/20 p-3 ring-1 ring-blue-500/10">
+          <div className={isCompleted ? cardStyles.progressSectionCompleted : cardStyles.progressSection}>
             <div className="flex items-baseline justify-between mb-2.5">
               <p className="text-base">
-                <span className="font-bold text-blue-700 dark:text-blue-300 tabular-nums">{purchase.chargedInstallments}</span>
-                <span className="text-blue-600/60 dark:text-blue-400/60"> de {purchase.installments} cuotas</span>
+                <span className={isCompleted ? cardStyles.progressLabelCompleted : cardStyles.progressLabel}>{purchase.chargedInstallments}</span>
+                <span className={isCompleted ? cardStyles.progressSecondaryCompleted : cardStyles.progressSecondary}> de {purchase.installments} cuotas</span>
               </p>
               <p className="text-base text-right">
-                <span className="font-semibold text-blue-700 dark:text-blue-300 tabular-nums">
+                <span className={cn(isCompleted ? cardStyles.progressLabelCompleted : cardStyles.progressLabel, 'font-semibold')}>
                   {formatCurrency(Math.max(0, parseFloat(purchase.totalAmount) - purchase.remainingAmount))}
                 </span>
-                <span className="text-blue-600/60 dark:text-blue-400/60"> / {formatCurrency(parseFloat(purchase.totalAmount))}</span>
+                <span className={isCompleted ? cardStyles.progressSecondaryCompleted : cardStyles.progressSecondary}> / {formatCurrency(parseFloat(purchase.totalAmount))}</span>
               </p>
             </div>
             <div className="flex items-center gap-2.5">
-              <Progress value={purchase.progressPercentage} className={cardStyles.progressBar} indicatorClassName={cardStyles.progressIndicator} />
-              <span className={cn('text-xl', cardStyles.progressPercentage)}>
+              <Progress value={purchase.progressPercentage} className={cardStyles.progressBar} indicatorClassName={isCompleted ? cardStyles.progressIndicatorCompleted : cardStyles.progressIndicator} />
+              <span className={cn('text-xl', isCompleted ? cardStyles.progressPercentageCompleted : cardStyles.progressPercentage)}>
                 {Math.round(purchase.progressPercentage)}%
               </span>
             </div>

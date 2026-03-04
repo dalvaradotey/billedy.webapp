@@ -7,13 +7,20 @@ export const cardStyles = {
   base: 'rounded-2xl bg-card dark:bg-slate-900 p-4 transition-colors active:bg-muted/50',
   inactive: 'opacity-60',
 
-  // Progress section (gradient blue box)
+  // Progress section — default (blue)
   progressSection: 'rounded-xl bg-gradient-to-r from-blue-500/5 to-blue-500/10 dark:from-blue-500/10 dark:to-blue-500/20 p-3 ring-1 ring-blue-500/10',
   progressBar: 'h-6 flex-1',
   progressIndicator: 'bg-gradient-to-r from-blue-600 to-blue-400',
   progressLabel: 'font-bold text-blue-700 dark:text-blue-300 tabular-nums',
   progressSecondary: 'text-blue-600/60 dark:text-blue-400/60',
   progressPercentage: 'font-bold tabular-nums text-blue-600 dark:text-blue-400 shrink-0',
+
+  // Progress section — completed (green, se usa cuando llega al 100%)
+  progressSectionCompleted: 'rounded-xl bg-gradient-to-r from-emerald-500/5 to-emerald-500/10 dark:from-emerald-500/10 dark:to-emerald-500/20 p-3 ring-1 ring-emerald-500/10',
+  progressIndicatorCompleted: 'bg-gradient-to-r from-emerald-600 to-emerald-400',
+  progressLabelCompleted: 'font-bold text-emerald-700 dark:text-emerald-300 tabular-nums',
+  progressSecondaryCompleted: 'text-emerald-600/60 dark:text-emerald-400/60',
+  progressPercentageCompleted: 'font-bold tabular-nums text-emerald-600 dark:text-emerald-400 shrink-0',
 
   // Collapsible details grid
   detailsContainer: 'rounded-xl bg-muted/30 dark:bg-muted/20 p-3 space-y-3',

@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import { CreditCard, Receipt } from 'lucide-react';
+import { CreditCard, Receipt, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
+import { PageToolbar } from '@/components/page-toolbar';
+import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
 
 import { chargeAllPendingInstallments } from '../actions';
 import type { CardPurchaseWithDetails, CardPurchasesSummary, DebtCapacityReport } from '../types';
@@ -42,6 +43,7 @@ export function CardPurchasesList({
 }: CardPurchasesListProps) {
   const router = useRouter();
   const [showActive, setShowActive] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pendingToast, setPendingToast] = useState<{
     id: string | number;
@@ -121,6 +123,16 @@ export function CardPurchasesList({
     }
   };
 
+  const handleOpenDialog = useCallback(() => {
+    setIsDialogOpen(true);
+  }, []);
+
+  const pageActions = useMemo<PageAction[]>(() => [
+    { label: 'Nueva compra', icon: Plus, onClick: handleOpenDialog },
+  ], [handleOpenDialog]);
+
+  useRegisterPageActions(pageActions);
+
   const filteredPurchases = showActive
     ? purchases.filter((p) => p.isActive)
     : purchases;
@@ -147,8 +159,20 @@ export function CardPurchasesList({
         </button>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Dialog (se abre desde page actions) */}
+      <CreatePurchaseDialog
+        projectId={projectId}
+        userId={userId}
+        accounts={accounts}
+        categories={categories}
+        entities={entities}
+        onSuccess={handleRefresh}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+      />
+
+      {/* Toolbar con filtros */}
+      <PageToolbar label={`${filteredPurchases.length} compras`}>
         <div className="inline-flex rounded-lg border bg-muted/50 p-0.5">
           <button
             onClick={() => setShowActive(true)}
@@ -173,16 +197,7 @@ export function CardPurchasesList({
             <span className="ml-1 tabular-nums opacity-60">{purchases.length}</span>
           </button>
         </div>
-
-        <CreatePurchaseDialog
-          projectId={projectId}
-          userId={userId}
-          accounts={accounts}
-          categories={categories}
-          entities={entities}
-          onSuccess={handleRefresh}
-        />
-      </div>
+      </PageToolbar>
 
       {/* Purchases List */}
       <div>

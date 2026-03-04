@@ -69,12 +69,10 @@ export function DashboardCycleBanner() {
           </div>
 
           {/* Progress bar */}
-          <div className="mt-3 h-3 rounded-full bg-slate-600/50 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500 bg-blue-500"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
+          <Progress
+            value={progressPercentage}
+            className="mt-3 h-3 bg-slate-600/50"
+          />
           <p className="text-xs text-slate-500 mt-1 text-center">
             {cycle.daysRemaining} días restantes
           </p>

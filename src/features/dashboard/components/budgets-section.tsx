@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import { ResponsiveDrawer } from '@/components/ui/drawer';
@@ -45,7 +45,7 @@ export function DashboardBudgetsSection({
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [initialValues, setInitialValues] = useState<TransactionInitialValues | undefined>();
   // Key para forzar remontaje del componente al abrir el drawer (resetea estados internos como isPending)
-  const drawerKeyRef = useRef(0);
+  const [drawerKey, setDrawerKey] = useState(0);
 
   // Mapa de cuentas para buscar tipo rápidamente
   const accountsMap = useMemo(() => {
@@ -92,7 +92,7 @@ export function DashboardBudgetsSection({
 
   const handleAddTransaction = (budgetId: string) => {
     // Incrementar key para forzar remontaje del componente (resetea isPending y otros estados)
-    drawerKeyRef.current += 1;
+    setDrawerKey((k) => k + 1);
     // Find the budget to get its category and account
     const budget = budgetsProgress.find((b) => b.id === budgetId);
     if (budget) {
@@ -110,7 +110,7 @@ export function DashboardBudgetsSection({
 
   // Abrir drawer sin presupuesto específico (desde el botón flotante o bottom nav)
   const handleOpenNewTransaction = useCallback(() => {
-    drawerKeyRef.current += 1;
+    setDrawerKey((k) => k + 1);
     setInitialValues(undefined);
     setIsDrawerOpen(true);
   }, []);
@@ -134,32 +134,9 @@ export function DashboardBudgetsSection({
         onAddTransaction={handleAddTransaction}
       />
 
-      {/* Floating Action Button - Aurora Glow (desktop only, mobile uses bottom nav) */}
-      <div
-        className="hidden md:block fixed bottom-8 right-8 z-40"
-      >
-        {/* Pulsing glow rings - subtle */}
-        <div className="absolute inset-1 md:inset-2 rounded-full bg-gradient-to-r from-blue-500 via-emerald-400 to-cyan-400 opacity-90 blur-md md:blur-lg animate-pulse" />
-        <div className="absolute inset-0 md:inset-1 rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-500 opacity-90 blur-sm md:blur-md animate-fab-glow" />
-
-        {/* Button with animated gradient border */}
-        <button
-          onClick={handleOpenNewTransaction}
-          className="relative w-14 h-14 md:w-16 md:h-16 rounded-full bg-slate-900 flex items-center justify-center active:scale-90 transition-transform"
-        >
-          {/* Rotating gradient border */}
-          <div className="absolute inset-0 rounded-full bg-gradient-conic animate-spin-slow" />
-
-          {/* Inner circle */}
-          <div className="absolute inset-[2px] md:inset-[3px] rounded-full bg-slate-900 flex items-center justify-center">
-            <Plus className="w-7 h-7 md:w-8 md:h-8 text-white" strokeWidth={2.5} />
-          </div>
-        </button>
-      </div>
-
       <ResponsiveDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <TransactionDialogContent
-          key={drawerKeyRef.current}
+          key={drawerKey}
           projectId={projectId}
           userId={userId}
           categories={categories}

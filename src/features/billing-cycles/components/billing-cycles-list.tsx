@@ -1,20 +1,21 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
-  ArrowRight,
   Calendar,
   TrendingUp,
   TrendingDown,
   Wallet,
+  Plus,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
+import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
+import { PageToolbar } from '@/components/page-toolbar';
+import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
 
 import { formatCurrency } from '@/lib/formatting';
 import type { BillingCycleWithTotals, BillingCycleSummary } from '../types';
@@ -61,12 +62,18 @@ export function BillingCyclesList({
     setEditingCycle(null);
   };
 
-  const handleOpenDialog = () => {
+  const handleOpenDialog = useCallback(() => {
     setEditingCycle(null);
     setIsDialogOpen(true);
-  };
+  }, []);
 
   const hasOpenCycle = cycles.some((c) => c.status === 'open');
+
+  const pageActions = useMemo<PageAction[]>(() => [
+    { label: 'Nuevo ciclo', icon: Plus, onClick: handleOpenDialog, disabled: hasOpenCycle },
+  ], [handleOpenDialog, hasOpenCycle]);
+
+  useRegisterPageActions(pageActions);
   const cc = summary.currentCycle;
 
   return (
@@ -103,35 +110,22 @@ export function BillingCyclesList({
         />
       </SummaryCardsSlider>
 
-      {/* Actions */}
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {cycles.length} {cycles.length === 1 ? 'ciclo' : 'ciclos'}
-        </p>
+      {/* Dialog (se abre desde page actions o editar) */}
+      <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <BillingCycleDialogContent
+          projectId={projectId}
+          userId={userId}
+          cycle={editingCycle}
+          suggestedDates={suggestedDates}
+          onSuccess={handleDialogClose}
+          onMutationStart={onMutationStart}
+          onMutationSuccess={onMutationSuccess}
+          onMutationError={onMutationError}
+        />
+      </ResponsiveDrawer>
 
-        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DrawerTrigger asChild>
-            <Button
-              variant="cta-sm"
-              onClick={handleOpenDialog}
-              disabled={hasOpenCycle}
-            >
-              Nuevo ciclo
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </DrawerTrigger>
-          <BillingCycleDialogContent
-            projectId={projectId}
-            userId={userId}
-            cycle={editingCycle}
-            suggestedDates={suggestedDates}
-            onSuccess={handleDialogClose}
-            onMutationStart={onMutationStart}
-            onMutationSuccess={onMutationSuccess}
-            onMutationError={onMutationError}
-          />
-        </ResponsiveDrawer>
-      </div>
+      {/* Toolbar */}
+      <PageToolbar label={`${cycles.length} ${cycles.length === 1 ? 'ciclo' : 'ciclos'}`} />
 
       {/* Cycles List */}
       <div>

@@ -14,6 +14,7 @@ import {
 import { isUserAdmin } from '@/features/entities';
 import { BottomNavActionProvider } from '@/components/layout/bottom-nav-context';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
+import { DesktopActionsFab } from '@/components/layout/desktop-actions-fab';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -78,6 +79,7 @@ export default async function DashboardLayout({
           pendingInvitations={pendingInvitations}
           isAdmin={isAdmin}
         />
+        <DesktopActionsFab />
       </BottomNavActionProvider>
     </div>
   );

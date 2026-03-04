@@ -137,6 +137,7 @@ export function CreditCard({
   ];
 
   const progressPercentage = Math.min(credit.progressPercentage, 100);
+  const isCompleted = progressPercentage >= 100;
 
   return (
     <>
@@ -288,22 +289,22 @@ export function CreditCard({
             showInlineActions ? 'opacity-0 scale-95 pointer-events-none h-0 overflow-hidden' : 'opacity-100 scale-100'
           )}>
             {/* Progress section */}
-            <div className={cardStyles.progressSection}>
+            <div className={isCompleted ? cardStyles.progressSectionCompleted : cardStyles.progressSection}>
               <div className="flex items-baseline justify-between mb-2.5">
                 <p className="text-sm">
-                  <span className={cardStyles.progressLabel}>{credit.paidInstallments}</span>
-                  <span className={cardStyles.progressSecondary}> de {credit.installments} cuotas</span>
+                  <span className={isCompleted ? cardStyles.progressLabelCompleted : cardStyles.progressLabel}>{credit.paidInstallments}</span>
+                  <span className={isCompleted ? cardStyles.progressSecondaryCompleted : cardStyles.progressSecondary}> de {credit.installments} cuotas</span>
                 </p>
                 <p className="text-sm text-right">
-                  <span className={cn(cardStyles.progressLabel, 'font-semibold')}>
+                  <span className={cn(isCompleted ? cardStyles.progressLabelCompleted : cardStyles.progressLabel, 'font-semibold')}>
                     {formatCurrency(Math.max(0, credit.paidAmount))}
                   </span>
-                  <span className={cardStyles.progressSecondary}> / {formatCurrency(credit.baseTotalAmount)}</span>
+                  <span className={isCompleted ? cardStyles.progressSecondaryCompleted : cardStyles.progressSecondary}> / {formatCurrency(credit.baseTotalAmount)}</span>
                 </p>
               </div>
               <div className="flex items-center gap-2.5">
-                <Progress value={progressPercentage} className={cardStyles.progressBar} indicatorClassName={cardStyles.progressIndicator} />
-                <span className={cn('text-lg', cardStyles.progressPercentage)}>
+                <Progress value={progressPercentage} className={cardStyles.progressBar} indicatorClassName={isCompleted ? cardStyles.progressIndicatorCompleted : cardStyles.progressIndicator} />
+                <span className={cn('text-lg', isCompleted ? cardStyles.progressPercentageCompleted : cardStyles.progressPercentage)}>
                   {Math.round(progressPercentage)}%
                 </span>
               </div>
@@ -404,22 +405,22 @@ export function CreditCard({
 
         {/* Mobile-only: Details */}
         <div className="mt-3 sm:hidden">
-          <div className={cardStyles.progressSection}>
+          <div className={isCompleted ? cardStyles.progressSectionCompleted : cardStyles.progressSection}>
             <div className="flex items-baseline justify-between mb-2.5">
               <p className="text-base">
-                <span className={cardStyles.progressLabel}>{credit.paidInstallments}</span>
-                <span className={cardStyles.progressSecondary}> de {credit.installments} cuotas</span>
+                <span className={isCompleted ? cardStyles.progressLabelCompleted : cardStyles.progressLabel}>{credit.paidInstallments}</span>
+                <span className={isCompleted ? cardStyles.progressSecondaryCompleted : cardStyles.progressSecondary}> de {credit.installments} cuotas</span>
               </p>
               <p className="text-base text-right">
-                <span className={cn(cardStyles.progressLabel, 'font-semibold')}>
+                <span className={cn(isCompleted ? cardStyles.progressLabelCompleted : cardStyles.progressLabel, 'font-semibold')}>
                   {formatCurrency(Math.max(0, credit.paidAmount))}
                 </span>
-                <span className={cardStyles.progressSecondary}> / {formatCurrency(credit.baseTotalAmount)}</span>
+                <span className={isCompleted ? cardStyles.progressSecondaryCompleted : cardStyles.progressSecondary}> / {formatCurrency(credit.baseTotalAmount)}</span>
               </p>
             </div>
             <div className="flex items-center gap-2.5">
-              <Progress value={progressPercentage} className={cardStyles.progressBar} indicatorClassName={cardStyles.progressIndicator} />
-              <span className={cn('text-xl', cardStyles.progressPercentage)}>
+              <Progress value={progressPercentage} className={cardStyles.progressBar} indicatorClassName={isCompleted ? cardStyles.progressIndicatorCompleted : cardStyles.progressIndicator} />
+              <span className={cn('text-xl', isCompleted ? cardStyles.progressPercentageCompleted : cardStyles.progressPercentage)}>
                 {Math.round(progressPercentage)}%
               </span>
             </div>

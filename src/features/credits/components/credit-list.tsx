@@ -1,21 +1,22 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import {
-  ArrowRight,
   CreditCard as CreditCardIcon,
   TrendingUp,
   CheckCircle,
   Calendar,
+  Plus,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
+import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
+import { PageToolbar } from '@/components/page-toolbar';
+import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
 
 import { formatCurrency } from '@/lib/formatting';
 import type { Entity } from '@/features/entities/types';
@@ -72,10 +73,16 @@ export function CreditList({
     setEditingCredit(null);
   };
 
-  const handleOpenDialog = () => {
+  const handleOpenDialog = useCallback(() => {
     setEditingCredit(null);
     setIsDialogOpen(true);
-  };
+  }, []);
+
+  const pageActions = useMemo<PageAction[]>(() => [
+    { label: 'Nuevo crédito', icon: Plus, onClick: handleOpenDialog },
+  ], [handleOpenDialog]);
+
+  useRegisterPageActions(pageActions);
 
   const handleFilterChange = (archived: boolean) => {
     if (archived) {
@@ -119,8 +126,25 @@ export function CreditList({
         />
       </SummaryCardsSlider>
 
-      {/* Actions */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Dialog (se abre desde page actions o editar) */}
+      <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <CreditDialogContent
+          key={editingCredit?.id ?? 'new'}
+          projectId={projectId}
+          userId={userId}
+          categories={categories}
+          entities={entities}
+          accounts={accounts}
+          credit={editingCredit}
+          onSuccess={handleDialogClose}
+          onMutationStart={onMutationStart}
+          onMutationSuccess={onMutationSuccess}
+          onMutationError={onMutationError}
+        />
+      </ResponsiveDrawer>
+
+      {/* Toolbar con filtros */}
+      <PageToolbar label={`${credits.length} créditos`}>
         <div className="inline-flex rounded-lg border bg-muted/50 p-0.5">
           <button
             onClick={() => handleFilterChange(false)}
@@ -144,29 +168,7 @@ export function CreditList({
             Archivados
           </button>
         </div>
-
-        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DrawerTrigger asChild>
-            <Button variant="cta-sm" onClick={handleOpenDialog}>
-              Nuevo crédito
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </DrawerTrigger>
-          <CreditDialogContent
-            key={editingCredit?.id ?? 'new'}
-            projectId={projectId}
-            userId={userId}
-            categories={categories}
-            entities={entities}
-            accounts={accounts}
-            credit={editingCredit}
-            onSuccess={handleDialogClose}
-            onMutationStart={onMutationStart}
-            onMutationSuccess={onMutationSuccess}
-            onMutationError={onMutationError}
-          />
-        </ResponsiveDrawer>
-      </div>
+      </PageToolbar>
 
       {/* Credit List */}
       <div>

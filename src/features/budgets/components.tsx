@@ -43,10 +43,8 @@ import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-
 import { ProgressIndicator } from '@/components/progress-indicator';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
-import {
-  ResponsiveDrawer,
-  DrawerTrigger,
-} from '@/components/ui/drawer';
+import { PageToolbar } from '@/components/page-toolbar';
+import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { CurrencyInput } from '@/components/currency-input';
 import { SearchableSelect } from '@/components/searchable-select';
 import { AccountSelector } from '@/components/account-selector';
@@ -76,6 +74,7 @@ import {
 import { createBudgetSchema } from './schemas';
 import type { CreateBudgetInput, UpdateBudgetInput } from './schemas';
 import type { BudgetWithCategory } from './types';
+import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
 
 function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -164,56 +163,51 @@ export function BudgetList({
     setEditingBudget(null);
   };
 
-  const handleOpenDialog = () => {
+  const handleOpenDialog = useCallback(() => {
     setEditingBudget(null);
     setIsDialogOpen(true);
-  };
+  }, []);
+
+  // Registrar acción en bottom nav / desktop FAB
+  const pageActions = useMemo<PageAction[]>(() => [
+    { label: 'Nuevo presupuesto', icon: Plus, onClick: handleOpenDialog },
+  ], [handleOpenDialog]);
+
+  useRegisterPageActions(pageActions);
 
   return (
     <div className="space-y-6">
-      {/* Actions */}
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">
-          {budgets.length} presupuestos
-        </div>
+      {/* Toolbar */}
+      <PageToolbar label={`${budgets.length} presupuestos`}>
+        {activeBudgets.length > 1 && (
+          <Button
+            variant={isReorderMode ? 'default' : 'ghost'}
+            size="sm"
+            className="h-8"
+            onClick={() => setIsReorderMode(!isReorderMode)}
+            disabled={isPending}
+          >
+            <ArrowUpDown className="h-4 w-4" />
+            <span className="ml-1.5">
+              {isReorderMode ? 'Listo' : 'Ordenar'}
+            </span>
+          </Button>
+        )}
+      </PageToolbar>
 
-        <div className="flex items-center gap-2">
-          {activeBudgets.length > 1 && (
-            <Button
-              variant={isReorderMode ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setIsReorderMode(!isReorderMode)}
-              disabled={isPending}
-            >
-              <ArrowUpDown className="h-4 w-4" />
-              <span className="ml-1.5">
-                {isReorderMode ? 'Listo' : 'Ordenar'}
-              </span>
-            </Button>
-          )}
-
-          {!isReorderMode && (
-            <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DrawerTrigger asChild>
-                <Button variant="cta-sm" onClick={handleOpenDialog}>
-                  Nuevo presupuesto
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </DrawerTrigger>
-              <BudgetDialogContent
-                projectId={projectId}
-                userId={userId}
-                categories={categories}
-                accounts={accounts}
-                currencies={currencies}
-                budget={editingBudget}
-                onSuccess={handleDialogClose}
-                defaultCurrency={defaultCurrency}
-              />
-            </ResponsiveDrawer>
-          )}
-        </div>
-      </div>
+      {/* Dialog (se abre desde page actions) */}
+      <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <BudgetDialogContent
+          projectId={projectId}
+          userId={userId}
+          categories={categories}
+          accounts={accounts}
+          currencies={currencies}
+          budget={editingBudget}
+          onSuccess={handleDialogClose}
+          defaultCurrency={defaultCurrency}
+        />
+      </ResponsiveDrawer>
 
       {/* Budgets */}
       {activeBudgets.length === 0 && inactiveBudgets.length === 0 ? (

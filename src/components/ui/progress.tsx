@@ -9,9 +9,12 @@ function Progress({
   className,
   value,
   indicatorClassName,
+  indicatorColor,
   ...props
 }: React.ComponentProps<typeof ProgressPrimitive.Root> & {
   indicatorClassName?: string
+  /** Color inline (hex/rgb) para el indicador — útil para colores dinámicos como categorías */
+  indicatorColor?: string
 }) {
   return (
     <ProgressPrimitive.Root
@@ -24,8 +27,15 @@ function Progress({
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className={cn("bg-primary h-full w-full flex-1 transition-all", indicatorClassName)}
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+        className={cn(
+          "h-full w-full flex-1 transition-all",
+          !indicatorColor && !indicatorClassName && "bg-primary",
+          indicatorClassName
+        )}
+        style={{
+          transform: `translateX(-${100 - (value || 0)}%)`,
+          ...(indicatorColor ? { backgroundColor: indicatorColor } : {}),
+        }}
       />
     </ProgressPrimitive.Root>
   )

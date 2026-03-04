@@ -20,13 +20,12 @@ import {
   DrawerTitle,
   DrawerDescription,
 } from '@/components/ui/drawer';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { ProcessingOverlay, type ProcessingStatus } from '@/components/processing-overlay';
 import { cn } from '@/lib/utils';
 import { setCurrentProjectId, acceptInvitation, rejectInvitation } from '@/features/projects/actions';
 import type { PendingInvitation } from '@/features/projects/types';
 import type { ProjectRole } from '@/features/projects/schemas';
-import { usePageActions } from './bottom-nav-context';
+import { ActionsPopover } from './actions-popover';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Resumen', icon: LayoutDashboard },
@@ -64,16 +63,13 @@ export function MobileBottomNav({
 }: MobileBottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { actions } = usePageActions();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [bellRing, setBellRing] = useState(false);
   const { setTheme, theme } = useTheme();
 
   const isDashboard = pathname === '/dashboard';
   const hasInvitations = pendingInvitations.length > 0;
-  const hasActions = actions.length > 0;
 
   const initials = user.name
     ?.split(' ')
@@ -162,65 +158,23 @@ export function MobileBottomNav({
               </button>
 
               {/* Action Button + Dropdown */}
-              <Popover open={isActionsOpen} onOpenChange={setIsActionsOpen}>
-                <PopoverTrigger asChild disabled={!hasActions}>
+              <ActionsPopover side="top" sideOffset={12} align="center">
+                {({ isOpen, hasActions }) => (
                   <button
                     className={cn(
                       'relative flex-1 flex items-center justify-center py-2 rounded-xl transition-all duration-300 active:scale-90',
                       hasActions
-                        ? isActionsOpen ? 'text-emerald-500' : 'text-muted-foreground/60'
+                        ? isOpen ? 'text-emerald-500' : 'text-muted-foreground/60'
                         : 'text-muted-foreground/30'
                     )}
                   >
                     <Plus className={cn(
                       'h-[22px] w-[22px] transition-all duration-300',
-                      isActionsOpen && 'rotate-45'
+                      isOpen && 'rotate-45'
                     )} />
                   </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  side="top"
-                  sideOffset={12}
-                  align="center"
-                  className="w-auto min-w-[210px] p-0 rounded-2xl border-0 bg-transparent shadow-none overflow-visible"
-                >
-                  <div className="relative rounded-2xl overflow-hidden">
-                    {/* Glass layers — same system as the bottom nav */}
-                    <div className="absolute inset-0 bg-background/75 dark:bg-background/60 backdrop-blur-2xl backdrop-saturate-150" />
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.1] via-transparent to-transparent dark:from-white/[0.05]" />
-                    <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/[0.06] dark:ring-white/[0.08]" />
-                    {/* Top light refraction */}
-                    <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/30 dark:via-white/15 to-transparent" />
-                    {/* Ambient glow */}
-                    <div className="absolute -inset-2 rounded-3xl bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] blur-xl -z-10" />
-
-                    {/* Actions */}
-                    <div className="relative p-1.5 space-y-0.5">
-                      <p className="px-3.5 pt-2 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
-                        Acciones
-                      </p>
-                      {actions.map((action, index) => {
-                        const Icon = action.icon;
-                        return (
-                          <button
-                            key={index}
-                            onClick={() => {
-                              setIsActionsOpen(false);
-                              action.onClick();
-                            }}
-                            className="flex items-center gap-3 w-full px-3.5 py-3 rounded-xl text-sm font-medium text-foreground/90 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-[0.97] transition-all duration-200"
-                          >
-                            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15">
-                              <Icon className="h-4 w-4 text-emerald-500" />
-                            </div>
-                            {action.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                )}
+              </ActionsPopover>
 
               {/* User Menu */}
               <button
@@ -295,7 +249,7 @@ export function MobileBottomNav({
                         'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                         isActive
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          : 'text-muted-foreground hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-foreground'
                       )}
                     >
                       <Icon className="h-5 w-5" />
@@ -345,7 +299,7 @@ export function MobileBottomNav({
               <a
                 href="/dashboard/settings"
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-foreground transition-colors"
               >
                 <Settings className="h-5 w-5" />
                 Configuración
@@ -354,7 +308,7 @@ export function MobileBottomNav({
                 <a
                   href="/admin/entities"
                   onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-foreground transition-colors"
                 >
                   <ShieldCheck className="h-5 w-5" />
                   Administrar entidades

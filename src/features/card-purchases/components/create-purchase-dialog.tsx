@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   ResponsiveDrawer,
-  DrawerTrigger,
 } from '@/components/ui/drawer';
 import {
   Form,
@@ -80,6 +79,8 @@ interface CreatePurchaseDialogProps {
   categories: Category[];
   entities: Entity[];
   onSuccess: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function CreatePurchaseDialog({
@@ -89,8 +90,12 @@ export function CreatePurchaseDialog({
   categories,
   entities,
   onSuccess,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: CreatePurchaseDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -199,12 +204,6 @@ export function CreatePurchaseDialog({
 
   return (
     <ResponsiveDrawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        <Button variant="cta-sm" className="flex-1 sm:flex-none">
-          Nueva compra
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </DrawerTrigger>
       <FormDrawer
         title="Registrar compra en cuotas"
         description="Registra una compra con tarjeta de crédito en cuotas para hacer seguimiento del pago."

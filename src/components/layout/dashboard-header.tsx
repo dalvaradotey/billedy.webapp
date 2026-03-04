@@ -181,7 +181,7 @@ export function DashboardHeader({
                               'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                               isActive
                                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                : 'text-muted-foreground hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-foreground'
                             )}
                           >
                             <Icon className="h-5 w-5" />
@@ -230,7 +230,7 @@ export function DashboardHeader({
                     <a
                       href="/dashboard/settings"
                       onClick={() => setIsMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-foreground transition-colors"
                     >
                       <Settings className="h-5 w-5" />
                       Configuración
@@ -239,7 +239,7 @@ export function DashboardHeader({
                       <a
                         href="/admin/entities"
                         onClick={() => setIsMenuOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:text-foreground transition-colors"
                       >
                         <ShieldCheck className="h-5 w-5" />
                         Administrar entidades

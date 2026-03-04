@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useCallback, useMemo } from 'react';
+import { useState, useTransition, useCallback, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
   Pencil,
@@ -119,6 +119,7 @@ export function TransactionTable({
   const [showPayCCDialog, setShowPayCCDialog] = useState(false);
   const [showBulkTogglePaidDialog, setShowBulkTogglePaidDialog] = useState(false);
   const [showBulkDateChangeDialog, setShowBulkDateChangeDialog] = useState(false);
+  const [revealedAction, setRevealedAction] = useState<string | null>(null);
 
   // Mapa de cuentas por ID para verificar tipo
   const accountsMap = useMemo(() => {
@@ -298,71 +299,163 @@ export function TransactionTable({
   // Determinar si una transacción TC fue liquidada (pagada con transferencia o históricamente)
   const isSettled = (t: TransactionWithCategory) => t.paidByTransferId !== null || t.isHistoricallyPaid;
 
+  // Resetear reveal cuando cambia la selección
+  useEffect(() => {
+    setRevealedAction(null);
+  }, [selectedIds.size]);
+
+  // Acciones masivas para mobile (reveal-on-tap)
+  const mobileActions = useMemo(() => {
+    const actions: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; variant: 'outline' | 'destructive'; onExecute: () => void }[] = [];
+    if (selectedUnpaid.length > 0) {
+      actions.push({ id: 'paid', label: `Pagado (${selectedUnpaid.length})`, icon: CheckCircle2, variant: 'outline', onExecute: () => setShowBulkTogglePaidDialog(true) });
+    }
+    actions.push({ id: 'date', label: 'Fecha', icon: Calendar, variant: 'outline', onExecute: () => setShowBulkDateChangeDialog(true) });
+    if (selectedCCTransactions.length > 0) {
+      actions.push({ id: 'cc', label: `Pagar TC (${selectedCCTransactions.length})`, icon: CreditCard, variant: 'outline', onExecute: () => setShowPayCCDialog(true) });
+    }
+    actions.push({ id: 'history', label: 'Histórico', icon: History, variant: 'outline', onExecute: () => setShowHistoricallyPaidDialog(true) });
+    actions.push({ id: 'delete', label: 'Eliminar', icon: Trash2, variant: 'destructive', onExecute: () => setShowBulkDeleteDialog(true) });
+    return actions;
+  }, [selectedUnpaid.length, selectedCCTransactions.length]);
+
+  // Si la acción revelada ya no existe (ej: se deseleccionaron las pendientes), resetear
+  useEffect(() => {
+    if (revealedAction && !mobileActions.find((a) => a.id === revealedAction)) {
+      setRevealedAction(null);
+    }
+  }, [revealedAction, mobileActions]);
+
   return (
     <div className="space-y-2">
-      {/* Barra de acciones masivas */}
+      {/* Sticky bottom bar de acciones masivas */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center justify-between p-2 bg-muted rounded-lg">
-          <span className="text-sm text-muted-foreground">
-            {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedIds(new Set())}
-            >
-              Cancelar
-            </Button>
-            {selectedUnpaid.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowBulkTogglePaidDialog(true)}
-                disabled={isPending}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Pagado ({selectedUnpaid.length})
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowBulkDateChangeDialog(true)}
-              disabled={isPending}
-            >
-              <Calendar className="mr-2 h-4 w-4" />
-              Fecha
-            </Button>
-            {selectedCCTransactions.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPayCCDialog(true)}
-                disabled={isPending}
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                Pagar TC ({selectedCCTransactions.length})
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowHistoricallyPaidDialog(true)}
-              disabled={isPending}
-            >
-              <History className="mr-2 h-4 w-4" />
-              Histórico
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setShowBulkDeleteDialog(true)}
-              disabled={isPending}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar
-            </Button>
+        <div
+          className="fixed bottom-0 inset-x-0 z-[60] px-4 animate-in slide-in-from-bottom-2 duration-200"
+          style={{ paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom))` }}
+        >
+          <div className="relative rounded-2xl overflow-hidden max-w-screen-lg mx-auto">
+            {/* Glass background */}
+            <div className="absolute inset-0 bg-background/85 dark:bg-background/75 backdrop-blur-2xl backdrop-saturate-150" />
+            <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/[0.06] dark:ring-white/[0.08]" />
+
+            {/* ── Mobile layout (reveal-on-tap) ── */}
+            <div className="relative sm:hidden px-4 py-3 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">
+                  {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => { setSelectedIds(new Set()); setRevealedAction(null); }}>
+                  <X className="h-4 w-4 mr-1" />
+                  Cancelar
+                </Button>
+              </div>
+              <div className="flex items-center gap-2 justify-center min-h-[36px]">
+                {revealedAction === null ? (
+                  // Estado inicial: iconos
+                  mobileActions.map((action) => (
+                    <Button
+                      key={action.id}
+                      variant={action.variant}
+                      size="icon"
+                      onClick={() => setRevealedAction(action.id)}
+                      disabled={isPending}
+                    >
+                      <action.icon className="h-4 w-4" />
+                    </Button>
+                  ))
+                ) : (
+                  // Estado revelado: dots + botón expandido
+                  <>
+                    {mobileActions.map((action) => {
+                      if (action.id === revealedAction) {
+                        return (
+                          <Button
+                            key={action.id}
+                            variant={action.variant}
+                            size="sm"
+                            onClick={() => { action.onExecute(); setRevealedAction(null); }}
+                            disabled={isPending}
+                            className="animate-in fade-in zoom-in-95 duration-150"
+                          >
+                            <action.icon className="h-4 w-4 mr-2" />
+                            {action.label}
+                          </Button>
+                        );
+                      }
+                      return (
+                        <button
+                          key={action.id}
+                          onClick={() => setRevealedAction(action.id)}
+                          className="w-2 h-2 rounded-full bg-muted-foreground/30 hover:bg-muted-foreground/50 transition-colors"
+                        />
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* ── Desktop layout ── */}
+            <div className="relative hidden sm:flex items-center justify-between px-4 py-3">
+              <span className="text-sm font-medium">
+                {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
+              </span>
+              <div className="flex items-center gap-2">
+                {selectedUnpaid.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowBulkTogglePaidDialog(true)}
+                    disabled={isPending}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Pagado ({selectedUnpaid.length})
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBulkDateChangeDialog(true)}
+                  disabled={isPending}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Fecha
+                </Button>
+                {selectedCCTransactions.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPayCCDialog(true)}
+                    disabled={isPending}
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Pagar TC ({selectedCCTransactions.length})
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowHistoricallyPaidDialog(true)}
+                  disabled={isPending}
+                >
+                  <History className="mr-2 h-4 w-4" />
+                  Histórico
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowBulkDeleteDialog(true)}
+                  disabled={isPending}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -522,6 +615,9 @@ export function TransactionTable({
         </TableBody>
       </Table>
       </div>
+
+      {/* Spacer para que las últimas filas no queden tapadas por la sticky bar */}
+      {selectedIds.size > 0 && <div className="h-24" />}
 
       {/* Delete Confirmation Dialog */}
       <DeleteTransactionDialog

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import { ArrowRight, Wallet, TrendingUp, CreditCard, Scale, Hash } from 'lucide-react';
+import { Wallet, TrendingUp, CreditCard, Scale, Hash, Plus, RefreshCw } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
+import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
@@ -13,10 +12,11 @@ import { SummaryCard } from '@/components/ui/summary-card';
 import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
 import type { Account, AccountsSummary, AccountWithEntity, AccountDebtBreakdown } from '../types';
 import type { Entity } from '@/features/entities/types';
+import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
+import { recalculateAllAccountBalances } from '../actions';
 import { AccountCard } from './account-card';
 import { AccountCardSkeleton } from './account-card-skeleton';
 import { AccountDialogContent } from './account-dialog';
-import { RecalculateButton } from './recalculate-button';
 
 interface AccountsListProps {
   accounts: AccountWithEntity[];
@@ -114,10 +114,30 @@ export function AccountsList({
     setEditingAccount(null);
   };
 
-  const handleOpenDialog = () => {
+  const handleOpenDialog = useCallback(() => {
     setEditingAccount(null);
     setIsDialogOpen(true);
-  };
+  }, []);
+
+  const handleRecalculate = useCallback(() => {
+    const toastId = toast.loading('Recalculando saldos...');
+    onMutationStart();
+    recalculateAllAccountBalances(projectId, userId).then((result) => {
+      if (result.success) {
+        onMutationSuccess(toastId, `${result.data.updated} cuentas actualizadas`);
+      } else {
+        onMutationError(toastId, result.error);
+      }
+    });
+  }, [projectId, userId, onMutationStart, onMutationSuccess, onMutationError]);
+
+  // Registrar acciones en bottom nav / desktop FAB
+  const pageActions = useMemo<PageAction[]>(() => [
+    { label: 'Nueva cuenta', icon: Plus, onClick: handleOpenDialog },
+    { label: 'Recalcular saldos', icon: RefreshCw, onClick: handleRecalculate },
+  ], [handleOpenDialog, handleRecalculate]);
+
+  useRegisterPageActions(pageActions);
 
   // Calcular deuda externa total desde el mapa de desglose
   const totalExternalDebt = debtBreakdown
@@ -166,41 +186,20 @@ export function AccountsList({
         />
       </SummaryCardsSlider>
 
-      {/* Actions */}
-      <div className="space-y-3 sm:space-y-0 sm:flex sm:justify-between sm:items-center">
-        <div className="text-sm text-muted-foreground hidden sm:block">
-          {accounts.length} cuentas
-        </div>
-
-        <div className="flex gap-2">
-          <RecalculateButton
-            projectId={projectId}
-            userId={userId}
-            onMutationStart={onMutationStart}
-            onMutationSuccess={onMutationSuccess}
-            onMutationError={onMutationError}
-          />
-          <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DrawerTrigger asChild>
-              <Button variant="cta-sm" className="flex-1 sm:flex-none" onClick={handleOpenDialog}>
-                Nueva cuenta
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </DrawerTrigger>
-            <AccountDialogContent
-              projectId={projectId}
-              userId={userId}
-              account={editingAccount}
-              currencies={currencies}
-              entities={entities}
-              onSuccess={handleDialogClose}
-              onMutationStart={onMutationStart}
-              onMutationSuccess={onMutationSuccess}
-              onMutationError={onMutationError}
-            />
-          </ResponsiveDrawer>
-        </div>
-      </div>
+      {/* Dialog (se abre desde page actions) */}
+      <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <AccountDialogContent
+          projectId={projectId}
+          userId={userId}
+          account={editingAccount}
+          currencies={currencies}
+          entities={entities}
+          onSuccess={handleDialogClose}
+          onMutationStart={onMutationStart}
+          onMutationSuccess={onMutationSuccess}
+          onMutationError={onMutationError}
+        />
+      </ResponsiveDrawer>
 
       {/* Accounts List */}
       <div>

@@ -12,6 +12,7 @@ export interface PageAction {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   onClick: () => void;
+  disabled?: boolean;
 }
 
 interface BottomNavContextValue {

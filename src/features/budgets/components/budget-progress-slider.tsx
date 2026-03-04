@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, ArrowRight, Target, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatting';
 import { AnimatedCurrency } from '@/components/animated-currency';
+import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import type { BudgetProgress } from '../types';
 
@@ -63,15 +64,11 @@ function BudgetCard({ budget, onAddTransaction }: { budget: BudgetProgress; onAd
 
         {/* Progress bar */}
         <div className="space-y-1">
-          <div className="h-3 rounded-full bg-slate-700/50 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${Math.min(100, budget.progressPercentage)}%`,
-                backgroundColor: accentColor
-              }}
-            />
-          </div>
+          <Progress
+            value={Math.min(100, budget.progressPercentage)}
+            className="h-3 bg-slate-700/50"
+            indicatorColor={accentColor}
+          />
           <div className="flex justify-between text-xs">
             <span className={isOverBudget ? 'text-red-400' : 'text-slate-400'}>
               <AnimatedCurrency value={budget.spentAmount} className="text-xs" /> gastado
@@ -221,15 +218,11 @@ export function BudgetProgressSlider({ budgets, onAddTransaction }: BudgetProgre
             </div>
           </div>
           {/* Progress bar */}
-          <div className="mt-3 h-3 rounded-full bg-slate-600/50 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${Math.min(100, totals.overallPercentage)}%`,
-                backgroundColor: totals.isOverBudget ? '#ef4444' : totals.overallPercentage > 80 ? '#f59e0b' : '#10b981'
-              }}
-            />
-          </div>
+          <Progress
+            value={Math.min(100, totals.overallPercentage)}
+            className="mt-3 h-3 bg-slate-600/50"
+            indicatorColor={totals.isOverBudget ? '#ef4444' : totals.overallPercentage > 80 ? '#f59e0b' : '#10b981'}
+          />
         </div>
       </div>
 
