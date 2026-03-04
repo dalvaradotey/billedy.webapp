@@ -6,8 +6,8 @@ export type Transaction = InferSelectModel<typeof transactions>;
 export type TransactionType = 'income' | 'expense';
 
 export type TransactionWithCategory = Transaction & {
-  categoryName: string;
-  categoryColor: string;
+  categoryName: string | null;
+  categoryColor: string | null;
   accountName: string | null;
   budgetName: string | null;
   entityName: string | null;

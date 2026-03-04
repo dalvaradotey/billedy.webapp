@@ -88,7 +88,7 @@ function TransactionSelector({
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
                     <div
                       className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: t.categoryColor }}
+                      style={{ backgroundColor: t.categoryColor ?? undefined }}
                     />
                     {t.categoryName}
                   </div>

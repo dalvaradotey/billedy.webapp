@@ -556,7 +556,7 @@ export function TransactionTable({
                 <div className="flex items-center gap-2">
                   <div
                     className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: transaction.categoryColor }}
+                    style={{ backgroundColor: transaction.categoryColor ?? undefined }}
                   />
                   <span className="text-sm">{transaction.categoryName}</span>
                 </div>
