@@ -1,4 +1,4 @@
-import { Building2, PiggyBank, Wallet, CreditCard } from 'lucide-react';
+import { Building2, PiggyBank, Wallet, CreditCard, Landmark, ShieldCheck } from 'lucide-react';
 import { type AccountType } from '../types';
 
 interface AccountTypeIconProps {
@@ -16,6 +16,10 @@ export function AccountTypeIcon({ type, className }: AccountTypeIconProps) {
       return <Wallet className={className} />;
     case 'credit_card':
       return <CreditCard className={className} />;
+    case 'pension':
+      return <Landmark className={className} />;
+    case 'unemployment':
+      return <ShieldCheck className={className} />;
     default:
       return <Wallet className={className} />;
   }

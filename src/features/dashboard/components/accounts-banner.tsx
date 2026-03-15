@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Wallet, TrendingUp, CreditCard, Scale, ArrowRight } from 'lucide-react';
+import { Wallet, TrendingUp, CreditCard, Scale, ArrowRight, Landmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnimatedCurrency } from '@/components/animated-currency';
 import { formatCurrency } from '@/lib/formatting';
@@ -13,6 +13,7 @@ export function DashboardAccountsBanner() {
   const totalPersonalDebt = accountsSummary.totalCreditBalance - totalExternalDebt;
   const personalNetWorth = accountsSummary.totalDebitBalance - totalPersonalDebt;
   const hasExternalDebt = totalExternalDebt > 0;
+  const hasProvision = accountsSummary.totalProvisionBalance > 0;
 
   return (
     <div className="rounded-2xl bg-slate-800 dark:bg-slate-900 p-4 md:p-5">
@@ -69,7 +70,7 @@ export function DashboardAccountsBanner() {
         </div>
 
         {/* Row 2: Patrimonio */}
-        <div className="mt-3 pt-3 border-t border-slate-700/50">
+        <div className="mt-3 pt-3 border-t border-slate-700/50 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-slate-500 text-xs flex items-center gap-1">
               <Scale className="w-3 h-3" />
@@ -80,6 +81,18 @@ export function DashboardAccountsBanner() {
               className={personalNetWorth >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}
             />
           </div>
+          {hasProvision && (
+            <div className="flex items-center justify-between">
+              <p className="text-slate-500 text-xs flex items-center gap-1">
+                <Landmark className="w-3 h-3" />
+                Previsión
+              </p>
+              <AnimatedCurrency
+                value={accountsSummary.totalProvisionBalance}
+                className="text-violet-400 font-bold"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -138,6 +151,18 @@ export function DashboardAccountsBanner() {
               className={personalNetWorth >= 0 ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}
             />
           </div>
+          {hasProvision && (
+            <div>
+              <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
+                <Landmark className="w-3 h-3" />
+                Previsión
+              </p>
+              <AnimatedCurrency
+                value={accountsSummary.totalProvisionBalance}
+                className="text-violet-400 font-bold"
+              />
+            </div>
+          )}
         </div>
 
         <div className="w-px h-10 bg-slate-700" />

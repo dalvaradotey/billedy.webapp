@@ -249,13 +249,48 @@ export function TransactionDialogContent({
 
   const activeCategories = localCategories.filter((c) => !c.isArchived);
 
-  // Detectar si es un gasto en tarjeta de crédito para ocultar el switch de isPaid
+  // Detectar tipo de cuenta seleccionada
   const watchedAccountId = form.watch('accountId');
   const watchedType = form.watch('type');
   const watchedAmount = form.watch('originalAmount');
   const watchedDescription = form.watch('description');
   const selectedAccount = accountsMap.get(watchedAccountId);
   const isCreditCardExpense = selectedAccount?.type === 'credit_card' && watchedType === 'expense';
+  const isProvisionAccount = selectedAccount?.type === 'pension' || selectedAccount?.type === 'unemployment';
+
+  // Estado para saldo del proveedor (modo previsional)
+  const [providerBalance, setProviderBalance] = useState<number | undefined>(undefined);
+
+  // Buscar categoría de rentabilidad automáticamente para cuentas previsionales
+  const profitabilityCategory = useMemo(() => {
+    if (!isProvisionAccount || !selectedAccount) return null;
+    return categories.find((c) => c.name === `Rentabilidad ${selectedAccount.name}` && !c.isArchived);
+  }, [isProvisionAccount, selectedAccount, categories]);
+
+  // Calcular preview de rentabilidad
+  const profitabilityPreview = useMemo(() => {
+    if (!isProvisionAccount || providerBalance == null || !watchedAmount) return null;
+    const currentBalance = parseFloat(selectedAccount?.currentBalance ?? '0');
+    const balanceAfterContribution = currentBalance + watchedAmount;
+    const adjustment = providerBalance - balanceAfterContribution;
+    if (Math.abs(adjustment) < 1) return null;
+    return adjustment;
+  }, [isProvisionAccount, providerBalance, watchedAmount, selectedAccount]);
+
+  // Forzar tipo income e isPaid para cuentas previsionales
+  useEffect(() => {
+    if (isProvisionAccount && !transaction) {
+      form.setValue('type', 'income');
+      form.setValue('isPaid', true);
+      setFormMode('income');
+      // Auto-generar descripción
+      const typeLabel = selectedAccount?.type === 'pension' ? 'AFP' : 'Cesantía';
+      const currentDesc = form.getValues('description');
+      if (!currentDesc || currentDesc.startsWith('Aporte ')) {
+        form.setValue('description', `Aporte ${typeLabel}`);
+      }
+    }
+  }, [isProvisionAccount, transaction, form, selectedAccount, setFormMode]);
 
   // Calculate form progress for transaction form
   const transactionProgress = useMemo(() => {
@@ -279,6 +314,13 @@ export function TransactionDialogContent({
 
   const onSubmit = (data: CreateTransactionInput) => {
     setError(null);
+
+    // Inyectar campos previsionales si aplica
+    if (isProvisionAccount && providerBalance != null) {
+      data.providerBalance = providerBalance;
+      data.profitabilityCategoryId = profitabilityCategory?.id ?? null;
+    }
+
     const toastId = toast.loading(transaction ? 'Actualizando transacción...' : 'Creando transacción...');
     onMutationStart?.();
 
@@ -664,7 +706,11 @@ export function TransactionDialogContent({
                     <AccountSelector
                       accounts={activeAccounts}
                       value={field.value}
-                      onValueChange={(value) => field.onChange(value ?? '')}
+                      onValueChange={(value) => {
+                        field.onChange(value ?? '');
+                        // Limpiar saldo proveedor al cambiar cuenta
+                        setProviderBalance(undefined);
+                      }}
                       label="Cuenta de cargo"
                       searchPlaceholder="Buscar cuenta..."
                       valid={!!field.value}
@@ -676,82 +722,107 @@ export function TransactionDialogContent({
               )}
             />
 
-            {/* Entity or Manual Description toggle */}
-            {entities.length > 0 && !useManualDescription ? (
+            {/* Saldo proveedor - solo cuentas previsionales */}
+            {isProvisionAccount && (
               <div className="space-y-2">
-                <FormField
-                  control={form.control}
-                  name="entityId"
-                  render={({ field, fieldState }) => (
-                    <FormItem data-field="entityId">
-                      <FormControl>
-                        <EntitySelector
-                          entities={entities}
-                          value={field.value}
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            // Auto-generar descripción basada en la entidad y tipo
-                            if (value) {
-                              const currentType = form.getValues('type');
-                              const autoDescription = generateDescription(value, currentType);
-                              form.setValue('description', autoDescription);
-                            }
-                          }}
-                          label="Tienda"
-                          searchPlaceholder="Buscar tienda..."
-                          valid={!!field.value}
-                          invalid={!!fieldState.error}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                <CurrencyInput
+                  value={providerBalance}
+                  onChange={setProviderBalance}
+                  currency={defaultCurrency}
+                  placeholder="0"
+                  label="Saldo actual según proveedor"
+                  valid={providerBalance !== undefined && providerBalance >= 0}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground h-auto p-0"
-                  onClick={() => setUseManualDescription(true)}
-                >
-                  <Pencil className="mr-1.5 h-3 w-3" />
-                  Escribir tienda manualmente
-                </Button>
+                {profitabilityPreview !== null && (
+                  <p className={cn(
+                    'text-xs font-medium px-1',
+                    profitabilityPreview > 0 ? 'text-emerald-500' : 'text-red-500'
+                  )}>
+                    Rentabilidad: {profitabilityPreview > 0 ? '+' : ''}
+                    {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(profitabilityPreview)}
+                  </p>
+                )}
               </div>
-            ) : (
-              <div className="space-y-2">
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field, fieldState }) => (
-                    <FormItem data-field="description">
-                      <FormControl>
-                        <FloatingLabelInput
-                          label="Descripción"
-                          value={field.value}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          valid={!!field.value}
-                          invalid={!!fieldState.error}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {entities.length > 0 && (
+            )}
+
+            {/* Entity or Manual Description toggle - ocultar para cuentas previsionales */}
+            {!isProvisionAccount && (
+              entities.length > 0 && !useManualDescription ? (
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="entityId"
+                    render={({ field, fieldState }) => (
+                      <FormItem data-field="entityId">
+                        <FormControl>
+                          <EntitySelector
+                            entities={entities}
+                            value={field.value}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Auto-generar descripción basada en la entidad y tipo
+                              if (value) {
+                                const currentType = form.getValues('type');
+                                const autoDescription = generateDescription(value, currentType);
+                                form.setValue('description', autoDescription);
+                              }
+                            }}
+                            label="Tienda"
+                            searchPlaceholder="Buscar tienda..."
+                            valid={!!field.value}
+                            invalid={!!fieldState.error}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     className="text-muted-foreground h-auto p-0"
-                    onClick={() => setUseManualDescription(false)}
+                    onClick={() => setUseManualDescription(true)}
                   >
-                    <Store className="mr-1.5 h-3 w-3" />
-                    Seleccionar tienda
+                    <Pencil className="mr-1.5 h-3 w-3" />
+                    Escribir tienda manualmente
                   </Button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field, fieldState }) => (
+                      <FormItem data-field="description">
+                        <FormControl>
+                          <FloatingLabelInput
+                            label="Descripción"
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            valid={!!field.value}
+                            invalid={!!fieldState.error}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {entities.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-auto p-0"
+                      onClick={() => setUseManualDescription(false)}
+                    >
+                      <Store className="mr-1.5 h-3 w-3" />
+                      Seleccionar tienda
+                    </Button>
+                  )}
+                </div>
+              )
             )}
 
             {/* Otras opciones toggle */}
@@ -957,7 +1028,8 @@ export function TransactionDialogContent({
                   )}
                 />
 
-                {/* isPaid switch */}
+                {/* isPaid switch - ocultar para cuentas previsionales (siempre pagado) */}
+                {!isProvisionAccount && (
                 <FormField
                   control={form.control}
                   name="isPaid"
@@ -976,6 +1048,7 @@ export function TransactionDialogContent({
                     </FormItem>
                   )}
                 />
+                )}
               </div>
             )}
 

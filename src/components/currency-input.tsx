@@ -200,7 +200,7 @@ export function CurrencyInput({
           isLarge
             ? 'pl-10 md:pl-12 text-3xl md:text-4xl font-semibold text-center'
             : 'pl-7',
-          label && isLarge ? 'h-20 md:h-24 pt-6 md:pt-7 pb-2' : isLarge ? 'h-16 md:h-20' : '',
+          label && isLarge ? 'h-20 md:h-24 pt-6 md:pt-7 pb-2' : isLarge ? 'h-16 md:h-20' : label ? 'h-14 pt-5 pb-1' : '',
           valid && 'ring-1 ring-emerald-500',
           invalid && 'ring-1 ring-destructive',
           className

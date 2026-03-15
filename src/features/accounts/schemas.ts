@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const accountTypeSchema = z.enum(['checking', 'savings', 'cash', 'credit_card']);
+export const accountTypeSchema = z.enum(['checking', 'savings', 'cash', 'credit_card', 'pension', 'unemployment']);
 
 export const createAccountSchema = z.object({
   projectId: z.string().uuid('ID de proyecto inválido'),

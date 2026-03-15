@@ -21,6 +21,8 @@ export const accountTypeEnum = pgEnum('account_type', [
   'savings',
   'cash',
   'credit_card',
+  'pension',
+  'unemployment',
 ]);
 export const projectRoleEnum = pgEnum('project_role', ['owner', 'editor', 'viewer']);
 export const entityTypeEnum = pgEnum('entity_type', [
@@ -37,6 +39,8 @@ export const entityTypeEnum = pgEnum('entity_type', [
   'mechanic',
   'streaming',
   'grocery_store',
+  'pension_fund',
+  'unemployment_fund',
   'other',
 ]);
 

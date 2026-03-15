@@ -170,15 +170,16 @@ async function _getAccountsSummary(
 
   let totalDebitBalance = 0;
   let totalCreditBalance = 0;
+  let totalProvisionBalance = 0;
 
   for (const account of projectAccounts) {
     const balance = parseFloat(account.currentBalance);
 
     if (account.type === 'credit_card') {
-      // For credit cards, the balance represents what you owe
       totalCreditBalance += Math.abs(balance);
+    } else if (account.type === 'pension' || account.type === 'unemployment') {
+      totalProvisionBalance += balance;
     } else {
-      // For debit accounts (checking, savings, cash)
       totalDebitBalance += balance;
     }
   }
@@ -187,6 +188,7 @@ async function _getAccountsSummary(
     totalAccounts: projectAccounts.length,
     totalDebitBalance,
     totalCreditBalance,
+    totalProvisionBalance,
     netWorth: totalDebitBalance - totalCreditBalance,
   };
 }
@@ -213,12 +215,15 @@ async function _getAccountsSummaryWithAccounts(
 
   let totalDebitBalance = 0;
   let totalCreditBalance = 0;
+  let totalProvisionBalance = 0;
 
   for (const account of projectAccounts) {
     const balance = parseFloat(account.currentBalance);
 
     if (account.type === 'credit_card') {
       totalCreditBalance += Math.abs(balance);
+    } else if (account.type === 'pension' || account.type === 'unemployment') {
+      totalProvisionBalance += balance;
     } else {
       totalDebitBalance += balance;
     }
@@ -229,6 +234,7 @@ async function _getAccountsSummaryWithAccounts(
       totalAccounts: projectAccounts.length,
       totalDebitBalance,
       totalCreditBalance,
+      totalProvisionBalance,
       netWorth: totalDebitBalance - totalCreditBalance,
     },
     accounts: projectAccounts,

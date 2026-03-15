@@ -60,7 +60,7 @@ export async function createTransaction(
     return { success: false, error: 'No tienes acceso a este proyecto' };
   }
 
-  // Obtener la moneda base del proyecto y el tipo de cuenta
+  // Obtener la moneda base del proyecto y el tipo/saldo de cuenta
   const [project, account] = await Promise.all([
     db
       .select({ currency: projects.currency })
@@ -68,7 +68,7 @@ export async function createTransaction(
       .where(eq(projects.id, parsed.data.projectId))
       .limit(1),
     db
-      .select({ type: accounts.type })
+      .select({ type: accounts.type, currentBalance: accounts.currentBalance })
       .from(accounts)
       .where(eq(accounts.id, parsed.data.accountId))
       .limit(1),
@@ -110,8 +110,52 @@ export async function createTransaction(
     })
     .returning({ id: transactions.id });
 
-  // Solo actualizar balance si la transacción está marcada como pagada
-  if (isPaid) {
+  // Modo previsional: crear ajuste de rentabilidad automático
+  const isProvisionAccount = account[0].type === 'pension' || account[0].type === 'unemployment';
+  const providerBalance = parsed.data.providerBalance;
+
+  if (isProvisionAccount && providerBalance != null && isPaid) {
+    const currentBalance = parseFloat(account[0].currentBalance);
+    const amountNum = parseFloat(amount);
+    const balanceAfterContribution = currentBalance + (parsed.data.type === 'income' ? amountNum : -amountNum);
+    const adjustmentAmount = providerBalance - balanceAfterContribution;
+
+    // Crear transacción de ajuste si hay diferencia significativa
+    if (Math.abs(adjustmentAmount) >= 1 && parsed.data.profitabilityCategoryId) {
+      const isGain = adjustmentAmount > 0;
+      const typeLabel = account[0].type === 'pension' ? 'AFP' : 'Cesantía';
+      await db
+        .insert(transactions)
+        .values({
+          userId,
+          projectId: parsed.data.projectId,
+          accountId: parsed.data.accountId,
+          categoryId: parsed.data.profitabilityCategoryId,
+          type: isGain ? 'income' : 'expense',
+          originalAmount: String(Math.abs(adjustmentAmount)),
+          originalCurrency: project[0].currency,
+          baseAmount: String(Math.abs(adjustmentAmount)),
+          baseCurrency: project[0].currency,
+          exchangeRate: '1',
+          date: parsed.data.date,
+          description: `Rentabilidad ${typeLabel}`,
+          isPaid: true,
+          paidAt: parsed.data.date,
+        });
+    }
+
+    // Actualizar saldo directo al saldo del proveedor
+    await db
+      .update(accounts)
+      .set({
+        currentBalance: String(providerBalance),
+        updatedAt: new Date(),
+      })
+      .where(eq(accounts.id, parsed.data.accountId));
+
+    invalidateRelatedCache('accounts');
+  } else if (isPaid) {
+    // Flujo normal: solo actualizar balance si la transacción está pagada
     const amountNum = parseFloat(amount);
     const balanceDelta = parsed.data.type === 'income' ? amountNum : -amountNum;
     await updateAccountBalance(parsed.data.accountId, balanceDelta);

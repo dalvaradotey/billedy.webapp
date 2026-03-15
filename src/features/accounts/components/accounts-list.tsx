@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Wallet, TrendingUp, CreditCard, Scale, Hash, Plus, RefreshCw } from 'lucide-react';
+import { Wallet, TrendingUp, CreditCard, Scale, Hash, Plus, RefreshCw, Landmark } from 'lucide-react';
 
 import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
@@ -177,6 +177,15 @@ export function AccountsList({
           icon={<Scale className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant={personalNetWorth >= 0 ? 'success' : 'danger'}
         />
+        {summary.totalProvisionBalance > 0 && (
+          <SummaryCard
+            title="Previsión"
+            value={formatCurrency(summary.totalProvisionBalance)}
+            subtitle="Pensión + Cesantía"
+            icon={<Landmark className="h-4 w-4 sm:h-5 sm:w-5" />}
+            variant="info"
+          />
+        )}
         <SummaryCard
           title="Cuentas"
           value={String(summary.totalAccounts)}

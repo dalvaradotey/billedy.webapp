@@ -7,6 +7,8 @@ interface SummaryCardsSliderProps {
   children: ReactNode[];
   /** Items per page on mobile (default: 2) */
   itemsPerPage?: number;
+  /** Max columns on desktop grid (default: 4) */
+  desktopMaxCols?: number;
   /** Breakpoint for desktop grid (default: 'lg') */
   desktopBreakpoint?: 'md' | 'lg' | 'xl';
   className?: string;
@@ -15,12 +17,16 @@ interface SummaryCardsSliderProps {
 export function SummaryCardsSlider({
   children,
   itemsPerPage = 2,
+  desktopMaxCols = 4,
   desktopBreakpoint = 'lg',
   className,
 }: SummaryCardsSliderProps) {
   const [currentPage, setCurrentPage] = useState(0);
+  const [currentDesktopPage, setCurrentDesktopPage] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const desktopScrollRef = useRef<HTMLDivElement>(null);
   const totalPages = Math.ceil(children.length / itemsPerPage);
+  const totalDesktopPages = Math.ceil(children.length / desktopMaxCols);
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -37,8 +43,31 @@ export function SummaryCardsSlider({
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const container = desktopScrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const scrollLeft = container.scrollLeft;
+      const pageWidth = container.offsetWidth;
+      const newPage = Math.round(scrollLeft / pageWidth);
+      setCurrentDesktopPage(newPage);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const scrollToPage = (page: number) => {
     const container = scrollRef.current;
+    if (!container) return;
+
+    const pageWidth = container.offsetWidth;
+    container.scrollTo({ left: page * pageWidth, behavior: 'smooth' });
+  };
+
+  const scrollDesktopToPage = (page: number) => {
+    const container = desktopScrollRef.current;
     if (!container) return;
 
     const pageWidth = container.offsetWidth;
@@ -49,6 +78,11 @@ export function SummaryCardsSlider({
   const pages: ReactNode[][] = [];
   for (let i = 0; i < children.length; i += itemsPerPage) {
     pages.push(children.slice(i, i + itemsPerPage));
+  }
+
+  const desktopPages: ReactNode[][] = [];
+  for (let i = 0; i < children.length; i += desktopMaxCols) {
+    desktopPages.push(children.slice(i, i + desktopMaxCols));
   }
 
   const breakpointClasses = {
@@ -96,10 +130,44 @@ export function SummaryCardsSlider({
         )}
       </div>
 
-      {/* Desktop: Normal grid */}
-      <div className={cn(classes.desktop, 'gap-3', `grid-cols-${children.length}`)}>
-        {children}
-      </div>
+      {/* Desktop: Grid with slider if more than desktopMaxCols */}
+      {totalDesktopPages <= 1 ? (
+        <div className={cn(classes.desktop, 'gap-3', `grid-cols-${children.length}`)}>
+          {children}
+        </div>
+      ) : (
+        <div className={cn(classes.desktop.replace('grid', 'block'))}>
+          <div
+            ref={desktopScrollRef}
+            className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {desktopPages.map((pageItems, pageIndex) => (
+              <div key={pageIndex} className="flex-shrink-0 w-full snap-center">
+                <div className={cn('grid gap-3', `grid-cols-${desktopMaxCols}`)}>
+                  {pageItems}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop dots */}
+          <div className="flex justify-center gap-1.5 mt-3">
+            {Array.from({ length: totalDesktopPages }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => scrollDesktopToPage(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === currentDesktopPage
+                    ? 'bg-primary w-4'
+                    : 'bg-muted-foreground/30 w-1.5'
+                }`}
+                aria-label={`Ir a página ${i + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

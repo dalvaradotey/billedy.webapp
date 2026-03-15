@@ -280,22 +280,7 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
     });
   };
 
-  const entityTypes: EntityType[] = [
-    'bank',
-    'credit_card',
-    'supermarket',
-    'pharmacy',
-    'store',
-    'restaurant',
-    'service',
-    'utility',
-    'government',
-    'hardware_store',
-    'mechanic',
-    'streaming',
-    'grocery_store',
-    'other',
-  ];
+  const entityTypes = Object.keys(entityTypeLabels) as EntityType[];
 
   return (
     <DrawerContent>

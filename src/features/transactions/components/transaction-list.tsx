@@ -12,6 +12,9 @@ import {
   Receipt,
   ChevronDown,
   Plus,
+  Search,
+  X,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { ResponsiveDrawer } from '@/components/ui/drawer';
@@ -94,6 +97,8 @@ export function TransactionList({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithCategory | null>(null);
   const [showPeriodControls, setShowPeriodControls] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -212,6 +217,22 @@ export function TransactionList({
 
   const dateRangeFeedback = getDateRangeFeedback();
 
+  // Filtro de búsqueda client-side
+  const filteredTransactions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return transactions;
+    return transactions.filter((t) => {
+      const amount = formatCurrency(t.originalAmount, t.originalCurrency);
+      return (
+        t.description.toLowerCase().includes(q) ||
+        (t.accountName?.toLowerCase().includes(q) ?? false) ||
+        (t.categoryName?.toLowerCase().includes(q) ?? false) ||
+        (t.entityName?.toLowerCase().includes(q) ?? false) ||
+        amount.toLowerCase().includes(q)
+      );
+    });
+  }, [transactions, searchQuery]);
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -253,34 +274,238 @@ export function TransactionList({
       </SummaryCardsSlider>
 
       {/* ═══ TOOLBAR + FILTROS ═══ */}
-      <PageToolbar label={`${transactions.length} ${transactions.length === 1 ? 'transacción' : 'transacciones'}`}>
+      <PageToolbar label={`${filteredTransactions.length}${searchQuery ? ` de ${transactions.length}` : ''} ${filteredTransactions.length === 1 ? 'transacción' : 'transacciones'}`}>
         {/* ── Mobile filters ── */}
         <div className="sm:hidden space-y-3 w-full">
-          {/* Period card */}
-          <button
-            type="button"
-            onClick={() => setShowPeriodControls(!showPeriodControls)}
-            className="flex items-center gap-2.5 w-full rounded-xl bg-background px-3 py-2.5"
-          >
-            <div className="p-1.5 rounded-lg bg-muted/50 shrink-0">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+          {/* Search + filter toggle */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-8 h-9 text-sm bg-background"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted"
+                >
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
             </div>
-            <span className="text-sm font-medium truncate">
-              {dateRangeFeedback || 'Últimos 30 días'}
-            </span>
-            <ChevronDown
-              className={`h-4 w-4 text-muted-foreground shrink-0 ml-auto transition-transform duration-200 ${
-                showPeriodControls ? 'rotate-180' : ''
+            <button
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className={`relative shrink-0 h-9 w-9 rounded-lg flex items-center justify-center transition-colors ${
+                showMobileFilters
+                  ? 'bg-foreground/10 text-foreground'
+                  : 'bg-background text-muted-foreground'
               }`}
-            />
-          </button>
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {(currentType !== 'all' || currentPaid !== 'all') && (
+                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
+              )}
+            </button>
+          </div>
 
-          {/* Period expanded */}
-          {showPeriodControls && (
-            <div className="rounded-xl bg-background border border-border/50 p-3 space-y-2.5">
+          {/* Collapsible filters */}
+          {showMobileFilters && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              {/* Period card */}
+              <button
+                type="button"
+                onClick={() => setShowPeriodControls(!showPeriodControls)}
+                className="flex items-center gap-2.5 w-full rounded-xl bg-background px-3 py-2.5"
+              >
+                <div className="p-1.5 rounded-lg bg-muted/50 shrink-0">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <span className="text-sm font-medium truncate">
+                  {dateRangeFeedback || 'Últimos 30 días'}
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 text-muted-foreground shrink-0 ml-auto transition-transform duration-200 ${
+                    showPeriodControls ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Period expanded */}
+              {showPeriodControls && (
+                <div className="rounded-xl bg-background border border-border/50 p-3 space-y-2.5">
+                  {hasCycles && (
+                    <Select value={currentCycleId} onValueChange={handleCycleChange}>
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Seleccionar ciclo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cycles.map((cycle) => (
+                          <SelectItem key={cycle.id} value={cycle.id}>
+                            {cycle.name} {cycle.status === 'open' && '(actual)'}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="custom">Personalizado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">
+                        Desde
+                      </label>
+                      <Input
+                        type="date"
+                        value={currentStartDate}
+                        onChange={(e) => handleDateChange('startDate', e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">
+                        Hasta
+                      </label>
+                      <Input
+                        type="date"
+                        value={currentEndDate}
+                        onChange={(e) => handleDateChange('endDate', e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Filter pills */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() =>
+                    handleFilterChange('type', currentType === 'income' ? 'all' : 'income')
+                  }
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    currentType === 'income'
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
+                      : 'bg-background/80 text-muted-foreground'
+                  }`}
+                >
+                  Ingresos
+                </button>
+                <button
+                  onClick={() =>
+                    handleFilterChange('type', currentType === 'expense' ? 'all' : 'expense')
+                  }
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    currentType === 'expense'
+                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
+                      : 'bg-background/80 text-muted-foreground'
+                  }`}
+                >
+                  Gastos
+                </button>
+                <div className="w-px h-4 bg-border" />
+                <button
+                  onClick={() =>
+                    handleFilterChange('paid', currentPaid === 'true' ? 'all' : 'true')
+                  }
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    currentPaid === 'true'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                      : 'bg-background/80 text-muted-foreground'
+                  }`}
+                >
+                  Pagados
+                </button>
+                <button
+                  onClick={() =>
+                    handleFilterChange('paid', currentPaid === 'false' ? 'all' : 'false')
+                  }
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    currentPaid === 'false'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
+                      : 'bg-background/80 text-muted-foreground'
+                  }`}
+                >
+                  Pendientes
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Desktop filters ── */}
+        <div className="hidden sm:block space-y-2.5 w-full">
+          <div className="flex items-center gap-2.5">
+            {/* Search */}
+            <div className="relative flex-1 max-w-[220px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Buscar..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-7 h-8 text-xs bg-background/50"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted"
+                >
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+
+            {/* Type toggle */}
+            <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
+              {([
+                { value: 'all', label: 'Todos' },
+                { value: 'income', label: 'Ingresos' },
+                { value: 'expense', label: 'Gastos' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleFilterChange('type', opt.value)}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    currentType === opt.value
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Paid toggle */}
+            <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
+              {([
+                { value: 'all', label: 'Todos' },
+                { value: 'true', label: 'Pagados' },
+                { value: 'false', label: 'Pendientes' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleFilterChange('paid', opt.value)}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    currentPaid === opt.value
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Date controls */}
+            <div className="flex items-center gap-2 ml-auto">
+              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
               {hasCycles && (
                 <Select value={currentCycleId} onValueChange={handleCycleChange}>
-                  <SelectTrigger className="h-9 text-sm">
+                  <SelectTrigger className="w-[160px] h-8 text-xs">
                     <SelectValue placeholder="Seleccionar ciclo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -293,166 +518,27 @@ export function TransactionList({
                   </SelectContent>
                 </Select>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">
-                    Desde
-                  </label>
-                  <Input
-                    type="date"
-                    value={currentStartDate}
-                    onChange={(e) => handleDateChange('startDate', e.target.value)}
-                    className="h-9 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 block">
-                    Hasta
-                  </label>
-                  <Input
-                    type="date"
-                    value={currentEndDate}
-                    onChange={(e) => handleDateChange('endDate', e.target.value)}
-                    className="h-9 text-sm"
-                  />
-                </div>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="date"
+                  value={currentStartDate}
+                  onChange={(e) => handleDateChange('startDate', e.target.value)}
+                  className="w-[125px] h-8 text-xs"
+                />
+                <span className="text-xs text-muted-foreground">—</span>
+                <Input
+                  type="date"
+                  value={currentEndDate}
+                  onChange={(e) => handleDateChange('endDate', e.target.value)}
+                  className="w-[125px] h-8 text-xs"
+                />
               </div>
+              {dateRangeFeedback && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {dateRangeFeedback}
+                </span>
+              )}
             </div>
-          )}
-
-          {/* Filter pills */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() =>
-                handleFilterChange('type', currentType === 'income' ? 'all' : 'income')
-              }
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                currentType === 'income'
-                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
-                  : 'bg-background/80 text-muted-foreground'
-              }`}
-            >
-              Ingresos
-            </button>
-            <button
-              onClick={() =>
-                handleFilterChange('type', currentType === 'expense' ? 'all' : 'expense')
-              }
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                currentType === 'expense'
-                  ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
-                  : 'bg-background/80 text-muted-foreground'
-              }`}
-            >
-              Gastos
-            </button>
-            <div className="w-px h-4 bg-border" />
-            <button
-              onClick={() =>
-                handleFilterChange('paid', currentPaid === 'true' ? 'all' : 'true')
-              }
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                currentPaid === 'true'
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
-                  : 'bg-background/80 text-muted-foreground'
-              }`}
-            >
-              Pagados
-            </button>
-            <button
-              onClick={() =>
-                handleFilterChange('paid', currentPaid === 'false' ? 'all' : 'false')
-              }
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                currentPaid === 'false'
-                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
-                  : 'bg-background/80 text-muted-foreground'
-              }`}
-            >
-              Pendientes
-            </button>
-          </div>
-        </div>
-
-        {/* ── Desktop filters ── */}
-        <div className="hidden sm:flex items-center gap-3 flex-wrap">
-          <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
-            {([
-              { value: 'all', label: 'Todos' },
-              { value: 'income', label: 'Ingresos' },
-              { value: 'expense', label: 'Gastos' },
-            ] as const).map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => handleFilterChange('type', opt.value)}
-                className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                  currentType === opt.value
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
-            {([
-              { value: 'all', label: 'Todos' },
-              { value: 'true', label: 'Pagados' },
-              { value: 'false', label: 'Pendientes' },
-            ] as const).map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => handleFilterChange('paid', opt.value)}
-                className={`rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                  currentPaid === opt.value
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 ml-auto">
-            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-            {hasCycles && (
-              <Select value={currentCycleId} onValueChange={handleCycleChange}>
-                <SelectTrigger className="w-[160px] h-8 text-xs">
-                  <SelectValue placeholder="Seleccionar ciclo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {cycles.map((cycle) => (
-                    <SelectItem key={cycle.id} value={cycle.id}>
-                      {cycle.name} {cycle.status === 'open' && '(actual)'}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="custom">Personalizado</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-            <div className="flex items-center gap-1.5">
-              <Input
-                type="date"
-                value={currentStartDate}
-                onChange={(e) => handleDateChange('startDate', e.target.value)}
-                className="w-[125px] h-8 text-xs"
-              />
-              <span className="text-xs text-muted-foreground">—</span>
-              <Input
-                type="date"
-                value={currentEndDate}
-                onChange={(e) => handleDateChange('endDate', e.target.value)}
-                className="w-[125px] h-8 text-xs"
-              />
-            </div>
-            {dateRangeFeedback && (
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {dateRangeFeedback}
-              </span>
-            )}
           </div>
         </div>
       </PageToolbar>
@@ -482,9 +568,15 @@ export function TransactionList({
           title="No hay transacciones registradas"
           description="Registra tus ingresos y gastos para comenzar a controlar tus finanzas."
         />
+      ) : filteredTransactions.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="Sin resultados"
+          description={`No se encontraron transacciones para "${searchQuery}".`}
+        />
       ) : (
         <TransactionTable
-          transactions={transactions}
+          transactions={filteredTransactions}
           accounts={accounts}
           projectId={projectId}
           userId={userId}

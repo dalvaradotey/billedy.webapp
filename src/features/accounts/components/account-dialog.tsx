@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Building2, PiggyBank, Wallet, CreditCard, AlertTriangle, Check, ArrowRight, Settings } from 'lucide-react';
+import { Building2, PiggyBank, Wallet, CreditCard, Landmark, ShieldCheck, AlertTriangle, Check, ArrowRight, Settings } from 'lucide-react';
 
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SubmitButton } from '@/components/submit-button';
@@ -199,6 +199,16 @@ export function AccountDialogContent({
       label: 'Tarjeta de Crédito',
       icon: <CreditCard className="h-4 w-4 text-muted-foreground" />,
     },
+    {
+      id: 'pension',
+      label: 'Fondo de Pensión',
+      icon: <Landmark className="h-4 w-4 text-muted-foreground" />,
+    },
+    {
+      id: 'unemployment',
+      label: 'Seguro de Cesantía',
+      icon: <ShieldCheck className="h-4 w-4 text-muted-foreground" />,
+    },
   ];
 
   return (
@@ -270,9 +280,9 @@ export function AccountDialogContent({
                       entities={entities}
                       value={field.value}
                       onValueChange={(value) => field.onChange(value ?? undefined)}
-                      label="Banco / Tarjeta (opcional)"
+                      label="Institución (opcional)"
                       searchPlaceholder="Buscar institución..."
-                      filterByType={['bank', 'credit_card']}
+                      filterByType={['bank', 'credit_card', 'pension_fund', 'unemployment_fund']}
                       allowNone
                       noneLabel="Sin institución"
                       valid={!!field.value}

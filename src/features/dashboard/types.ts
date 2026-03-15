@@ -7,7 +7,7 @@ export interface OptimisticTransaction {
   amount: number;
   budgetId?: string;
   accountId: string;
-  accountType: 'checking' | 'savings' | 'cash' | 'credit_card';
+  accountType: 'checking' | 'savings' | 'cash' | 'credit_card' | 'pension' | 'unemployment';
   isPaid: boolean;
 }
 

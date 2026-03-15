@@ -12,6 +12,9 @@ export const createTransactionSchema = z.object({
   description: z.string().min(1, 'La descripción es requerida').max(500),
   notes: z.string().max(1000).optional().nullable(),
   isPaid: z.boolean().optional(),
+  // Campos para cuentas previsionales (pensión/cesantía)
+  providerBalance: z.number().nonnegative().optional().nullable(),
+  profitabilityCategoryId: z.string().uuid().optional().nullable(),
 });
 
 export const updateTransactionSchema = createTransactionSchema.partial();

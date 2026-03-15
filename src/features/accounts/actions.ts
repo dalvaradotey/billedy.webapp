@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { accounts, transactions, projectMembers } from '@/lib/db/schema';
+import { accounts, transactions, projectMembers, categories } from '@/lib/db/schema';
 import { eq, and, sql, isNotNull } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { createAccountSchema, updateAccountSchema } from './schemas';
@@ -81,6 +81,16 @@ export async function createAccount(
       isDefault: parsed.data.isDefault,
     })
     .returning({ id: accounts.id });
+
+  // Auto-crear categorías para cuentas previsionales
+  if (parsed.data.type === 'pension' || parsed.data.type === 'unemployment') {
+    const color = parsed.data.type === 'pension' ? '#8b5cf6' : '#06b6d4';
+    await db.insert(categories).values([
+      { projectId: parsed.data.projectId, name: `Aporte ${parsed.data.name}`, color },
+      { projectId: parsed.data.projectId, name: `Rentabilidad ${parsed.data.name}`, color },
+    ]);
+    invalidateRelatedCache('categories');
+  }
 
   invalidateRelatedCache('accounts');
 
@@ -481,4 +491,133 @@ export async function recalculateAllAccountBalances(
   // invalidateRelatedCache ya se llama en cada recalculateAccountBalance
 
   return { success: true, data: { updated } };
+}
+
+/**
+ * Registra un aporte mensual a una cuenta previsional (pensión o cesantía).
+ * Crea automáticamente:
+ * 1. Transacción de ingreso por el aporte
+ * 2. Transacción de ajuste por rentabilidad (ingreso si ganancia, gasto si pérdida)
+ * Actualiza el saldo de la cuenta al saldo real del proveedor.
+ */
+export async function registerProvisionContribution(
+  userId: string,
+  input: {
+    accountId: string;
+    projectId: string;
+    contributionAmount: number;
+    currentProviderBalance: number;
+    date: Date;
+    contributionCategoryId: string;
+    profitabilityCategoryId: string;
+  }
+): Promise<ActionResult<{ contributionId: string; adjustmentId?: string; adjustmentAmount: number }>> {
+  // Verificar acceso
+  const hasAccess = await verifyProjectMembership(input.projectId, userId);
+  if (!hasAccess) {
+    return { success: false, error: 'No tienes acceso a este proyecto' };
+  }
+
+  // Verificar que la cuenta existe y es previsional
+  const [account] = await db
+    .select({
+      id: accounts.id,
+      type: accounts.type,
+      currentBalance: accounts.currentBalance,
+      currency: accounts.currency,
+    })
+    .from(accounts)
+    .where(
+      and(
+        eq(accounts.id, input.accountId),
+        eq(accounts.projectId, input.projectId)
+      )
+    )
+    .limit(1);
+
+  if (!account) {
+    return { success: false, error: 'Cuenta no encontrada' };
+  }
+
+  if (account.type !== 'pension' && account.type !== 'unemployment') {
+    return { success: false, error: 'Esta acción solo aplica para cuentas previsionales' };
+  }
+
+  const currentBalance = parseFloat(account.currentBalance);
+  const dateStr = input.date.toISOString().split('T')[0];
+  const typeLabel = account.type === 'pension' ? 'AFP' : 'Cesantía';
+
+  // 1. Crear transacción de aporte (ingreso)
+  const [contribution] = await db
+    .insert(transactions)
+    .values({
+      userId,
+      projectId: input.projectId,
+      accountId: input.accountId,
+      categoryId: input.contributionCategoryId,
+      type: 'income',
+      originalAmount: String(input.contributionAmount),
+      originalCurrency: account.currency,
+      baseAmount: String(input.contributionAmount),
+      baseCurrency: account.currency,
+      exchangeRate: '1',
+      date: input.date,
+      description: `Aporte ${typeLabel}`,
+      isPaid: true,
+      paidAt: input.date,
+    })
+    .returning({ id: transactions.id });
+
+  // 2. Calcular ajuste de rentabilidad
+  const balanceAfterContribution = currentBalance + input.contributionAmount;
+  const adjustmentAmount = input.currentProviderBalance - balanceAfterContribution;
+
+  let adjustmentId: string | undefined;
+
+  // 3. Crear transacción de ajuste si hay diferencia
+  if (Math.abs(adjustmentAmount) >= 1) {
+    const isGain = adjustmentAmount > 0;
+    const [adjustment] = await db
+      .insert(transactions)
+      .values({
+        userId,
+        projectId: input.projectId,
+        accountId: input.accountId,
+        categoryId: input.profitabilityCategoryId,
+        type: isGain ? 'income' : 'expense',
+        originalAmount: String(Math.abs(adjustmentAmount)),
+        originalCurrency: account.currency,
+        baseAmount: String(Math.abs(adjustmentAmount)),
+        baseCurrency: account.currency,
+        exchangeRate: '1',
+        date: input.date,
+        description: `Rentabilidad ${typeLabel}`,
+        isPaid: true,
+        paidAt: input.date,
+      })
+      .returning({ id: transactions.id });
+
+    adjustmentId = adjustment.id;
+  }
+
+  // 4. Actualizar saldo de la cuenta directamente al saldo del proveedor
+  await db
+    .update(accounts)
+    .set({
+      currentBalance: String(input.currentProviderBalance),
+      updatedAt: new Date(),
+    })
+    .where(eq(accounts.id, input.accountId));
+
+  invalidateRelatedCache('accounts');
+  invalidateRelatedCache('transactions');
+
+  return {
+    success: true,
+    data: {
+      contributionId: contribution.id,
+      adjustmentId,
+      adjustmentAmount,
+    },
+  };
 }

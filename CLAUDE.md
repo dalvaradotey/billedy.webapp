@@ -2,7 +2,7 @@
 
 ## Idioma
 
-El idioma predeterminado para la comunicación con Claude Code es **español**. Todas las respuestas, comentarios y documentación deben escribirse en español a menos que se indique lo contrario.
+El idioma predeterminado para la comunicación con Claude Code es **español chileno**. Usar español de Chile (tú, no vos; cachai en vez de entendés; etc.). Todas las respuestas, comentarios y documentación deben escribirse en español a menos que se indique lo contrario.
 
 ## Contexto
 

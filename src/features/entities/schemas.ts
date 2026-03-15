@@ -14,6 +14,8 @@ export const entityTypeSchema = z.enum([
   'mechanic',
   'streaming',
   'grocery_store',
+  'pension_fund',
+  'unemployment_fund',
   'other',
 ]);
 

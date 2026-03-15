@@ -117,6 +117,12 @@ export function DashboardProvider({
               netWorth:
                 prev.accountsSummary.netWorth - (type === 'expense' ? amount : -amount),
             };
+          } else if (accountType === 'pension' || accountType === 'unemployment') {
+            // Para cuentas previsionales, no afectan netWorth
+            newAccountsSummary = {
+              ...prev.accountsSummary,
+              totalProvisionBalance: prev.accountsSummary.totalProvisionBalance + balanceChange,
+            };
           } else {
             // Para cuentas de débito
             newAccountsSummary = {

@@ -17,6 +17,8 @@ export type EntityType =
   | 'mechanic'
   | 'streaming'
   | 'grocery_store'
+  | 'pension_fund'
+  | 'unemployment_fund'
   | 'other';
 
 export const entityTypeLabels: Record<EntityType, string> = {
@@ -33,5 +35,7 @@ export const entityTypeLabels: Record<EntityType, string> = {
   mechanic: 'Taller mecánico',
   streaming: 'Streaming',
   grocery_store: 'Frutería/Verdulería',
+  pension_fund: 'AFP',
+  unemployment_fund: 'AFC',
   other: 'Otro',
 };
