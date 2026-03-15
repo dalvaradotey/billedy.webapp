@@ -12,6 +12,9 @@ import {
   History,
   CreditCard,
   Store,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,8 +43,12 @@ import {
 import type { TransactionWithCategory } from '../types';
 import type { AccountWithEntity } from '@/features/accounts/types';
 import { formatCurrency, formatDate } from '@/lib/formatting';
+import { cn } from '@/lib/utils';
 import { cardStyles } from '@/components/card-styles';
 import { BulkPayCreditCardDialog } from './bulk-pay-cc-dialog';
+
+type SortColumn = 'status' | 'date' | 'description' | 'category' | 'amount';
+type SortDirection = 'asc' | 'desc';
 import {
   DeleteTransactionDialog,
   TogglePaidDialog,
@@ -120,6 +127,8 @@ export function TransactionTable({
   const [showBulkTogglePaidDialog, setShowBulkTogglePaidDialog] = useState(false);
   const [showBulkDateChangeDialog, setShowBulkDateChangeDialog] = useState(false);
   const [revealedAction, setRevealedAction] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   // Mapa de cuentas por ID para verificar tipo
   const accountsMap = useMemo(() => {
@@ -127,6 +136,60 @@ export function TransactionTable({
     accounts.forEach((acc) => map.set(acc.id, acc));
     return map;
   }, [accounts]);
+
+  const handleSort = useCallback((column: SortColumn) => {
+    if (sortColumn === column) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        setSortColumn(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  }, [sortColumn, sortDirection]);
+
+  const getStatusPriority = useCallback((t: TransactionWithCategory) => {
+    const acc = accountsMap.get(t.accountId ?? '');
+    const isCC = acc?.type === 'credit_card' && t.type === 'expense';
+    if (isCC) {
+      if (t.paidByTransferId) return 4; // Liquidada
+      if (t.isHistoricallyPaid) return 3; // Histórico
+      if (t.isPaid) return 2; // Cargado
+      return 0; // Pendiente
+    }
+    return t.isPaid ? 1 : 0; // Pagado o Pendiente
+  }, [accountsMap]);
+
+  const sortedTransactions = useMemo(() => {
+    if (!sortColumn) return transactions;
+    return [...transactions].sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case 'status':
+          cmp = getStatusPriority(a) - getStatusPriority(b);
+          break;
+        case 'date':
+          cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+        case 'description':
+          cmp = (a.description ?? '').localeCompare(b.description ?? '', 'es');
+          break;
+        case 'category':
+          cmp = (a.categoryName ?? '').localeCompare(b.categoryName ?? '', 'es');
+          break;
+        case 'amount': {
+          const amtA = parseFloat(a.originalAmount) * (a.type === 'expense' ? -1 : 1);
+          const amtB = parseFloat(b.originalAmount) * (b.type === 'expense' ? -1 : 1);
+          cmp = amtA - amtB;
+          break;
+        }
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [transactions, sortColumn, sortDirection, getStatusPriority]);
 
   // Verificar si una transacción es elegible para pago de TC
   const isCreditCardEligible = useCallback((t: TransactionWithCategory) => {
@@ -471,16 +534,26 @@ export function TransactionTable({
                 disabled={isPending}
               />
             </TableHead>
-            <TableHead className="w-[70px]">Estado</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Descripción</TableHead>
-            <TableHead>Categoría</TableHead>
-            <TableHead className="text-right">Monto</TableHead>
+            <TableHead className="w-[70px]">
+              <SortableHeader column="status" label="Estado" current={sortColumn} direction={sortDirection} onSort={handleSort} />
+            </TableHead>
+            <TableHead>
+              <SortableHeader column="date" label="Fecha" current={sortColumn} direction={sortDirection} onSort={handleSort} />
+            </TableHead>
+            <TableHead>
+              <SortableHeader column="description" label="Descripción" current={sortColumn} direction={sortDirection} onSort={handleSort} />
+            </TableHead>
+            <TableHead>
+              <SortableHeader column="category" label="Categoría" current={sortColumn} direction={sortDirection} onSort={handleSort} />
+            </TableHead>
+            <TableHead className="text-right">
+              <SortableHeader column="amount" label="Monto" current={sortColumn} direction={sortDirection} onSort={handleSort} className="justify-end" />
+            </TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {transactions.map((transaction) => {
+          {sortedTransactions.map((transaction) => {
             const isCC = isCreditCardTransaction(transaction);
             const settled = isSettled(transaction);
             return (
@@ -694,5 +767,44 @@ export function TransactionTable({
         />
       )}
     </div>
+  );
+}
+
+function SortableHeader({
+  column,
+  label,
+  current,
+  direction,
+  onSort,
+  className,
+}: {
+  column: SortColumn;
+  label: string;
+  current: SortColumn | null;
+  direction: SortDirection;
+  onSort: (column: SortColumn) => void;
+  className?: string;
+}) {
+  const isActive = current === column;
+  return (
+    <button
+      onClick={() => onSort(column)}
+      className={cn(
+        'inline-flex items-center gap-1 hover:text-foreground transition-colors -ml-1 px-1 py-0.5 rounded',
+        isActive ? 'text-foreground' : 'text-muted-foreground',
+        className,
+      )}
+    >
+      {label}
+      {isActive ? (
+        direction === 'asc' ? (
+          <ArrowUp className="h-3.5 w-3.5" />
+        ) : (
+          <ArrowDown className="h-3.5 w-3.5" />
+        )
+      ) : (
+        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+      )}
+    </button>
   );
 }
