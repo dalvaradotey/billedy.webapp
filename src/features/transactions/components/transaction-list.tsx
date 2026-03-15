@@ -15,6 +15,7 @@ import {
   Search,
   X,
   SlidersHorizontal,
+  BarChart3,
 } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { ResponsiveDrawer } from '@/components/ui/drawer';
@@ -36,6 +37,7 @@ import type { Category } from '@/features/categories/types';
 import type { Entity } from '@/features/entities/types';
 import { TransactionDialogContent } from './transaction-form';
 import { TransactionTable } from './transaction-table';
+import { TransactionChartsContent } from './transaction-charts';
 
 function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -98,6 +100,7 @@ export function TransactionList({
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithCategory | null>(null);
   const [showPeriodControls, setShowPeriodControls] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [isChartsOpen, setIsChartsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -130,9 +133,14 @@ export function TransactionList({
     setIsDialogOpen(true);
   }, []);
 
+  const handleOpenCharts = useCallback(() => {
+    setIsChartsOpen(true);
+  }, []);
+
   const pageActions = useMemo<PageAction[]>(() => [
     { label: 'Nueva transacción', icon: Plus, onClick: handleOpenDialog },
-  ], [handleOpenDialog]);
+    { label: 'Gráficos', icon: BarChart3, onClick: handleOpenCharts },
+  ], [handleOpenDialog, handleOpenCharts]);
 
   useRegisterPageActions(pageActions);
 
@@ -558,6 +566,14 @@ export function TransactionList({
           onMutationStart={onMutationStart}
           onMutationSuccess={onMutationSuccess}
           onMutationError={onMutationError}
+        />
+      </ResponsiveDrawer>
+
+      {/* Charts Drawer */}
+      <ResponsiveDrawer open={isChartsOpen} onOpenChange={setIsChartsOpen}>
+        <TransactionChartsContent
+          transactions={filteredTransactions}
+          defaultCurrency={defaultCurrency}
         />
       </ResponsiveDrawer>
 
