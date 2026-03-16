@@ -82,9 +82,10 @@ export async function createAccount(
     })
     .returning({ id: accounts.id });
 
-  // Auto-crear categorías para cuentas previsionales
-  if (parsed.data.type === 'pension' || parsed.data.type === 'unemployment') {
-    const color = parsed.data.type === 'pension' ? '#8b5cf6' : '#06b6d4';
+  // Auto-crear categorías para cuentas previsionales y de ahorro
+  if (parsed.data.type === 'pension' || parsed.data.type === 'unemployment' || parsed.data.type === 'savings') {
+    const colorMap: Record<string, string> = { pension: '#8b5cf6', unemployment: '#06b6d4', savings: '#10b981' };
+    const color = colorMap[parsed.data.type] ?? '#8b5cf6';
     await db.insert(categories).values([
       { projectId: parsed.data.projectId, name: `Aporte ${parsed.data.name}`, color },
       { projectId: parsed.data.projectId, name: `Rentabilidad ${parsed.data.name}`, color },

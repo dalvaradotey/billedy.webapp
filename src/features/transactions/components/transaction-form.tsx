@@ -266,7 +266,7 @@ export function TransactionDialogContent({
   const watchedDescription = form.watch('description');
   const selectedAccount = accountsMap.get(watchedAccountId);
   const isCreditCardExpense = selectedAccount?.type === 'credit_card' && watchedType === 'expense';
-  const isProvisionAccount = selectedAccount?.type === 'pension' || selectedAccount?.type === 'unemployment';
+  const isProvisionAccount = selectedAccount?.type === 'pension' || selectedAccount?.type === 'unemployment' || selectedAccount?.type === 'savings';
 
   // Estado para saldo del proveedor (modo previsional)
   const [providerBalance, setProviderBalance] = useState<number | undefined>(undefined);
@@ -294,7 +294,7 @@ export function TransactionDialogContent({
       form.setValue('isPaid', true);
       setFormMode('income');
       // Auto-generar descripción
-      const typeLabel = selectedAccount?.type === 'pension' ? 'AFP' : 'Cesantía';
+      const typeLabel = selectedAccount?.type === 'pension' ? 'AFP' : selectedAccount?.type === 'unemployment' ? 'Cesantía' : 'Ahorro';
       const currentDesc = form.getValues('description');
       if (!currentDesc || currentDesc.startsWith('Aporte ')) {
         form.setValue('description', `Aporte ${typeLabel}`);

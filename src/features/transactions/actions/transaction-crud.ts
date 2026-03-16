@@ -112,7 +112,7 @@ export async function createTransaction(
     .returning({ id: transactions.id });
 
   // Modo previsional: crear ajuste de rentabilidad automático
-  const isProvisionAccount = account[0].type === 'pension' || account[0].type === 'unemployment';
+  const isProvisionAccount = account[0].type === 'pension' || account[0].type === 'unemployment' || account[0].type === 'savings';
   const providerBalance = parsed.data.providerBalance;
 
   if (isProvisionAccount && providerBalance != null && isPaid) {
@@ -124,7 +124,7 @@ export async function createTransaction(
     // Crear transacción de ajuste si hay diferencia significativa
     if (Math.abs(adjustmentAmount) >= 1 && parsed.data.profitabilityCategoryId) {
       const isGain = adjustmentAmount > 0;
-      const typeLabel = account[0].type === 'pension' ? 'AFP' : 'Cesantía';
+      const typeLabel = account[0].type === 'pension' ? 'AFP' : account[0].type === 'unemployment' ? 'Cesantía' : 'Ahorro';
       await db
         .insert(transactions)
         .values({
@@ -132,6 +132,7 @@ export async function createTransaction(
           projectId: parsed.data.projectId,
           accountId: parsed.data.accountId,
           categoryId: parsed.data.profitabilityCategoryId,
+          savingsGoalId: null, // Rentabilidad nunca se vincula a metas de ahorro
           type: isGain ? 'income' : 'expense',
           originalAmount: String(Math.abs(adjustmentAmount)),
           originalCurrency: project[0].currency,
