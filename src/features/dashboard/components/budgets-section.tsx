@@ -22,10 +22,16 @@ interface Budget {
   defaultAccountId?: string | null;
 }
 
+interface SavingsGoal {
+  id: string;
+  name: string;
+}
+
 interface DashboardBudgetsSectionProps {
   categories: Category[];
   accounts: AccountWithEntity[];
   budgets: Budget[];
+  savingsGoals: SavingsGoal[];
   entities: Entity[];
   projectId: string;
   userId: string;
@@ -36,6 +42,7 @@ export function DashboardBudgetsSection({
   categories,
   accounts,
   budgets,
+  savingsGoals,
   entities,
   projectId,
   userId,
@@ -142,6 +149,7 @@ export function DashboardBudgetsSection({
           categories={categories}
           accounts={accounts}
           budgets={budgets}
+          savingsGoals={savingsGoals}
           entities={entities}
           transaction={null}
           defaultCurrency={defaultCurrency}

@@ -57,6 +57,11 @@ interface Budget {
   categoryColor?: string | null;
 }
 
+interface SavingsGoal {
+  id: string;
+  name: string;
+}
+
 interface BillingCycleOption {
   id: string;
   name: string;
@@ -70,6 +75,7 @@ export interface TransactionListProps {
   categories: Category[];
   accounts: AccountWithEntity[];
   budgets: Budget[];
+  savingsGoals: SavingsGoal[];
   entities: Entity[];
   summary: TransactionSummary;
   projectId: string;
@@ -86,6 +92,7 @@ export function TransactionList({
   categories,
   accounts,
   budgets,
+  savingsGoals,
   entities,
   summary,
   projectId,
@@ -559,6 +566,7 @@ export function TransactionList({
           categories={categories}
           accounts={accounts}
           budgets={budgets}
+          savingsGoals={savingsGoals}
           entities={entities}
           transaction={editingTransaction}
           defaultCurrency={defaultCurrency}

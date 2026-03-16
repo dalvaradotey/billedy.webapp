@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { billingCycles, transactions, projectMembers, savingsMovements, savingsFunds } from '@/lib/db/schema';
+import { billingCycles, transactions, projectMembers } from '@/lib/db/schema';
 import { eq, and, sql, isNotNull, isNull, desc, gte, lte, asc } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { BillingCycleWithTotals, BillingCycleSummary } from './types';
@@ -48,15 +48,15 @@ async function calculateTotalsForRange(
       ),
     db
       .select({
-        totalSavings: sql<string>`COALESCE(SUM(CASE WHEN ${savingsMovements.type} = 'deposit' THEN ${savingsMovements.amount} ELSE 0 END), 0)`,
+        totalSavings: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.savingsGoalId} IS NOT NULL AND ${transactions.type} = 'income' THEN ABS(${transactions.baseAmount}) ELSE 0 END), 0)`,
       })
-      .from(savingsMovements)
-      .innerJoin(savingsFunds, eq(savingsMovements.savingsFundId, savingsFunds.id))
+      .from(transactions)
       .where(
         and(
-          eq(savingsFunds.projectId, projectId),
-          gte(savingsMovements.date, startDate),
-          lte(savingsMovements.date, endDate)
+          eq(transactions.projectId, projectId),
+          gte(transactions.date, startDate),
+          lte(transactions.date, endDate),
+          isNotNull(transactions.savingsGoalId)
         )
       ),
   ]);

@@ -23,38 +23,37 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 
-import { createSavingsFund, updateSavingsFund } from '../actions';
-import { createSavingsFundSchema, type CreateSavingsFundInput } from '../schemas';
-import type { SavingsFundWithProgress } from '../types';
-import { ACCOUNT_TYPE_OPTIONS } from './constants';
+import { createSavingsGoal, updateSavingsGoal } from '../actions';
+import { createSavingsGoalSchema, type CreateSavingsGoalInput } from '../schemas';
+import type { SavingsGoalWithProgress } from '../types';
 
-interface SavingsFundDialogContentProps {
+interface SavingsGoalDialogContentProps {
   projectId?: string;
   userId: string;
   currencies: { id: string; code: string }[];
   defaultCurrencyId: string;
-  fund: SavingsFundWithProgress | null;
+  goal: SavingsGoalWithProgress | null;
   onSuccess: () => void;
   onMutationStart?: () => void;
   onMutationSuccess?: (toastId: string | number, message: string) => void;
   onMutationError?: (toastId: string | number, error: string) => void;
 }
 
-export function SavingsFundDialogContent({
+export function SavingsGoalDialogContent({
   projectId,
   userId,
   currencies,
   defaultCurrencyId,
-  fund,
+  goal,
   onSuccess,
   onMutationStart,
   onMutationSuccess,
   onMutationError,
-}: SavingsFundDialogContentProps) {
+}: SavingsGoalDialogContentProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [selectedCurrencyId, setSelectedCurrencyId] = useState(
-    fund?.currencyId ?? defaultCurrencyId
+    goal?.currencyId ?? defaultCurrencyId
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
@@ -64,62 +63,56 @@ export function SavingsFundDialogContent({
 
   const selectedCurrencyCode = currencies.find((c) => c.id === selectedCurrencyId)?.code ?? 'CLP';
 
-  const isEditing = !!fund;
+  const isEditing = !!goal;
 
-  const form = useForm<CreateSavingsFundInput>({
-    resolver: zodResolver(createSavingsFundSchema),
+  const form = useForm<CreateSavingsGoalInput>({
+    resolver: zodResolver(createSavingsGoalSchema),
     defaultValues: {
-      projectId: fund?.projectId ?? projectId ?? undefined,
-      name: fund?.name ?? '',
-      type: fund?.type ?? 'goal',
-      accountType: fund?.accountType ?? 'Cuenta de ahorro',
-      currencyId: fund?.currencyId ?? defaultCurrencyId,
-      targetAmount: fund?.targetAmount ? parseFloat(fund.targetAmount) : undefined,
-      monthlyTarget: fund ? parseFloat(fund.monthlyTarget) : undefined,
-      currentBalance: isEditing ? undefined : 0,
+      projectId: goal?.projectId ?? projectId ?? undefined,
+      name: goal?.name ?? '',
+      type: goal?.type ?? 'goal',
+      currencyId: goal?.currencyId ?? defaultCurrencyId,
+      targetAmount: goal?.targetAmount ? parseFloat(goal.targetAmount) : undefined,
+      initialBalance: isEditing ? undefined : 0,
     },
   });
 
   // Track form progress with subscription pattern
-  const calculateProgress = useCallback((values: Partial<CreateSavingsFundInput>) => {
+  const calculateProgress = useCallback((values: Partial<CreateSavingsGoalInput>) => {
     return [
       !!values.name,
-      values.monthlyTarget !== undefined && values.monthlyTarget > 0,
+      values.targetAmount !== undefined && values.targetAmount > 0,
     ].filter(Boolean).length;
   }, []);
 
   const [formProgress, setFormProgress] = useState(() => calculateProgress(form.getValues()));
 
   useEffect(() => {
-    // Calculate initial progress
     setFormProgress(calculateProgress(form.getValues()));
 
-    // Subscribe to changes
     const subscription = form.watch((values) => {
       setFormProgress(calculateProgress(values));
     });
     return () => subscription.unsubscribe();
   }, [form, calculateProgress]);
 
-  const onSubmit = (data: CreateSavingsFundInput) => {
+  const onSubmit = (data: CreateSavingsGoalInput) => {
     setError(null);
-    const toastId = toast.loading(isEditing ? 'Actualizando fondo...' : 'Creando fondo...');
+    const toastId = toast.loading(isEditing ? 'Actualizando meta...' : 'Creando meta...');
     onMutationStart?.();
 
     startTransition(async () => {
       const result = isEditing
-        ? await updateSavingsFund(fund.id, userId, {
+        ? await updateSavingsGoal(goal.id, userId, {
             name: data.name,
             type: data.type,
-            accountType: data.accountType,
             targetAmount: data.targetAmount,
-            monthlyTarget: data.monthlyTarget,
           })
-        : await createSavingsFund(userId, selectedCurrencyId, data);
+        : await createSavingsGoal(userId, selectedCurrencyId, data);
 
       if (result.success) {
         form.reset();
-        onMutationSuccess?.(toastId, isEditing ? 'Fondo actualizado' : 'Fondo creado');
+        onMutationSuccess?.(toastId, isEditing ? 'Meta actualizada' : 'Meta creada');
         triggerSuccess();
       } else {
         setError(result.error);
@@ -128,19 +121,13 @@ export function SavingsFundDialogContent({
     });
   };
 
-  // Fund type options
-  const fundTypeOptions = [
+  // Goal type options
+  const goalTypeOptions = [
     { id: 'emergency', label: 'Emergencia' },
     { id: 'investment', label: 'Inversión' },
     { id: 'goal', label: 'Meta específica' },
     { id: 'other', label: 'Otro' },
   ];
-
-  // Account type options
-  const accountTypeOptions = ACCOUNT_TYPE_OPTIONS.map((type) => ({
-    id: type,
-    label: type,
-  }));
 
   // Currency options
   const currencyOptions = currencies.map((c) => ({
@@ -150,11 +137,11 @@ export function SavingsFundDialogContent({
 
   return (
     <FormDrawer
-      title={isEditing ? 'Editar fondo' : 'Nuevo fondo de ahorro'}
+      title={isEditing ? 'Editar meta' : 'Nueva meta de ahorro'}
       description={
         isEditing
-          ? 'Modifica los detalles del fondo de ahorro.'
-          : 'Crea un nuevo fondo para organizar tus ahorros.'
+          ? 'Modifica los detalles de la meta de ahorro.'
+          : 'Crea una nueva meta para organizar tus ahorros.'
       }
       showSuccess={showSuccess}
       headerExtra={!isEditing ? <ProgressIndicator current={formProgress} total={2} /> : undefined}
@@ -183,63 +170,39 @@ export function SavingsFundDialogContent({
             )}
           />
 
-          {/* Type and Account Type */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="type"
-              render={({ field, fieldState }) => (
-                <FormItem data-field="type">
-                  <FormControl>
-                    <SearchableSelect
-                      options={fundTypeOptions}
-                      value={field.value}
-                      onValueChange={(value) => field.onChange(value ?? 'goal')}
-                      label="Tipo de fondo"
-                      searchPlaceholder="Buscar tipo..."
-                      emptyMessage="No se encontraron tipos."
-                      valid={!!field.value}
-                      invalid={!!fieldState.error}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="accountType"
-              render={({ field, fieldState }) => (
-                <FormItem data-field="accountType">
-                  <FormControl>
-                    <SearchableSelect
-                      options={accountTypeOptions}
-                      value={field.value}
-                      onValueChange={(value) => field.onChange(value ?? 'Cuenta de ahorro')}
-                      label="Tipo de cuenta"
-                      searchPlaceholder="Buscar tipo..."
-                      emptyMessage="No se encontraron tipos."
-                      valid={!!field.value}
-                      invalid={!!fieldState.error}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Monthly Target */}
+          {/* Type */}
           <FormField
             control={form.control}
-            name="monthlyTarget"
+            name="type"
             render={({ field, fieldState }) => (
-              <FormItem data-field="monthlyTarget">
+              <FormItem data-field="type">
+                <FormControl>
+                  <SearchableSelect
+                    options={goalTypeOptions}
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value ?? 'goal')}
+                    label="Tipo de meta"
+                    searchPlaceholder="Buscar tipo..."
+                    emptyMessage="No se encontraron tipos."
+                    valid={!!field.value}
+                    invalid={!!fieldState.error}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Target Amount */}
+          <FormField
+            control={form.control}
+            name="targetAmount"
+            render={({ field, fieldState }) => (
+              <FormItem data-field="targetAmount">
                 <FormControl>
                   <CurrencyInput
                     size="lg"
-                    label="Meta mensual"
+                    label="Meta total"
                     value={field.value}
                     onChange={field.onChange}
                     currency={selectedCurrencyCode}
@@ -283,36 +246,13 @@ export function SavingsFundDialogContent({
                 </Button>
               </div>
 
-              {/* Target Amount */}
-              <FormField
-                control={form.control}
-                name="targetAmount"
-                render={({ field, fieldState }) => (
-                  <FormItem data-field="targetAmount">
-                    <FormControl>
-                      <CurrencyInput
-                        size="lg"
-                        label="Meta total (opcional)"
-                        value={field.value ?? undefined}
-                        onChange={field.onChange}
-                        currency={selectedCurrencyCode}
-                        placeholder="0"
-                        valid={fieldState.isDirty && !fieldState.invalid && field.value != null && field.value > 0}
-                        invalid={fieldState.invalid}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               {/* Initial Balance - Only when creating */}
               {!isEditing && (
                 <FormField
                   control={form.control}
-                  name="currentBalance"
+                  name="initialBalance"
                   render={({ field, fieldState }) => (
-                    <FormItem data-field="currentBalance">
+                    <FormItem data-field="initialBalance">
                       <FormControl>
                         <CurrencyInput
                           size="lg"
@@ -340,7 +280,6 @@ export function SavingsFundDialogContent({
                     checked={selectedCurrencyId !== defaultCurrencyId}
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        // Select first non-default currency
                         const otherCurrency = currencies.find((c) => c.id !== defaultCurrencyId);
                         if (otherCurrency) {
                           setSelectedCurrencyId(otherCurrency.id);
@@ -375,7 +314,7 @@ export function SavingsFundDialogContent({
               pendingText="Guardando..."
               icon={isEditing ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
             >
-              {isEditing ? 'Guardar cambios' : 'Crear fondo'}
+              {isEditing ? 'Guardar cambios' : 'Crear meta'}
             </SubmitButton>
           </FormDrawerFooter>
         </FormDrawerBody>

@@ -1,32 +1,21 @@
 import { db } from '@/lib/db';
-import { savingsFunds, savingsMovements, currencies, projectMembers } from '@/lib/db/schema';
-import { eq, and, sql, isNotNull, desc, gte, lte } from 'drizzle-orm';
+import { savingsGoals, transactions, currencies, projectMembers } from '@/lib/db/schema';
+import { eq, and, sql, isNotNull, desc } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
-import type { SavingsFundWithProgress, SavingsSummary, SavingsMovement } from './types';
+import type { SavingsGoalWithProgress, SavingsSummary, SavingsFilter } from './types';
 
 /**
- * Obtiene el primer y último día del mes actual
+ * Query interna para obtener metas de ahorro con progreso
+ * El progreso se calcula desde initialBalance + SUM(transacciones con savingsGoalId)
  */
-function getCurrentMonthRange(): { start: Date; end: Date } {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  return { start, end };
-}
-
-/**
- * Query interna para obtener fondos de ahorro con progreso
- */
-async function _getSavingsFundsWithProgress(
+async function _getSavingsGoalsWithProgress(
   userId: string,
   projectId?: string,
-  includeArchived: boolean = false
-): Promise<SavingsFundWithProgress[]> {
-  // Construir condiciones base
-  const conditions = [eq(savingsFunds.userId, userId)];
+  filter: SavingsFilter = 'active'
+): Promise<SavingsGoalWithProgress[]> {
+  const conditions = [eq(savingsGoals.userId, userId)];
 
   if (projectId) {
-    // Verificar acceso al proyecto
     const hasAccess = await db
       .select({ id: projectMembers.id })
       .from(projectMembers)
@@ -43,230 +32,155 @@ async function _getSavingsFundsWithProgress(
       return [];
     }
 
-    conditions.push(eq(savingsFunds.projectId, projectId));
+    conditions.push(eq(savingsGoals.projectId, projectId));
   }
 
-  if (!includeArchived) {
-    conditions.push(eq(savingsFunds.isArchived, false));
+  // Filtrar según el estado
+  switch (filter) {
+    case 'active':
+      conditions.push(eq(savingsGoals.isArchived, false));
+      conditions.push(eq(savingsGoals.isCompleted, false));
+      break;
+    case 'completed':
+      conditions.push(eq(savingsGoals.isCompleted, true));
+      conditions.push(eq(savingsGoals.isArchived, false));
+      break;
+    case 'archived':
+      conditions.push(eq(savingsGoals.isArchived, true));
+      break;
   }
 
-  // Obtener fondos con moneda
-  const funds = await db
+  // Obtener metas con moneda
+  const goals = await db
     .select({
-      id: savingsFunds.id,
-      userId: savingsFunds.userId,
-      projectId: savingsFunds.projectId,
-      name: savingsFunds.name,
-      type: savingsFunds.type,
-      accountType: savingsFunds.accountType,
-      currencyId: savingsFunds.currencyId,
-      targetAmount: savingsFunds.targetAmount,
-      monthlyTarget: savingsFunds.monthlyTarget,
-      currentBalance: savingsFunds.currentBalance,
-      isArchived: savingsFunds.isArchived,
-      createdAt: savingsFunds.createdAt,
-      updatedAt: savingsFunds.updatedAt,
+      id: savingsGoals.id,
+      userId: savingsGoals.userId,
+      projectId: savingsGoals.projectId,
+      name: savingsGoals.name,
+      type: savingsGoals.type,
+      currencyId: savingsGoals.currencyId,
+      targetAmount: savingsGoals.targetAmount,
+      initialBalance: savingsGoals.initialBalance,
+      isCompleted: savingsGoals.isCompleted,
+      isArchived: savingsGoals.isArchived,
+      createdAt: savingsGoals.createdAt,
+      updatedAt: savingsGoals.updatedAt,
       currencyCode: currencies.code,
     })
-    .from(savingsFunds)
-    .innerJoin(currencies, eq(savingsFunds.currencyId, currencies.id))
+    .from(savingsGoals)
+    .innerJoin(currencies, eq(savingsGoals.currencyId, currencies.id))
     .where(and(...conditions))
-    .orderBy(desc(savingsFunds.createdAt));
+    .orderBy(desc(savingsGoals.createdAt));
 
-  if (funds.length === 0) {
+  if (goals.length === 0) {
     return [];
   }
 
-  // Obtener rango del mes actual
-  const { start, end } = getCurrentMonthRange();
-
-  // Calcular depósitos del mes por fondo
-  const monthlyDeposits = await db
+  // Calcular balance total por meta (SUM de transacciones con savingsGoalId)
+  const goalIds = goals.map((g) => g.id);
+  const balances = await db
     .select({
-      savingsFundId: savingsMovements.savingsFundId,
-      totalDeposits: sql<string>`SUM(CASE WHEN ${savingsMovements.type} = 'deposit' THEN ${savingsMovements.amount} ELSE 0 END)`,
+      savingsGoalId: transactions.savingsGoalId,
+      totalDeposited: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ABS(${transactions.originalAmount}) ELSE -ABS(${transactions.originalAmount}) END), 0)`,
     })
-    .from(savingsMovements)
-    .where(
-      and(
-        gte(savingsMovements.date, start),
-        lte(savingsMovements.date, end)
-      )
-    )
-    .groupBy(savingsMovements.savingsFundId);
+    .from(transactions)
+    .where(sql`${transactions.savingsGoalId} IN ${goalIds}`)
+    .groupBy(transactions.savingsGoalId);
 
-  // Crear mapa de depósitos mensuales
-  const depositsMap = new Map<string, number>();
-  for (const row of monthlyDeposits) {
-    depositsMap.set(row.savingsFundId, parseFloat(row.totalDeposits ?? '0'));
-  }
-
-  // Obtener últimos 5 movimientos por fondo
-  const recentMovementsResult = await db
-    .select()
-    .from(savingsMovements)
-    .where(
-      sql`${savingsMovements.savingsFundId} IN ${funds.map((f) => f.id)}`
-    )
-    .orderBy(desc(savingsMovements.date), desc(savingsMovements.createdAt))
-    .limit(50); // Limitamos a 50 en total, luego agrupamos
-
-  // Agrupar movimientos por fondo (máximo 5 por fondo)
-  const movementsByFund = new Map<string, SavingsMovement[]>();
-  for (const movement of recentMovementsResult) {
-    const existing = movementsByFund.get(movement.savingsFundId) ?? [];
-    if (existing.length < 5) {
-      existing.push(movement);
-      movementsByFund.set(movement.savingsFundId, existing);
+  const balanceMap = new Map<string, number>();
+  for (const row of balances) {
+    if (row.savingsGoalId) {
+      balanceMap.set(row.savingsGoalId, parseFloat(row.totalDeposited ?? '0'));
     }
   }
 
   // Combinar datos
-  return funds.map((fund) => {
-    const currentBalance = parseFloat(fund.currentBalance);
-    const targetAmount = fund.targetAmount ? parseFloat(fund.targetAmount) : null;
-    const monthlyTarget = parseFloat(fund.monthlyTarget);
-    const monthlyDeposited = depositsMap.get(fund.id) ?? 0;
+  return goals.map((goal) => {
+    const initialBalance = parseFloat(goal.initialBalance);
+    const transactionsBalance = balanceMap.get(goal.id) ?? 0;
+    const currentBalance = initialBalance + transactionsBalance;
+    const targetAmount = parseFloat(goal.targetAmount);
 
     const progressPercentage =
-      targetAmount && targetAmount > 0
+      targetAmount > 0
         ? Math.min(100, Math.round((currentBalance / targetAmount) * 100))
         : 0;
 
-    const monthlyPercentage =
-      monthlyTarget > 0
-        ? Math.min(100, Math.round((monthlyDeposited / monthlyTarget) * 100))
-        : 0;
-
     return {
-      ...fund,
+      ...goal,
+      currentBalance,
       progressPercentage,
-      monthlyDeposited,
-      monthlyPercentage,
-      recentMovements: movementsByFund.get(fund.id) ?? [],
     };
   });
 }
 
 /**
- * Obtiene todos los fondos de ahorro del usuario con su progreso
- * Cacheada por 30 segundos (más corto porque depende del mes actual)
+ * Obtiene todas las metas de ahorro del usuario con su progreso
+ * Cacheada por 30 segundos
  */
-export const getSavingsFundsWithProgress = cachedQuery(
-  _getSavingsFundsWithProgress,
-  ['savings', 'funds-with-progress'],
+export const getSavingsGoalsWithProgress = cachedQuery(
+  _getSavingsGoalsWithProgress,
+  ['savings', 'goals-with-progress'],
   { tags: [CACHE_TAGS.savings], revalidate: 30 }
 );
 
 /**
- * Obtiene un fondo por ID con progreso
- * No cacheada porque es una consulta puntual
+ * Obtiene una meta por ID con progreso
  */
-export async function getSavingsFundById(
-  fundId: string,
+export async function getSavingsGoalById(
+  goalId: string,
   userId: string
-): Promise<SavingsFundWithProgress | null> {
+): Promise<SavingsGoalWithProgress | null> {
   const result = await db
     .select({
-      id: savingsFunds.id,
-      userId: savingsFunds.userId,
-      projectId: savingsFunds.projectId,
-      name: savingsFunds.name,
-      type: savingsFunds.type,
-      accountType: savingsFunds.accountType,
-      currencyId: savingsFunds.currencyId,
-      targetAmount: savingsFunds.targetAmount,
-      monthlyTarget: savingsFunds.monthlyTarget,
-      currentBalance: savingsFunds.currentBalance,
-      isArchived: savingsFunds.isArchived,
-      createdAt: savingsFunds.createdAt,
-      updatedAt: savingsFunds.updatedAt,
+      id: savingsGoals.id,
+      userId: savingsGoals.userId,
+      projectId: savingsGoals.projectId,
+      name: savingsGoals.name,
+      type: savingsGoals.type,
+      currencyId: savingsGoals.currencyId,
+      targetAmount: savingsGoals.targetAmount,
+      initialBalance: savingsGoals.initialBalance,
+      isCompleted: savingsGoals.isCompleted,
+      isArchived: savingsGoals.isArchived,
+      createdAt: savingsGoals.createdAt,
+      updatedAt: savingsGoals.updatedAt,
       currencyCode: currencies.code,
     })
-    .from(savingsFunds)
-    .innerJoin(currencies, eq(savingsFunds.currencyId, currencies.id))
-    .where(and(eq(savingsFunds.id, fundId), eq(savingsFunds.userId, userId)))
+    .from(savingsGoals)
+    .innerJoin(currencies, eq(savingsGoals.currencyId, currencies.id))
+    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)))
     .limit(1);
 
   if (!result[0]) {
     return null;
   }
 
-  const fund = result[0];
+  const goal = result[0];
 
-  // Obtener depósitos del mes
-  const { start, end } = getCurrentMonthRange();
-  const monthlyResult = await db
+  // Calcular balance desde transacciones
+  const balanceResult = await db
     .select({
-      totalDeposits: sql<string>`SUM(CASE WHEN ${savingsMovements.type} = 'deposit' THEN ${savingsMovements.amount} ELSE 0 END)`,
+      totalDeposited: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ABS(${transactions.originalAmount}) ELSE -ABS(${transactions.originalAmount}) END), 0)`,
     })
-    .from(savingsMovements)
-    .where(
-      and(
-        eq(savingsMovements.savingsFundId, fundId),
-        gte(savingsMovements.date, start),
-        lte(savingsMovements.date, end)
-      )
-    );
+    .from(transactions)
+    .where(eq(transactions.savingsGoalId, goalId));
 
-  // Obtener últimos 10 movimientos
-  const recentMovements = await db
-    .select()
-    .from(savingsMovements)
-    .where(eq(savingsMovements.savingsFundId, fundId))
-    .orderBy(desc(savingsMovements.date), desc(savingsMovements.createdAt))
-    .limit(10);
-
-  const currentBalance = parseFloat(fund.currentBalance);
-  const targetAmount = fund.targetAmount ? parseFloat(fund.targetAmount) : null;
-  const monthlyTarget = parseFloat(fund.monthlyTarget);
-  const monthlyDeposited = parseFloat(monthlyResult[0]?.totalDeposits ?? '0');
+  const initialBalance = parseFloat(goal.initialBalance);
+  const transactionsBalance = parseFloat(balanceResult[0]?.totalDeposited ?? '0');
+  const currentBalance = initialBalance + transactionsBalance;
+  const targetAmount = parseFloat(goal.targetAmount);
 
   const progressPercentage =
-    targetAmount && targetAmount > 0
+    targetAmount > 0
       ? Math.min(100, Math.round((currentBalance / targetAmount) * 100))
       : 0;
 
-  const monthlyPercentage =
-    monthlyTarget > 0
-      ? Math.min(100, Math.round((monthlyDeposited / monthlyTarget) * 100))
-      : 0;
-
   return {
-    ...fund,
+    ...goal,
+    currentBalance,
     progressPercentage,
-    monthlyDeposited,
-    monthlyPercentage,
-    recentMovements,
   };
-}
-
-/**
- * Obtiene todos los movimientos de un fondo
- * No cacheada porque puede cambiar frecuentemente
- */
-export async function getMovementsByFund(
-  fundId: string,
-  userId: string,
-  limit: number = 50
-): Promise<SavingsMovement[]> {
-  // Verificar que el fondo pertenece al usuario
-  const fund = await db
-    .select({ id: savingsFunds.id })
-    .from(savingsFunds)
-    .where(and(eq(savingsFunds.id, fundId), eq(savingsFunds.userId, userId)))
-    .limit(1);
-
-  if (fund.length === 0) {
-    return [];
-  }
-
-  return await db
-    .select()
-    .from(savingsMovements)
-    .where(eq(savingsMovements.savingsFundId, fundId))
-    .orderBy(desc(savingsMovements.date), desc(savingsMovements.createdAt))
-    .limit(limit);
 }
 
 /**
@@ -285,7 +199,7 @@ async function _getAllCurrencies(): Promise<{ id: string; code: string; name: st
 
 /**
  * Obtiene todas las monedas disponibles
- * Cacheada por 5 minutos (raramente cambia)
+ * Cacheada por 5 minutos
  */
 export const getAllCurrencies = cachedQuery(
   _getAllCurrencies,
@@ -294,26 +208,23 @@ export const getAllCurrencies = cachedQuery(
 );
 
 /**
- * Query interna para resumen de fondos de ahorro
+ * Query interna para resumen de metas de ahorro
  */
 async function _getSavingsSummary(
   userId: string,
   projectId?: string
 ): Promise<SavingsSummary> {
-  const fundsWithProgress = await _getSavingsFundsWithProgress(userId, projectId, false);
+  // Obtener activas + completadas (no archivadas) para calcular el resumen
+  const activeGoals = await _getSavingsGoalsWithProgress(userId, projectId, 'active');
+  const completedGoals = await _getSavingsGoalsWithProgress(userId, projectId, 'completed');
+  const allNonArchived = [...activeGoals, ...completedGoals];
 
   let totalBalance = 0;
   let totalTargetAmount = 0;
-  let monthlyTargetTotal = 0;
-  let monthlyDepositedTotal = 0;
 
-  for (const fund of fundsWithProgress) {
-    totalBalance += parseFloat(fund.currentBalance);
-    if (fund.targetAmount) {
-      totalTargetAmount += parseFloat(fund.targetAmount);
-    }
-    monthlyTargetTotal += parseFloat(fund.monthlyTarget);
-    monthlyDepositedTotal += fund.monthlyDeposited;
+  for (const goal of allNonArchived) {
+    totalBalance += goal.currentBalance;
+    totalTargetAmount += parseFloat(goal.targetAmount);
   }
 
   const overallProgress =
@@ -322,22 +233,56 @@ async function _getSavingsSummary(
       : 0;
 
   return {
-    totalFunds: fundsWithProgress.length,
-    activeFunds: fundsWithProgress.filter((f) => !f.isArchived).length,
+    totalGoals: allNonArchived.length,
+    activeGoals: activeGoals.length,
+    completedGoals: completedGoals.length,
     totalBalance,
     totalTargetAmount,
-    monthlyTargetTotal,
-    monthlyDepositedTotal,
     overallProgress,
   };
 }
 
 /**
- * Obtiene resumen de fondos de ahorro
+ * Obtiene resumen de metas de ahorro
  * Cacheada por 30 segundos
  */
 export const getSavingsSummary = cachedQuery(
   _getSavingsSummary,
   ['savings', 'summary'],
   { tags: [CACHE_TAGS.savings, CACHE_TAGS.summary], revalidate: 30 }
+);
+
+/**
+ * Query interna para obtener metas activas (solo id y nombre, para selectores)
+ */
+async function _getActiveSavingsGoals(
+  userId: string,
+  projectId?: string
+): Promise<{ id: string; name: string }[]> {
+  const conditions = [
+    eq(savingsGoals.userId, userId),
+    eq(savingsGoals.isArchived, false),
+  ];
+
+  if (projectId) {
+    conditions.push(eq(savingsGoals.projectId, projectId));
+  }
+
+  return await db
+    .select({
+      id: savingsGoals.id,
+      name: savingsGoals.name,
+    })
+    .from(savingsGoals)
+    .where(and(...conditions))
+    .orderBy(savingsGoals.name);
+}
+
+/**
+ * Obtiene metas de ahorro activas (para selectores en formularios)
+ */
+export const getActiveSavingsGoals = cachedQuery(
+  _getActiveSavingsGoals,
+  ['savings', 'active-goals'],
+  { tags: [CACHE_TAGS.savings], revalidate: 30 }
 );

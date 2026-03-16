@@ -1,39 +1,43 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowRight, PiggyBank, Target, Calendar, TrendingUp } from 'lucide-react';
+import { PiggyBank, Target, TrendingUp, Plus } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { ResponsiveDrawer, DrawerTrigger } from '@/components/ui/drawer';
+import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { EmptyState } from '@/components/empty-state';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
+import { PageToolbar } from '@/components/page-toolbar';
+import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
 
 import { formatCurrency } from '@/lib/formatting';
-import type { SavingsFundWithProgress, SavingsSummary } from '../types';
-import { SavingsFundCard } from './savings-fund-card';
-import { SavingsFundDialogContent } from './savings-fund-dialog';
+import type { SavingsGoalWithProgress, SavingsSummary, SavingsFilter } from '../types';
+import { SavingsGoalCard } from './savings-goal-card';
+import { SavingsGoalDialogContent } from './savings-goal-dialog';
 
 interface SavingsListProps {
-  funds: SavingsFundWithProgress[];
+  goals: SavingsGoalWithProgress[];
   currencies: { id: string; code: string }[];
   summary: SavingsSummary;
   projectId?: string;
   userId: string;
-  showArchived: boolean;
+  filter: SavingsFilter;
 }
 
 export function SavingsList({
-  funds,
+  goals,
   currencies,
   summary,
   projectId,
   userId,
-  showArchived,
+  filter,
 }: SavingsListProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingFund, setEditingFund] = useState<SavingsFundWithProgress | null>(null);
+  const [editingGoal, setEditingGoal] = useState<SavingsGoalWithProgress | null>(null);
 
   const onMutationStart = useCallback(() => {
     // No-op: los datos se actualizan automáticamente via cache invalidation
@@ -47,32 +51,58 @@ export function SavingsList({
     toast.error(error, { id: toastId });
   }, []);
 
-  const handleEdit = (fund: SavingsFundWithProgress) => {
-    setEditingFund(fund);
+  const handleEdit = (goal: SavingsGoalWithProgress) => {
+    setEditingGoal(goal);
     setIsDialogOpen(true);
   };
 
   const handleDialogClose = () => {
     setIsDialogOpen(false);
-    setEditingFund(null);
+    setEditingGoal(null);
   };
 
-  const handleOpenDialog = () => {
-    setEditingFund(null);
+  const handleOpenDialog = useCallback(() => {
+    setEditingGoal(null);
     setIsDialogOpen(true);
+  }, []);
+
+  const pageActions = useMemo<PageAction[]>(() => [
+    { label: 'Nueva meta', icon: Plus, onClick: handleOpenDialog },
+  ], [handleOpenDialog]);
+
+  useRegisterPageActions(pageActions);
+
+  const handleFilterChange = (newFilter: SavingsFilter) => {
+    if (newFilter === 'active') {
+      router.push(pathname);
+    } else {
+      router.push(`${pathname}?filter=${newFilter}`);
+    }
   };
 
   const defaultCurrency =
     currencies.find((c) => c.code === 'CLP') ?? currencies[0] ?? { id: '', code: 'CLP' };
+
+  const emptyMessages: Record<SavingsFilter, string> = {
+    active: 'No hay metas de ahorro activas',
+    completed: 'No hay metas completadas',
+    archived: 'No hay metas archivadas',
+  };
+
+  const filterTabs: { key: SavingsFilter; label: string; count?: number }[] = [
+    { key: 'active', label: 'Activas', count: summary.activeGoals },
+    { key: 'completed', label: 'Completadas', count: summary.completedGoals },
+    { key: 'archived', label: 'Archivadas' },
+  ];
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       <SummaryCardsSlider>
         <SummaryCard
-          title="Fondos activos"
-          value={String(summary.activeFunds)}
-          subtitle={`de ${summary.totalFunds} total`}
+          title="Metas activas"
+          value={String(summary.activeGoals)}
+          subtitle={`de ${summary.totalGoals} total`}
           icon={<PiggyBank className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="info"
         />
@@ -88,67 +118,67 @@ export function SavingsList({
           variant="success"
         />
         <SummaryCard
-          title="Meta mensual"
-          value={formatCurrency(summary.monthlyTargetTotal)}
+          title="Meta total"
+          value={formatCurrency(summary.totalTargetAmount)}
           icon={<Target className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="info"
         />
-        <SummaryCard
-          title="Depositado este mes"
-          value={formatCurrency(summary.monthlyDepositedTotal)}
-          subtitle={
-            summary.monthlyTargetTotal > 0
-              ? `${Math.round((summary.monthlyDepositedTotal / summary.monthlyTargetTotal) * 100)}% de la meta`
-              : undefined
-          }
-          icon={<Calendar className="h-4 w-4 sm:h-5 sm:w-5" />}
-          variant="neutral"
-        />
       </SummaryCardsSlider>
 
-      {/* Actions */}
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">
-          {showArchived ? 'Mostrando archivados' : `${funds.length} fondos de ahorro`}
+      {/* Dialog (se abre desde page actions o editar) */}
+      <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <SavingsGoalDialogContent
+          key={editingGoal?.id ?? 'new'}
+          projectId={projectId}
+          userId={userId}
+          currencies={currencies}
+          defaultCurrencyId={defaultCurrency.id}
+          goal={editingGoal}
+          onSuccess={handleDialogClose}
+          onMutationStart={onMutationStart}
+          onMutationSuccess={onMutationSuccess}
+          onMutationError={onMutationError}
+        />
+      </ResponsiveDrawer>
+
+      {/* Toolbar con filtros */}
+      <PageToolbar label={`${goals.length} ${goals.length === 1 ? 'meta' : 'metas'}`}>
+        <div className="inline-flex rounded-lg border bg-muted/50 p-0.5">
+          {filterTabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => handleFilterChange(tab.key)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                filter === tab.key
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {tab.label}
+              {tab.count !== undefined && (
+                <span className="ml-1 tabular-nums opacity-60">{tab.count}</span>
+              )}
+            </button>
+          ))}
         </div>
+      </PageToolbar>
 
-        <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DrawerTrigger asChild>
-            <Button variant="cta-sm" onClick={handleOpenDialog}>
-              Nuevo fondo
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </DrawerTrigger>
-          <SavingsFundDialogContent
-            projectId={projectId}
-            userId={userId}
-            currencies={currencies}
-            defaultCurrencyId={defaultCurrency.id}
-            fund={editingFund}
-            onSuccess={handleDialogClose}
-            onMutationStart={onMutationStart}
-            onMutationSuccess={onMutationSuccess}
-            onMutationError={onMutationError}
-          />
-        </ResponsiveDrawer>
-      </div>
-
-      {/* Funds List */}
+      {/* Goals List */}
       <div>
-        {funds.length === 0 ? (
+        {goals.length === 0 ? (
           <EmptyState
             icon={PiggyBank}
-            title={showArchived ? 'No hay fondos archivados' : 'No hay fondos de ahorro registrados'}
-            description="Crea un fondo de ahorro para comenzar a guardar dinero para tus metas."
+            title={emptyMessages[filter]}
+            description="Crea una meta de ahorro para comenzar a guardar dinero hacia tus objetivos."
           />
         ) : (
           <div className="space-y-3">
-            {funds.map((fund) => (
-              <SavingsFundCard
-                key={fund.id}
-                fund={fund}
+            {goals.map((goal) => (
+              <SavingsGoalCard
+                key={goal.id}
+                goal={goal}
                 userId={userId}
-                onEdit={() => handleEdit(fund)}
+                onEdit={() => handleEdit(goal)}
                 onMutationStart={onMutationStart}
                 onMutationSuccess={onMutationSuccess}
                 onMutationError={onMutationError}

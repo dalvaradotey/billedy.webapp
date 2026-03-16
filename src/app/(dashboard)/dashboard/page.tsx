@@ -58,6 +58,7 @@ export default async function DashboardPage() {
     project,
     categories,
     budgets,
+    savingsGoals,
     allEntities,
     isOwner,
     budgetsProgress,
@@ -131,6 +132,7 @@ export default async function DashboardPage() {
             categories={categories}
             accounts={accounts}
             budgets={budgets}
+            savingsGoals={savingsGoals}
             entities={allEntities}
             projectId={projectId}
             userId={session.user.id}

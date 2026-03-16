@@ -20,6 +20,7 @@ import {
   entities,
   categoryTypeEnum,
 } from './core';
+import { savingsGoals } from './savings';
 
 // ============================================================================
 // ENUMS
@@ -138,6 +139,9 @@ export const transactions = pgTable('n1n4_transactions', {
     onDelete: 'set null',
   }),
   cardPurchaseId: uuid('card_purchase_id').references(() => cardPurchases.id, {
+    onDelete: 'set null',
+  }),
+  savingsGoalId: uuid('savings_goal_id').references(() => savingsGoals.id, {
     onDelete: 'set null',
   }),
   // Para transferencias entre cuentas: referencia a la transacción vinculada

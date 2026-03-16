@@ -4,6 +4,7 @@ import { getTransactions, getTransactionSummary } from '@/features/transactions/
 import { getActiveCategories } from '@/features/categories/queries';
 import { getAccounts } from '@/features/accounts/queries';
 import { getActiveBudgets } from '@/features/budgets/queries';
+import { getActiveSavingsGoals } from '@/features/savings/queries';
 import { getEntities } from '@/features/entities/queries';
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
@@ -103,12 +104,13 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   filters.endDate = new Date(defaultEndDate + 'T23:59:59');
 
   // Cargar datos en paralelo
-  const [transactions, summary, categories, accounts, budgets, entities, project] = await Promise.all([
+  const [transactions, summary, categories, accounts, budgets, savingsGoals, entities, project] = await Promise.all([
     getTransactions(projectId, session.user.id, filters),
     getTransactionSummary(projectId, session.user.id, filters.startDate, filters.endDate),
     getActiveCategories(projectId, session.user.id),
     getAccounts(projectId, session.user.id),
     getActiveBudgets(projectId, session.user.id),
+    getActiveSavingsGoals(session.user.id, projectId),
     getEntities(),
     getProjectById(projectId, session.user.id),
   ]);
@@ -129,6 +131,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         categories={categories}
         accounts={accounts}
         budgets={budgets}
+        savingsGoals={savingsGoals}
         entities={entities}
         summary={summary}
         projectId={projectId}

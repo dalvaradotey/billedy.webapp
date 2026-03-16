@@ -28,14 +28,14 @@ import type { ProjectRole } from '@/features/projects/schemas';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Resumen', icon: LayoutDashboard },
+  { href: '/dashboard/transactions', label: 'Transacciones', icon: ArrowRightLeft },
   { href: '/dashboard/accounts', label: 'Cuentas', icon: Wallet },
   { href: '/dashboard/budgets', label: 'Presupuestos', icon: Target },
-  { href: '/dashboard/savings', label: 'Ahorros', icon: PiggyBank },
+  { href: '/dashboard/saving-goals', label: 'Metas de ahorro', icon: PiggyBank },
   { href: '/dashboard/card-purchases', label: 'Compra en cuotas', icon: CreditCard },
   { href: '/dashboard/credits', label: 'Créditos', icon: Receipt },
   { href: '/dashboard/templates', label: 'Plantillas', icon: FileText },
   { href: '/dashboard/cycles', label: 'Ciclos', icon: Calendar },
-  { href: '/dashboard/transactions', label: 'Transacciones', icon: ArrowRightLeft },
 ];
 
 // Dynamic import to avoid hydration mismatch with Radix UI IDs

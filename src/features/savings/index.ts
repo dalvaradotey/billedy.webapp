@@ -1,26 +1,20 @@
 // Types
 export type {
-  SavingsFund,
-  SavingsMovement,
-  SavingsFundType,
-  SavingsMovementType,
-  SavingsFundWithProgress,
+  SavingsGoal,
+  SavingsGoalType,
+  SavingsGoalWithProgress,
   SavingsSummary,
 } from './types';
 
 // Schemas
 export {
-  createSavingsFundSchema,
-  updateSavingsFundSchema,
-  createMovementSchema,
-  updateMovementSchema,
+  createSavingsGoalSchema,
+  updateSavingsGoalSchema,
 } from './schemas';
 export type {
-  CreateSavingsFundInput,
-  UpdateSavingsFundInput,
-  CreateMovementInput,
-  UpdateMovementInput,
+  CreateSavingsGoalInput,
+  UpdateSavingsGoalInput,
 } from './schemas';
 
 // Components
-export { SavingsList, SavingsFundCardSkeleton } from './components';
+export { SavingsList, SavingsGoalCardSkeleton } from './components';

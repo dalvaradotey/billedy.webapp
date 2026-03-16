@@ -6,6 +6,7 @@ export const createTransactionSchema = z.object({
   accountId: z.string().uuid('La cuenta es requerida'),
   entityId: z.string().uuid().optional().nullable(),
   budgetId: z.string().uuid().optional().nullable(),
+  savingsGoalId: z.string().uuid().optional().nullable(),
   type: z.enum(['income', 'expense'], { message: 'El tipo es requerido' }),
   originalAmount: z.number({ message: 'Ingresa un monto' }).positive('El monto debe ser mayor a 0'),
   date: z.date({ message: 'La fecha es requerida' }),

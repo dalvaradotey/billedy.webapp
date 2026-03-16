@@ -1,26 +1,23 @@
 import type { InferSelectModel } from 'drizzle-orm';
-import type { savingsFunds, savingsMovements } from '@/lib/db/schema';
+import type { savingsGoals } from '@/lib/db/schema';
 
-export type SavingsFund = InferSelectModel<typeof savingsFunds>;
-export type SavingsMovement = InferSelectModel<typeof savingsMovements>;
+export type SavingsGoal = InferSelectModel<typeof savingsGoals>;
 
-export type SavingsFundType = 'emergency' | 'investment' | 'goal' | 'other';
-export type SavingsMovementType = 'deposit' | 'withdrawal';
+export type SavingsGoalType = 'emergency' | 'investment' | 'goal' | 'other';
 
-export type SavingsFundWithProgress = SavingsFund & {
+export type SavingsGoalWithProgress = SavingsGoal & {
   currencyCode: string;
   progressPercentage: number;
-  monthlyDeposited: number;
-  monthlyPercentage: number;
-  recentMovements: SavingsMovement[];
+  currentBalance: number;
 };
 
+export type SavingsFilter = 'active' | 'completed' | 'archived';
+
 export type SavingsSummary = {
-  totalFunds: number;
-  activeFunds: number;
+  totalGoals: number;
+  activeGoals: number;
+  completedGoals: number;
   totalBalance: number;
   totalTargetAmount: number;
-  monthlyTargetTotal: number;
-  monthlyDepositedTotal: number;
   overallProgress: number;
 };

@@ -220,6 +220,19 @@ export function TransactionTable({
     });
   }, [transactions, selectedIds, accountsMap]);
 
+  // Totales de selección
+  const selectionTotals = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const t of transactions) {
+      if (!selectedIds.has(t.id)) continue;
+      const amount = Math.abs(parseFloat(t.originalAmount));
+      if (t.type === 'income') income += amount;
+      else expense += amount;
+    }
+    return { income, expense };
+  }, [transactions, selectedIds]);
+
   const handleConfirmTogglePaid = () => {
     if (!transactionToTogglePaid) return;
     const toastId = toast.loading(transactionToTogglePaid.isPaid ? 'Marcando como pendiente...' : 'Marcando como pagado...');
@@ -405,9 +418,19 @@ export function TransactionTable({
             {/* ── Mobile layout (reveal-on-tap) ── */}
             <div className="relative sm:hidden px-4 py-3 space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
-                </span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">
+                    {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
+                  </span>
+                  <div className="flex items-center gap-2 text-xs">
+                    {selectionTotals.income > 0 && (
+                      <span className="text-emerald-600 dark:text-emerald-400">+{formatCurrency(selectionTotals.income, defaultCurrency)}</span>
+                    )}
+                    {selectionTotals.expense > 0 && (
+                      <span className="text-red-600 dark:text-red-400">-{formatCurrency(selectionTotals.expense, defaultCurrency)}</span>
+                    )}
+                  </div>
+                </div>
                 <Button variant="ghost" size="sm" onClick={() => { setSelectedIds(new Set()); setRevealedAction(null); }}>
                   <X className="h-4 w-4 mr-1" />
                   Cancelar
@@ -461,9 +484,19 @@ export function TransactionTable({
 
             {/* ── Desktop layout ── */}
             <div className="relative hidden sm:flex items-center justify-between px-4 py-3">
-              <span className="text-sm font-medium">
-                {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium">
+                  {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
+                </span>
+                <div className="flex items-center gap-2 text-xs">
+                  {selectionTotals.income > 0 && (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">+{formatCurrency(selectionTotals.income, defaultCurrency)}</span>
+                  )}
+                  {selectionTotals.expense > 0 && (
+                    <span className="text-red-600 dark:text-red-400 font-medium">-{formatCurrency(selectionTotals.expense, defaultCurrency)}</span>
+                  )}
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 {selectedUnpaid.length > 0 && (
                   <Button

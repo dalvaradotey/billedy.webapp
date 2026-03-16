@@ -37,6 +37,7 @@ import { CurrencyInput } from '@/components/currency-input';
 import { EntitySelector } from '@/components/entity-selector';
 import { AccountSelector } from '@/components/account-selector';
 import { BudgetSelector } from '@/components/budget-selector';
+import { SavingsGoalSelector } from '@/components/savings-goal-selector';
 import {
   createTransaction,
   updateTransaction,
@@ -65,6 +66,11 @@ interface Budget {
   defaultAccountId?: string | null;
 }
 
+interface SavingsGoal {
+  id: string;
+  name: string;
+}
+
 type FormMode = 'expense' | 'income' | 'transfer';
 
 export interface TransactionInitialValues {
@@ -80,6 +86,7 @@ export interface TransactionDialogContentProps {
   categories: Category[];
   accounts: AccountWithEntity[];
   budgets: Budget[];
+  savingsGoals: SavingsGoal[];
   entities: Entity[];
   transaction: TransactionWithCategory | null;
   defaultCurrency: string;
@@ -108,6 +115,7 @@ export function TransactionDialogContent({
   categories,
   accounts,
   budgets,
+  savingsGoals,
   entities,
   transaction,
   defaultCurrency,
@@ -190,6 +198,7 @@ export function TransactionDialogContent({
         type: transaction.type as 'income' | 'expense',
         categoryId: transaction.categoryId ?? undefined,
         budgetId: transaction.budgetId ?? undefined,
+        savingsGoalId: transaction.savingsGoalId ?? undefined,
         entityId: transaction.entityId ?? undefined,
         isPaid: transaction.isPaid,
         notes: transaction.notes ?? '',
@@ -205,6 +214,7 @@ export function TransactionDialogContent({
       type: initialValues?.type ?? 'expense' as const,
       categoryId: initialValues?.categoryId ?? undefined as string | undefined,
       budgetId: initialValues?.budgetId ?? undefined as string | undefined,
+      savingsGoalId: undefined as string | undefined,
       entityId: undefined as string | undefined,
       isPaid: false,
       notes: '',
@@ -854,6 +864,7 @@ export function TransactionDialogContent({
                         form.setValue('date', new Date());
                         form.setValue('notes', '');
                         form.setValue('budgetId', undefined);
+                        form.setValue('savingsGoalId', undefined);
                         form.setValue('categoryId', undefined);
                         setShowManualCategory(false);
                         setShowAdvancedOptions(false);
@@ -948,6 +959,30 @@ export function TransactionDialogContent({
                       </Button>
                     )}
                   </div>
+                )}
+
+                {/* Savings Goal */}
+                {savingsGoals.length > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="savingsGoalId"
+                    render={({ field, fieldState }) => (
+                      <FormItem data-field="savingsGoalId">
+                        <FormControl>
+                          <SavingsGoalSelector
+                            savingsGoals={savingsGoals}
+                            value={field.value}
+                            onValueChange={(value) => field.onChange(value)}
+                            label="Meta de ahorro (opcional)"
+                            searchPlaceholder="Buscar meta..."
+                            valid={!!field.value}
+                            invalid={!!fieldState.error}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
 
                 {/* Date */}

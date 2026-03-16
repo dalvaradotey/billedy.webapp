@@ -97,6 +97,7 @@ export async function createTransaction(
       accountId: parsed.data.accountId,
       entityId: parsed.data.entityId ?? null,
       budgetId: parsed.data.budgetId ?? null,
+      savingsGoalId: parsed.data.savingsGoalId ?? null,
       type: parsed.data.type,
       description: parsed.data.description,
       notes: parsed.data.notes,
@@ -162,6 +163,9 @@ export async function createTransaction(
   }
 
   invalidateRelatedCache('transactions');
+  if (parsed.data.savingsGoalId) {
+    invalidateRelatedCache('savings');
+  }
 
   return { success: true, data: { id: newTransaction.id } };
 }
@@ -250,6 +254,7 @@ export async function updateTransaction(
   }
 
   invalidateRelatedCache('transactions');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: undefined };
 }
@@ -400,6 +405,7 @@ export async function deleteTransaction(
   }
 
   invalidateRelatedCache('transactions');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: undefined };
 }

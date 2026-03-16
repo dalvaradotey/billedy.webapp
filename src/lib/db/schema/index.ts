@@ -28,7 +28,7 @@ import { relations } from 'drizzle-orm';
 import { users, oauthAccounts, sessions } from './auth';
 import { currencies, categories, projects, projectMembers, accounts, transfers, entities } from './core';
 import { transactions, credits, budgets, cardPurchases } from './transactions';
-import { savingsFunds, savingsMovements } from './savings';
+import { savingsGoals } from './savings';
 import { templates, templateItems } from './templates';
 import { billingCycles, billingCycleBudgets } from './billing-cycles';
 
@@ -41,7 +41,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
   transactions: many(transactions),
   credits: many(credits),
-  savingsFunds: many(savingsFunds),
+  savingsGoals: many(savingsGoals),
   templates: many(templates),
   transfers: many(transfers),
   cardPurchases: many(cardPurchases),
@@ -92,7 +92,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   transactions: many(transactions),
   credits: many(credits),
   budgets: many(budgets),
-  savingsFunds: many(savingsFunds),
+  savingsGoals: many(savingsGoals),
   billingCycles: many(billingCycles),
   transfers: many(transfers),
   cardPurchases: many(cardPurchases),
@@ -132,7 +132,7 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
 export const currenciesRelations = relations(currencies, ({ many }) => ({
   projects: many(projects),
   accounts: many(accounts),
-  savingsFunds: many(savingsFunds),
+  savingsGoals: many(savingsGoals),
 }));
 
 // Entities relations
@@ -178,6 +178,10 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
     fields: [transactions.cardPurchaseId],
     references: [cardPurchases.id],
   }),
+  savingsGoal: one(savingsGoals, {
+    fields: [transactions.savingsGoalId],
+    references: [savingsGoals.id],
+  }),
 }));
 
 // Credits relations
@@ -211,29 +215,21 @@ export const budgetsRelations = relations(budgets, ({ one, many }) => ({
   transactions: many(transactions),
 }));
 
-// Savings funds relations
-export const savingsFundsRelations = relations(savingsFunds, ({ one, many }) => ({
+// Savings goals relations
+export const savingsGoalsRelations = relations(savingsGoals, ({ one, many }) => ({
   user: one(users, {
-    fields: [savingsFunds.userId],
+    fields: [savingsGoals.userId],
     references: [users.id],
   }),
   project: one(projects, {
-    fields: [savingsFunds.projectId],
+    fields: [savingsGoals.projectId],
     references: [projects.id],
   }),
   currency: one(currencies, {
-    fields: [savingsFunds.currencyId],
+    fields: [savingsGoals.currencyId],
     references: [currencies.id],
   }),
-  movements: many(savingsMovements),
-}));
-
-// Savings movements relations
-export const savingsMovementsRelations = relations(savingsMovements, ({ one }) => ({
-  savingsFund: one(savingsFunds, {
-    fields: [savingsMovements.savingsFundId],
-    references: [savingsFunds.id],
-  }),
+  transactions: many(transactions),
 }));
 
 // Templates relations
