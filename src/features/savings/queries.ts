@@ -1,8 +1,9 @@
 import { db } from '@/lib/db';
-import { savingsGoals, transactions, currencies, projectMembers } from '@/lib/db/schema';
+import { savingsGoals, transactions, currencies, projectMembers, categories, accounts, budgets, entities } from '@/lib/db/schema';
 import { eq, and, sql, isNotNull, desc } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { SavingsGoalWithProgress, SavingsSummary, SavingsFilter } from './types';
+import type { TransactionWithCategory } from '@/features/transactions/types';
 
 /**
  * Query interna para obtener metas de ahorro con progreso
@@ -286,3 +287,59 @@ export const getActiveSavingsGoals = cachedQuery(
   ['savings', 'active-goals'],
   { tags: [CACHE_TAGS.savings], revalidate: 30 }
 );
+
+/**
+ * Obtiene las transacciones vinculadas a una meta de ahorro
+ */
+export async function getTransactionsBySavingsGoalId(
+  goalId: string,
+  userId: string
+): Promise<TransactionWithCategory[]> {
+  return await db
+    .select({
+      id: transactions.id,
+      userId: transactions.userId,
+      projectId: transactions.projectId,
+      categoryId: transactions.categoryId,
+      accountId: transactions.accountId,
+      entityId: transactions.entityId,
+      type: transactions.type,
+      originalAmount: transactions.originalAmount,
+      originalCurrency: transactions.originalCurrency,
+      baseAmount: transactions.baseAmount,
+      baseCurrency: transactions.baseCurrency,
+      exchangeRate: transactions.exchangeRate,
+      date: transactions.date,
+      description: transactions.description,
+      notes: transactions.notes,
+      isPaid: transactions.isPaid,
+      paidAt: transactions.paidAt,
+      creditId: transactions.creditId,
+      budgetId: transactions.budgetId,
+      cardPurchaseId: transactions.cardPurchaseId,
+      savingsGoalId: transactions.savingsGoalId,
+      linkedTransactionId: transactions.linkedTransactionId,
+      paidByTransferId: transactions.paidByTransferId,
+      isHistoricallyPaid: transactions.isHistoricallyPaid,
+      createdAt: transactions.createdAt,
+      updatedAt: transactions.updatedAt,
+      categoryName: categories.name,
+      categoryColor: categories.color,
+      accountName: accounts.name,
+      budgetName: budgets.name,
+      entityName: entities.name,
+      entityImageUrl: entities.imageUrl,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
+    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
+    .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
+    .leftJoin(entities, eq(transactions.entityId, entities.id))
+    .where(
+      and(
+        eq(transactions.savingsGoalId, goalId),
+        eq(transactions.userId, userId)
+      )
+    )
+    .orderBy(desc(transactions.date), desc(transactions.createdAt));
+}

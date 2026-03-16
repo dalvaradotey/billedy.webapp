@@ -13,6 +13,7 @@ import {
   MoreVertical,
   X,
   PartyPopper,
+  ChevronDown,
 } from 'lucide-react';
 
 import { Progress } from '@/components/ui/progress';
@@ -27,6 +28,7 @@ import { formatCurrency } from '@/lib/formatting';
 import { archiveSavingsGoal, completeSavingsGoal, deleteSavingsGoal } from '../actions';
 import type { SavingsGoalWithProgress } from '../types';
 import { GOAL_TYPE_LABELS, GOAL_TYPE_ICONS } from './constants';
+import { SavingsGoalTransactions } from './savings-goal-transactions';
 
 // ============================================================================
 // SKELETON
@@ -78,6 +80,7 @@ export function SavingsGoalCard({
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [showActionsDrawer, setShowActionsDrawer] = useState(false);
   const [showInlineActions, setShowInlineActions] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const isMobile = useIsMobile();
 
   const handleDelete = () => {
@@ -361,6 +364,22 @@ export function SavingsGoalCard({
                 <span className="ml-auto text-xs font-medium text-emerald-600 dark:text-emerald-400">Marcar completada</span>
               </button>
             )}
+            {/* Details toggle */}
+            <div className="mt-3">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}
+                className={cardStyles.toggleButton}
+              >
+                <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', showDetails && 'rotate-180')} />
+                <span>{showDetails ? 'Ocultar detalle' : 'Ver detalle'}</span>
+              </button>
+            </div>
+            {/* Collapsible transactions */}
+            {showDetails && (
+              <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                <SavingsGoalTransactions goalId={goal.id} userId={userId} currencyCode={goal.currencyCode} />
+              </div>
+            )}
           </div>
 
           {/* Actions panel */}
@@ -428,6 +447,22 @@ export function SavingsGoalCard({
               <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Meta alcanzada</span>
               <span className="ml-auto text-xs font-medium text-emerald-600 dark:text-emerald-400">Marcar completada</span>
             </button>
+          )}
+          {/* Details toggle (mobile) */}
+          <div className="mt-3">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}
+              className={cardStyles.toggleButton}
+            >
+              <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', showDetails && 'rotate-180')} />
+              <span>{showDetails ? 'Ocultar detalle' : 'Ver detalle'}</span>
+            </button>
+          </div>
+          {/* Collapsible transactions (mobile) */}
+          {showDetails && (
+            <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <SavingsGoalTransactions goalId={goal.id} userId={userId} currencyCode={goal.currencyCode} />
+            </div>
           )}
         </div>
       </div>
