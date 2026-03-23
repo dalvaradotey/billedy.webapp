@@ -1,16 +1,9 @@
 import { db } from '@/lib/db';
-import { billingCycles, transactions, projectMembers } from '@/lib/db/schema';
+import { billingCycles, transactions, projectMembers, accounts } from '@/lib/db/schema';
 import { eq, and, sql, isNotNull, isNull, desc, gte, lte, asc } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
+import { getToday, daysBetween } from '@/lib/formatting';
 import type { BillingCycleWithTotals, BillingCycleSummary } from './types';
-
-/**
- * Calcula los días entre dos fechas
- */
-function daysBetween(start: Date, end: Date): number {
-  const diffTime = end.getTime() - start.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
 
 /**
  * Calcula totales de transacciones para un rango de fechas
@@ -29,15 +22,20 @@ async function calculateTotalsForRange(
   savings: number;
   balance: number;
 }> {
+  // Excluir income de cuentas previsionales (pension, unemployment, savings) del conteo de ingresos
+  const provisionTypes = ['pension', 'unemployment', 'savings'];
+  const isNotProvision = sql`(${accounts.type} IS NULL OR ${accounts.type} NOT IN (${sql.join(provisionTypes.map(t => sql`${t}`), sql`, `)}))`;
+
   const [transactionTotals, savingsTotals] = await Promise.all([
     db
       .select({
-        paidIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-        pendingIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = false THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
+        paidIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = true AND ${isNotProvision} THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
+        pendingIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = false AND ${isNotProvision} THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
         paidExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
         pendingExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = false THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
       })
       .from(transactions)
+      .leftJoin(accounts, eq(transactions.accountId, accounts.id))
       .where(
         and(
           eq(transactions.projectId, projectId),
@@ -80,12 +78,12 @@ async function enrichCycleWithTotals(
   cycle: typeof billingCycles.$inferSelect,
   projectId: string
 ): Promise<BillingCycleWithTotals> {
-  const today = new Date();
+  const today = getToday();
   const startDate = new Date(cycle.startDate);
   const endDate = new Date(cycle.endDate);
 
-  const daysTotal = daysBetween(startDate, endDate);
-  const daysElapsed = Math.min(daysTotal, Math.max(0, daysBetween(startDate, today)));
+  const daysTotal = daysBetween(startDate, endDate) + 1; // +1: endDate es inclusivo
+  const daysElapsed = Math.min(daysTotal, Math.max(0, daysBetween(startDate, today) + 1));
   const daysRemaining = Math.max(0, daysTotal - daysElapsed);
 
   // Si está cerrado, usar snapshot (no hay desglose histórico)
@@ -312,9 +310,9 @@ export async function suggestNextCycleDates(
 
   if (!lastCycle[0]) {
     // No hay ciclos previos, sugerir desde hoy hasta día 25 del mes siguiente
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 25);
-    const monthName = MONTH_NAMES[nextMonth.getMonth()];
+    const today = getToday();
+    const nextMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 25));
+    const monthName = MONTH_NAMES[nextMonth.getUTCMonth()];
 
     return {
       startDate: today,

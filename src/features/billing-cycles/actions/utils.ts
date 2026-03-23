@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import {
   projectMembers,
   transactions,
+  accounts,
 } from '@/lib/db/schema';
 import { eq, and, isNotNull, gte, lte, sql } from 'drizzle-orm';
 
@@ -47,13 +48,18 @@ export async function calculateTotalsForRange(
   savings: number;
   balance: number;
 }> {
+  // Excluir income de cuentas previsionales (pension, unemployment, savings) del conteo de ingresos
+  const provisionTypes = ['pension', 'unemployment', 'savings'];
+  const isNotProvision = sql`(${accounts.type} IS NULL OR ${accounts.type} NOT IN (${sql.join(provisionTypes.map(t => sql`${t}`), sql`, `)}))`;
+
   const transactionTotals = await db
     .select({
-      totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
+      totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${isNotProvision} THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
       totalExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
       totalSavings: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.savingsGoalId} IS NOT NULL AND ${transactions.type} = 'income' THEN ABS(${transactions.baseAmount}) ELSE 0 END), 0)`,
     })
     .from(transactions)
+    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
     .where(
       and(
         eq(transactions.projectId, projectId),

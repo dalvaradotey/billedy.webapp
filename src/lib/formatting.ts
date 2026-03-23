@@ -95,3 +95,33 @@ export function formatPercentage(value: number): string {
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat('es-CL').format(value);
 }
+
+const TIMEZONE = 'America/Santiago';
+
+/**
+ * Obtiene la fecha actual en zona horaria chilena (sin hora)
+ * Usar esto en vez de `new Date()` para cálculos de días
+ */
+export function getToday(): Date {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+  return new Date(dateStr + 'T00:00:00Z');
+}
+
+/**
+ * Normaliza una fecha a medianoche UTC (sin componente de hora)
+ * Útil para comparar días calendario sin que la hora afecte
+ */
+export function toCalendarDate(date: Date | string): Date {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+/**
+ * Calcula días calendario entre dos fechas (sin considerar hora)
+ */
+export function daysBetween(start: Date | string, end: Date | string): number {
+  const s = toCalendarDate(start);
+  const e = toCalendarDate(end);
+  return Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
+}
