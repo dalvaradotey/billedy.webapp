@@ -113,6 +113,7 @@ export function BillingCyclesList({
       {/* Dialog (se abre desde page actions o editar) */}
       <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <BillingCycleDialogContent
+          key={editingCycle?.id ?? 'new'}
           projectId={projectId}
           userId={userId}
           cycle={editingCycle}
