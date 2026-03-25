@@ -4,7 +4,9 @@ export {
   createTransaction,
   updateTransaction,
   toggleTransactionPaid,
+  toggleTransactionReconciled,
   bulkToggleTransactionsPaid,
+  bulkToggleTransactionsReconciled,
   bulkUpdateTransactionDates,
   deleteTransaction,
 } from './transaction-crud';

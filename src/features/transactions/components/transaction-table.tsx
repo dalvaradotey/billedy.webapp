@@ -15,6 +15,8 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  ShieldCheck,
+  ShieldX,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,7 +37,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   toggleTransactionPaid,
+  toggleTransactionReconciled,
   bulkToggleTransactionsPaid,
+  bulkToggleTransactionsReconciled,
   bulkUpdateTransactionDates,
   deleteTransaction,
   setTransactionsHistoricallyPaid,
@@ -56,6 +60,7 @@ import {
   BulkTogglePaidDialog,
   BulkDateChangeDialog,
   HistoricallyPaidDialog,
+  BulkToggleReconciledDialog,
 } from './confirmation-dialogs';
 
 export function TransactionTableSkeleton({ rowCount = 5 }: { rowCount?: number }) {
@@ -126,6 +131,7 @@ export function TransactionTable({
   const [showPayCCDialog, setShowPayCCDialog] = useState(false);
   const [showBulkTogglePaidDialog, setShowBulkTogglePaidDialog] = useState(false);
   const [showBulkDateChangeDialog, setShowBulkDateChangeDialog] = useState(false);
+  const [showBulkToggleReconciledDialog, setShowBulkToggleReconciledDialog] = useState(false);
   const [revealedAction, setRevealedAction] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -328,6 +334,41 @@ export function TransactionTable({
     });
   };
 
+  const handleToggleReconciled = (transaction: TransactionWithCategory) => {
+    const newState = !transaction.isReconciled;
+    const toastId = toast.loading(newState ? 'Marcando como conciliada...' : 'Desmarcando conciliada...');
+    onMutationStart?.();
+    startTransition(async () => {
+      const result = await toggleTransactionReconciled(transaction.id, userId, { isReconciled: newState });
+      if (result.success) {
+        onMutationSuccess?.(toastId, newState ? 'Marcada como conciliada' : 'Conciliación removida');
+      } else {
+        onMutationError?.(toastId, result.error);
+      }
+    });
+  };
+
+  const handleBulkToggleReconciled = (isReconciled: boolean) => {
+    const action = isReconciled ? 'Marcando' : 'Desmarcando';
+    const toastId = toast.loading(`${action} ${selectedIds.size} transacciones...`);
+    onMutationStart?.();
+    setShowBulkToggleReconciledDialog(false);
+    startTransition(async () => {
+      const result = await bulkToggleTransactionsReconciled(userId, {
+        projectId,
+        transactionIds: Array.from(selectedIds),
+        isReconciled,
+      });
+      setSelectedIds(new Set());
+      if (result.success) {
+        const actionDone = isReconciled ? 'marcadas como conciliadas' : 'desmarcadas';
+        onMutationSuccess?.(toastId, `${result.data.updatedCount} transacciones ${actionDone}`);
+      } else {
+        onMutationError?.(toastId, result.error);
+      }
+    });
+  };
+
   const handleBulkTogglePaid = () => {
     const toastId = toast.loading(`Marcando ${selectedUnpaid.length} transacciones como pagadas...`);
     onMutationStart?.();
@@ -390,6 +431,7 @@ export function TransactionTable({
     if (selectedCCTransactions.length > 0) {
       actions.push({ id: 'cc', label: `Pagar TC (${selectedCCTransactions.length})`, icon: CreditCard, variant: 'outline', onExecute: () => setShowPayCCDialog(true) });
     }
+    actions.push({ id: 'reconciled', label: 'Conciliar', icon: ShieldCheck, variant: 'outline', onExecute: () => setShowBulkToggleReconciledDialog(true) });
     actions.push({ id: 'history', label: 'Histórico', icon: History, variant: 'outline', onExecute: () => setShowHistoricallyPaidDialog(true) });
     actions.push({ id: 'delete', label: 'Eliminar', icon: Trash2, variant: 'destructive', onExecute: () => setShowBulkDeleteDialog(true) });
     return actions;
@@ -483,25 +525,26 @@ export function TransactionTable({
             </div>
 
             {/* ── Desktop layout ── */}
-            <div className="relative hidden sm:flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">
+            <div className="relative hidden sm:flex items-center gap-3 px-4 py-3">
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-sm font-medium whitespace-nowrap">
                   {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
                 </span>
                 <div className="flex items-center gap-2 text-xs">
                   {selectionTotals.income > 0 && (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">+{formatCurrency(selectionTotals.income, defaultCurrency)}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium whitespace-nowrap">+{formatCurrency(selectionTotals.income, defaultCurrency)}</span>
                   )}
                   {selectionTotals.expense > 0 && (
-                    <span className="text-red-600 dark:text-red-400 font-medium">-{formatCurrency(selectionTotals.expense, defaultCurrency)}</span>
+                    <span className="text-red-600 dark:text-red-400 font-medium whitespace-nowrap">-{formatCurrency(selectionTotals.expense, defaultCurrency)}</span>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
                 {selectedUnpaid.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
+                    className="shrink-0"
                     onClick={() => setShowBulkTogglePaidDialog(true)}
                     disabled={isPending}
                   >
@@ -512,6 +555,7 @@ export function TransactionTable({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="shrink-0"
                   onClick={() => setShowBulkDateChangeDialog(true)}
                   disabled={isPending}
                 >
@@ -522,6 +566,7 @@ export function TransactionTable({
                   <Button
                     variant="outline"
                     size="sm"
+                    className="shrink-0"
                     onClick={() => setShowPayCCDialog(true)}
                     disabled={isPending}
                   >
@@ -532,6 +577,17 @@ export function TransactionTable({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="shrink-0"
+                  onClick={() => setShowBulkToggleReconciledDialog(true)}
+                  disabled={isPending}
+                >
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Conciliar
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
                   onClick={() => setShowHistoricallyPaidDialog(true)}
                   disabled={isPending}
                 >
@@ -541,13 +597,14 @@ export function TransactionTable({
                 <Button
                   variant="destructive"
                   size="sm"
+                  className="shrink-0"
                   onClick={() => setShowBulkDeleteDialog(true)}
                   disabled={isPending}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Eliminar
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setSelectedIds(new Set())}>
                   Cancelar
                 </Button>
               </div>
@@ -599,48 +656,57 @@ export function TransactionTable({
                 />
               </TableCell>
               <TableCell>
-                {isCC ? (
-                  // Para transacciones de TC: mostrar badge de estado
-                  transaction.paidByTransferId ? (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                      Liq.
-                    </span>
-                  ) : transaction.isHistoricallyPaid ? (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                      Hist.
-                    </span>
-                  ) : transaction.isPaid ? (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                      Cargado
-                    </span>
-                  ) : null
-                ) : (
-                  // Para transacciones normales: mostrar estado pagado
-                  transaction.isPaid && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                      Pagado
-                    </span>
-                  )
-                )}
+                <div className="flex items-center gap-1 flex-wrap">
+                  {isCC ? (
+                    // Para transacciones de TC: mostrar badge de estado
+                    transaction.paidByTransferId ? (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        Liq.
+                      </span>
+                    ) : transaction.isHistoricallyPaid ? (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                        Hist.
+                      </span>
+                    ) : transaction.isPaid ? (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        Cargado
+                      </span>
+                    ) : null
+                  ) : (
+                    // Para transacciones normales: mostrar estado pagado
+                    transaction.isPaid ? (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        Pagado
+                      </span>
+                    ) : null
+                  )}
+                </div>
               </TableCell>
               <TableCell className="font-medium">
                 {formatDate(transaction.date)}
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  {transaction.entityImageUrl ? (
-                    <img
-                      src={transaction.entityImageUrl}
-                      alt={transaction.entityName ?? ''}
-                      className="h-6 w-6 rounded object-contain bg-white shrink-0"
-                    />
-                  ) : transaction.entityId ? (
-                    <div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0">
-                      <Store className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                  ) : (
-                    <div className="h-6 w-6 shrink-0" />
-                  )}
+                  <div className="relative shrink-0">
+                    {transaction.entityImageUrl ? (
+                      <img
+                        src={transaction.entityImageUrl}
+                        alt={transaction.entityName ?? ''}
+                        className="h-6 w-6 rounded object-contain bg-white"
+                      />
+                    ) : transaction.entityId ? (
+                      <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
+                        <Store className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <div className="h-6 w-6" />
+                    )}
+                    {transaction.isReconciled && (
+                      <div title="Transacción conciliada" className="absolute -top-1.5 -left-1.5 h-3.5 w-3.5 rounded-full bg-indigo-500 flex items-center justify-center ring-2 ring-indigo-700 dark:ring-indigo-900">
+                        <ShieldCheck className="h-2 w-2 text-white" />
+                      </div>
+                    )}
+                  </div>
                   <div className="min-w-0">
                     <div className={(isCC ? settled : transaction.isPaid) ? 'line-through' : ''}>
                       {transaction.description}
@@ -704,6 +770,19 @@ export function TransactionTable({
                         )}
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem onClick={() => handleToggleReconciled(transaction)}>
+                      {transaction.isReconciled ? (
+                        <>
+                          <ShieldX className="mr-2 h-4 w-4" />
+                          Desmarcar conciliada
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="mr-2 h-4 w-4" />
+                          Marcar como conciliada
+                        </>
+                      )}
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEdit(transaction)}>
                       <Pencil className="mr-2 h-4 w-4" />
                       Editar
@@ -776,6 +855,16 @@ export function TransactionTable({
         onMark={() => handleBulkHistoricallyPaid(true)}
         onUnmark={() => handleBulkHistoricallyPaid(false)}
         onOpenChange={setShowHistoricallyPaidDialog}
+      />
+
+      {/* Bulk Toggle Reconciled Dialog */}
+      <BulkToggleReconciledDialog
+        open={showBulkToggleReconciledDialog}
+        count={selectedIds.size}
+        isPending={isPending}
+        onMark={() => handleBulkToggleReconciled(true)}
+        onUnmark={() => handleBulkToggleReconciled(false)}
+        onOpenChange={setShowBulkToggleReconciledDialog}
       />
 
       {/* Pay Credit Card Dialog */}

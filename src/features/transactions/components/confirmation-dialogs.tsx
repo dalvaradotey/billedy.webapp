@@ -207,6 +207,63 @@ export function HistoricallyPaidDialog({
 }
 
 // ============================================================================
+// BULK TOGGLE RECONCILED DIALOG
+// ============================================================================
+
+interface BulkToggleReconciledDialogProps {
+  open: boolean;
+  count: number;
+  isPending: boolean;
+  onMark: () => void;
+  onUnmark: () => void;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function BulkToggleReconciledDialog({
+  open,
+  count,
+  isPending,
+  onMark,
+  onUnmark,
+  onOpenChange,
+}: BulkToggleReconciledDialogProps) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Conciliar transacciones</AlertDialogTitle>
+          <AlertDialogDescription>
+            Selecciona una opción para {count > 1 ? `las ${count} transacciones seleccionadas` : 'la transacción seleccionada'}.
+            <br /><br />
+            <strong>Marcar:</strong> Indica que estas transacciones fueron verificadas contra el extracto bancario.
+            <br />
+            <strong>Desmarcar:</strong> Indica que estas transacciones aún no han sido conciliadas.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+          <Button
+            variant="outline"
+            onClick={onUnmark}
+            disabled={isPending}
+          >
+            <X className="mr-2 h-4 w-4" />
+            Desmarcar
+          </Button>
+          <Button
+            onClick={onMark}
+            disabled={isPending}
+          >
+            <Check className="mr-2 h-4 w-4" />
+            Marcar como conciliada
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// ============================================================================
 // BULK DATE CHANGE DIALOG
 // ============================================================================
 

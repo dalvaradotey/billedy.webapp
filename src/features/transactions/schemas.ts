@@ -29,6 +29,20 @@ export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
 export type TogglePaidInput = z.infer<typeof togglePaidSchema>;
 
+export const toggleReconciledSchema = z.object({
+  isReconciled: z.boolean(),
+});
+
+export type ToggleReconciledInput = z.infer<typeof toggleReconciledSchema>;
+
+export const bulkToggleReconciledSchema = z.object({
+  projectId: z.string().uuid('El proyecto es requerido'),
+  transactionIds: z.array(z.string().uuid()).min(1, 'Debes seleccionar al menos una transacción'),
+  isReconciled: z.boolean(),
+});
+
+export type BulkToggleReconciledInput = z.infer<typeof bulkToggleReconciledSchema>;
+
 // Schema para transferencias entre cuentas
 // Nota: entityId se hereda automáticamente de las cuentas origen y destino
 export const createAccountTransferSchema = z.object({

@@ -19,6 +19,7 @@ import {
   Building2,
   Target,
   Check,
+  ShieldCheck,
 } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { ResponsiveDrawer, Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -290,12 +291,14 @@ export function TransactionList({
   const filteredTotals = useMemo(() => {
     let income = 0;
     let expense = 0;
+    let reconciledCount = 0;
     for (const t of filteredTransactions) {
       const amount = parseFloat(t.baseAmount);
       if (t.type === 'income') income += amount;
       else expense += amount;
+      if (t.isReconciled) reconciledCount++;
     }
-    return { income, expense, balance: income - expense };
+    return { income, expense, balance: income - expense, reconciledCount };
   }, [filteredTransactions]);
 
   const hasActiveFilters = searchQuery || selectedAccountIds.size > 0 || selectedBudgetIds.size > 0;
@@ -859,25 +862,32 @@ export function TransactionList({
 
       {/* Totales filtrados */}
       {filteredTransactions.length > 0 && (
-        <div className="flex items-center gap-4 px-3 py-2 rounded-lg bg-muted/40 border border-border/50 text-sm">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-4 px-3 py-2 rounded-lg bg-muted/40 border border-border/50 text-sm overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-1.5 shrink-0">
             <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />
-            <span className="text-muted-foreground">Ingresos:</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+            <span className="text-muted-foreground whitespace-nowrap">Ingresos:</span>
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">
               {formatCurrency(filteredTotals.income, defaultCurrency)}
             </span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             <ArrowDownCircle className="h-3.5 w-3.5 text-red-500" />
-            <span className="text-muted-foreground">Gastos:</span>
-            <span className="font-semibold text-red-600 dark:text-red-400 tabular-nums">
+            <span className="text-muted-foreground whitespace-nowrap">Gastos:</span>
+            <span className="font-semibold text-red-600 dark:text-red-400 tabular-nums whitespace-nowrap">
               {formatCurrency(filteredTotals.expense, defaultCurrency)}
             </span>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 ml-auto">
-            <span className="text-muted-foreground">Saldo:</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
+            <span className="text-muted-foreground whitespace-nowrap">Conc:</span>
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums whitespace-nowrap">
+              {filteredTotals.reconciledCount}/{filteredTransactions.length}
+            </span>
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 ml-auto shrink-0">
+            <span className="text-muted-foreground whitespace-nowrap">Saldo:</span>
             <span className={cn(
-              'font-semibold tabular-nums',
+              'font-semibold tabular-nums whitespace-nowrap',
               filteredTotals.balance >= 0
                 ? 'text-emerald-600 dark:text-emerald-400'
                 : 'text-red-600 dark:text-red-400',
@@ -886,7 +896,7 @@ export function TransactionList({
             </span>
           </div>
           {hasActiveFilters && (
-            <span className="text-[10px] text-muted-foreground/60 ml-auto sm:ml-0">(filtrado)</span>
+            <span className="text-[10px] text-muted-foreground/60 ml-auto sm:ml-0 shrink-0 whitespace-nowrap">(filtrado)</span>
           )}
         </div>
       )}

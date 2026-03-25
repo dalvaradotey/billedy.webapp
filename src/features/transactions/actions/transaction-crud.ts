@@ -9,14 +9,18 @@ import {
   createTransactionSchema,
   updateTransactionSchema,
   togglePaidSchema,
+  toggleReconciledSchema,
   bulkTogglePaidSchema,
+  bulkToggleReconciledSchema,
   bulkUpdateDateSchema,
 } from '../schemas';
 import type {
   CreateTransactionInput,
   UpdateTransactionInput,
   TogglePaidInput,
+  ToggleReconciledInput,
   BulkTogglePaidInput,
+  BulkToggleReconciledInput,
   BulkUpdateDateInput,
 } from '../schemas';
 import type { ActionResult } from '../types';
@@ -331,6 +335,110 @@ export async function toggleTransactionPaid(
   invalidateRelatedCache('transactions');
 
   return { success: true, data: undefined };
+}
+
+/**
+ * Marca/desmarca una transacción como conciliada
+ */
+export async function toggleTransactionReconciled(
+  transactionId: string,
+  userId: string,
+  input: ToggleReconciledInput
+): Promise<ActionResult> {
+  const parsed = toggleReconciledSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+
+  const existing = await db
+    .select({
+      projectId: transactions.projectId,
+      isReconciled: transactions.isReconciled,
+    })
+    .from(transactions)
+    .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
+    .where(
+      and(
+        eq(transactions.id, transactionId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  if (!existing[0]) {
+    return { success: false, error: 'Transacción no encontrada' };
+  }
+
+  if (existing[0].isReconciled === parsed.data.isReconciled) {
+    return { success: true, data: undefined };
+  }
+
+  await db
+    .update(transactions)
+    .set({
+      isReconciled: parsed.data.isReconciled,
+      updatedAt: new Date(),
+    })
+    .where(eq(transactions.id, transactionId));
+
+  invalidateRelatedCache('transactions');
+
+  return { success: true, data: undefined };
+}
+
+/**
+ * Marca/desmarca transacciones como conciliadas en lote
+ */
+export async function bulkToggleTransactionsReconciled(
+  userId: string,
+  input: BulkToggleReconciledInput
+): Promise<ActionResult<{ updatedCount: number }>> {
+  const parsed = bulkToggleReconciledSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+
+  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  if (!hasAccess) {
+    return { success: false, error: 'No tienes acceso a este proyecto' };
+  }
+
+  const selectedTransactions = await db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.projectId, parsed.data.projectId),
+        inArray(transactions.id, parsed.data.transactionIds)
+      )
+    );
+
+  if (selectedTransactions.length === 0) {
+    return { success: false, error: 'No se encontraron transacciones válidas' };
+  }
+
+  await db
+    .update(transactions)
+    .set({
+      isReconciled: parsed.data.isReconciled,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(transactions.projectId, parsed.data.projectId),
+        inArray(transactions.id, parsed.data.transactionIds)
+      )
+    );
+
+  invalidateRelatedCache('transactions');
+
+  return {
+    success: true,
+    data: { updatedCount: selectedTransactions.length },
+  };
 }
 
 /**

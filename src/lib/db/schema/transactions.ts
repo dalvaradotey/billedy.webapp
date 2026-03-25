@@ -150,6 +150,7 @@ export const transactions = pgTable('n1n4_transactions', {
   paidByTransferId: uuid('paid_by_transfer_id'),
   // Para compras en cuotas: indica si la cuota fue pagada antes de usar la app
   isHistoricallyPaid: boolean('is_historically_paid').default(false).notNull(),
+  isReconciled: boolean('is_reconciled').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });

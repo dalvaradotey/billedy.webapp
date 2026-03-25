@@ -254,6 +254,7 @@ export async function fetchGoalTransactions(
       linkedTransactionId: transactions.linkedTransactionId,
       paidByTransferId: transactions.paidByTransferId,
       isHistoricallyPaid: transactions.isHistoricallyPaid,
+      isReconciled: transactions.isReconciled,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
