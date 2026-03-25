@@ -295,78 +295,80 @@ export function BudgetDetail({
             ))}
           </div>
         ) : data && filteredTransactions.length > 0 ? (
-          <div className="divide-y divide-border/40">
-            {/* Header */}
-            <div className="flex items-center gap-2.5 pb-1.5 text-[11px] font-medium tracking-wider">
-              <button
-                onClick={() => handleSort('date')}
-                className={cn(
-                  'inline-flex items-center gap-1 hover:text-foreground transition-colors -ml-1 px-1 py-0.5 rounded shrink-0',
-                  sortColumn === 'date' ? 'text-foreground' : 'text-muted-foreground',
-                )}
-              >
-                Fecha
-                {sortColumn === 'date' ? (
-                  sortDirection === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-                ) : (
-                  <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                )}
-              </button>
-              <span className="w-6 shrink-0" />
-              <span className="flex-1 text-muted-foreground">Descripción</span>
-              <button
-                onClick={() => handleSort('amount')}
-                className={cn(
-                  'inline-flex items-center gap-1 hover:text-foreground transition-colors px-1 py-0.5 rounded shrink-0 justify-end',
-                  sortColumn === 'amount' ? 'text-foreground' : 'text-muted-foreground',
-                )}
-              >
-                Monto
-                {sortColumn === 'amount' ? (
-                  sortDirection === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-                ) : (
-                  <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                )}
-              </button>
-            </div>
-            {filteredTransactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex items-center gap-2.5 py-2 -mx-1.5 px-1.5 rounded-md transition-colors hover:bg-blue-50 dark:hover:bg-blue-950/30"
-              >
-                {/* Fecha */}
-                <span className="text-xs text-muted-foreground whitespace-nowrap w-12 shrink-0">
-                  {formatDate(tx.date)}
-                </span>
-                {/* Entidad */}
-                {tx.entityImageUrl ? (
-                  <img
-                    src={tx.entityImageUrl}
-                    alt={tx.entityName ?? ''}
-                    className="h-6 w-6 rounded object-contain bg-white shrink-0"
-                  />
-                ) : tx.entityId ? (
-                  <div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0">
-                    <Store className="h-3 w-3 text-muted-foreground" />
-                  </div>
-                ) : (
-                  <div className="h-6 w-6 shrink-0" />
-                )}
-                {/* Descripción */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">{tx.description}</p>
-                  {(tx.entityName || tx.accountName) && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {[tx.entityName, tx.accountName].filter(Boolean).join(' · ')}
-                    </p>
+          <div className="-mx-3 overflow-x-auto">
+            <div className="min-w-[420px] px-3 divide-y divide-border/40">
+              {/* Header */}
+              <div className="flex items-center gap-2.5 pb-1.5 text-[11px] font-medium tracking-wider">
+                <button
+                  onClick={() => handleSort('date')}
+                  className={cn(
+                    'inline-flex items-center gap-1 hover:text-foreground transition-colors -ml-1 px-1 py-0.5 rounded shrink-0',
+                    sortColumn === 'date' ? 'text-foreground' : 'text-muted-foreground',
                   )}
-                </div>
-                {/* Monto */}
-                <span className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400 shrink-0">
-                  -{formatCurrency(parseFloat(tx.baseAmount), currency)}
-                </span>
+                >
+                  Fecha
+                  {sortColumn === 'date' ? (
+                    sortDirection === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                  )}
+                </button>
+                <span className="w-6 shrink-0" />
+                <span className="flex-1 text-muted-foreground">Descripción</span>
+                <button
+                  onClick={() => handleSort('amount')}
+                  className={cn(
+                    'inline-flex items-center gap-1 hover:text-foreground transition-colors px-1 py-0.5 rounded shrink-0 justify-end',
+                    sortColumn === 'amount' ? 'text-foreground' : 'text-muted-foreground',
+                  )}
+                >
+                  Monto
+                  {sortColumn === 'amount' ? (
+                    sortDirection === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                  )}
+                </button>
               </div>
-            ))}
+              {filteredTransactions.map((tx) => (
+                <div
+                  key={tx.id}
+                  className="flex items-center gap-2.5 py-2 -mx-1.5 px-1.5 rounded-md transition-colors hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                >
+                  {/* Fecha */}
+                  <span className="text-xs text-muted-foreground whitespace-nowrap w-12 shrink-0">
+                    {formatDate(tx.date)}
+                  </span>
+                  {/* Entidad */}
+                  {tx.entityImageUrl ? (
+                    <img
+                      src={tx.entityImageUrl}
+                      alt={tx.entityName ?? ''}
+                      className="h-6 w-6 rounded object-contain bg-white shrink-0"
+                    />
+                  ) : tx.entityId ? (
+                    <div className="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0">
+                      <Store className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="h-6 w-6 shrink-0" />
+                  )}
+                  {/* Descripción */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{tx.description}</p>
+                    {(tx.entityName || tx.accountName) && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {[tx.entityName, tx.accountName].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                  {/* Monto */}
+                  <span className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400 shrink-0">
+                    -{formatCurrency(parseFloat(tx.baseAmount), currency)}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         ) : data && data.transactions.length > 0 && filteredTransactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-4 text-center">

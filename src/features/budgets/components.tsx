@@ -715,7 +715,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
 
         {/* Detalle expandible */}
         {showDetails && (
-          <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200" onClick={(e) => e.stopPropagation()}>
             <BudgetDetail
               budgetId={budget.id}
               userId={userId}
