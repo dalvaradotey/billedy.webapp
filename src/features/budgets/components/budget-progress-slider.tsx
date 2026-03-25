@@ -15,7 +15,7 @@ interface BudgetProgressSliderProps {
 }
 
 function formatSliderDateRange(start: Date, end: Date): string {
-  const fmt = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' });
+  const fmt = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short', timeZone: 'UTC' });
   return `${fmt.format(start)} – ${fmt.format(end)}`;
 }
 

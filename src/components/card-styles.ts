@@ -22,6 +22,13 @@ export const cardStyles = {
   progressSecondaryCompleted: 'text-emerald-600/60 dark:text-emerald-400/60',
   progressPercentageCompleted: 'font-bold tabular-nums text-emerald-600 dark:text-emerald-400 shrink-0',
 
+  // Progress section — danger (red, se usa cuando se excede el presupuesto)
+  progressSectionDanger: 'rounded-xl bg-gradient-to-r from-red-500/5 to-red-500/10 dark:from-red-500/10 dark:to-red-500/20 p-3 ring-1 ring-red-500/10',
+  progressIndicatorDanger: 'bg-gradient-to-r from-red-600 to-red-400',
+  progressLabelDanger: 'font-bold text-red-700 dark:text-red-300 tabular-nums',
+  progressSecondaryDanger: 'text-red-600/60 dark:text-red-400/60',
+  progressPercentageDanger: 'font-bold tabular-nums text-red-600 dark:text-red-400 shrink-0',
+
   // Collapsible details grid
   detailsContainer: 'rounded-xl bg-muted/30 dark:bg-muted/20 p-3 space-y-3',
   detailsLabel: 'text-[11px] text-muted-foreground mb-0.5',

@@ -5,6 +5,7 @@ import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
 import { getAllCurrencies } from '@/features/savings/queries';
 import { getAccounts } from '@/features/accounts/queries';
+import { getBillingCycles } from '@/features/billing-cycles/queries';
 import { BudgetList } from '@/features/budgets/components';
 
 export default async function BudgetsPage() {
@@ -25,12 +26,13 @@ export default async function BudgetsPage() {
   }
 
   // Cargar datos en paralelo
-  const [budgets, categories, accounts, currencies, project] = await Promise.all([
+  const [budgets, categories, accounts, currencies, project, cycles] = await Promise.all([
     getBudgetsWithCategory(projectId, session.user.id),
     getProjectCategories(projectId, session.user.id),
     getAccounts(projectId, session.user.id),
     getAllCurrencies(),
     getProjectById(projectId, session.user.id),
+    getBillingCycles(projectId, session.user.id),
   ]);
 
   const defaultCurrency = project?.currency ?? 'CLP';
@@ -52,6 +54,13 @@ export default async function BudgetsPage() {
         projectId={projectId}
         userId={session.user.id}
         defaultCurrency={defaultCurrency}
+        cycles={cycles.map((c) => ({
+          id: c.id,
+          name: c.name,
+          startDate: new Date(c.startDate).toISOString().split('T')[0],
+          endDate: new Date(c.endDate).toISOString().split('T')[0],
+          status: c.status,
+        }))}
       />
     </div>
   );

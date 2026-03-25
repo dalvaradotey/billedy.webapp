@@ -36,6 +36,7 @@ import {
   GripVertical,
   ArrowUpDown,
   Calendar,
+  ChevronDown,
 } from 'lucide-react';
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SubmitButton } from '@/components/submit-button';
@@ -77,6 +78,8 @@ import { createBudgetSchema } from './schemas';
 import type { CreateBudgetInput, UpdateBudgetInput } from './schemas';
 import type { BudgetWithCategory } from './types';
 import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
+import { getToday, toCalendarDate, daysBetween } from '@/lib/formatting';
+import { BudgetDetail, type CycleOption } from './components/budget-detail';
 
 function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -89,26 +92,22 @@ function formatCurrency(amount: number | string, currency: string = 'CLP'): stri
 }
 
 function startOfDay(d: Date): Date {
-  const copy = new Date(d);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
+  return toCalendarDate(d);
 }
 
 function formatDateRange(start: Date, end: Date): string {
-  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', timeZone: 'UTC' };
   const fmt = new Intl.DateTimeFormat('es-CL', opts);
-  const fmtYear = new Intl.DateTimeFormat('es-CL', { ...opts, year: 'numeric' });
-  const currentYear = new Date().getFullYear();
-  if (start.getFullYear() === end.getFullYear() && start.getFullYear() === currentYear) {
+  const fmtYear = new Intl.DateTimeFormat('es-CL', { ...opts, year: 'numeric', timeZone: 'UTC' });
+  const currentYear = new Date().getUTCFullYear();
+  if (start.getUTCFullYear() === end.getUTCFullYear() && start.getUTCFullYear() === currentYear) {
     return `${fmt.format(start)} – ${fmt.format(end)}`;
   }
   return `${fmtYear.format(start)} – ${fmtYear.format(end)}`;
 }
 
 function daysRemaining(endDate: Date): number {
-  const today = startOfDay(new Date());
-  const end = startOfDay(new Date(endDate));
-  return Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return daysBetween(getToday(), endDate);
 }
 
 interface BudgetListProps {
@@ -119,6 +118,7 @@ interface BudgetListProps {
   projectId: string;
   userId: string;
   defaultCurrency: string;
+  cycles?: CycleOption[];
 }
 
 export function BudgetList({
@@ -129,6 +129,7 @@ export function BudgetList({
   projectId,
   userId,
   defaultCurrency,
+  cycles = [],
 }: BudgetListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<BudgetWithCategory | null>(null);
@@ -141,7 +142,7 @@ export function BudgetList({
     setLocalBudgets(budgets);
   }, [budgets]);
 
-  const today = useMemo(() => startOfDay(new Date()), []);
+  const today = useMemo(() => getToday(), []);
 
   // Separar en 4 secciones
   const permanentBudgets = useMemo(
@@ -283,6 +284,7 @@ export function BudgetList({
                         userId={userId}
                         onEdit={() => handleEdit(budget)}
                         isReorderMode={isReorderMode}
+                        cycles={cycles}
                       />
                     ))}
                   </div>
@@ -304,6 +306,7 @@ export function BudgetList({
                   budget={budget}
                   userId={userId}
                   onEdit={() => handleEdit(budget)}
+                  cycles={cycles}
                 />
               ))}
             </div>
@@ -327,6 +330,7 @@ export function BudgetList({
                       budget={budget}
                       userId={userId}
                       onEdit={() => handleEdit(budget)}
+                      cycles={cycles}
                     />
                   ))}
                 </div>
@@ -344,6 +348,7 @@ export function BudgetList({
                   budget={budget}
                   userId={userId}
                   onEdit={() => handleEdit(budget)}
+                  cycles={cycles}
                 />
               ))}
             </div>
@@ -363,9 +368,10 @@ interface SortableBudgetCardProps {
   userId: string;
   onEdit: () => void;
   isReorderMode: boolean;
+  cycles?: CycleOption[];
 }
 
-function SortableBudgetCard({ budget, userId, onEdit, isReorderMode }: SortableBudgetCardProps) {
+function SortableBudgetCard({ budget, userId, onEdit, isReorderMode, cycles }: SortableBudgetCardProps) {
   const {
     attributes,
     listeners,
@@ -386,6 +392,7 @@ function SortableBudgetCard({ budget, userId, onEdit, isReorderMode }: SortableB
         budget={budget}
         userId={userId}
         onEdit={onEdit}
+        cycles={cycles}
       />
     );
   }
@@ -434,13 +441,15 @@ interface BudgetCardProps {
   budget: BudgetWithCategory;
   userId: string;
   onEdit: () => void;
+  cycles?: CycleOption[];
 }
 
-function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
+function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
   const [isPending, startTransition] = useTransition();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showInlineActions, setShowInlineActions] = useState(false);
   const [showActionsDrawer, setShowActionsDrawer] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const isMobile = useIsMobile();
 
   const handleDelete = () => {
@@ -690,6 +699,31 @@ function BudgetCard({ budget, userId, onEdit }: BudgetCardProps) {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Ver detalle toggle */}
+        <div className="flex items-center mt-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowDetails(!showDetails); }}
+            className={cardStyles.toggleButton}
+          >
+            <ChevronDown className={cn('h-4 w-4 transition-transform duration-200', showDetails && 'rotate-180')} />
+            <span>{showDetails ? 'Ocultar detalle' : 'Ver detalle'}</span>
+          </button>
+        </div>
+
+        {/* Detalle expandible */}
+        {showDetails && (
+          <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+            <BudgetDetail
+              budgetId={budget.id}
+              userId={userId}
+              budgetedAmount={parseFloat(budget.defaultAmount)}
+              currency={budget.currency}
+              categoryColor={budget.categoryColor}
+              cycles={cycles}
+            />
           </div>
         )}
       </div>

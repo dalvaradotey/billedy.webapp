@@ -16,9 +16,12 @@ import {
   X,
   SlidersHorizontal,
   BarChart3,
+  Building2,
+  Target,
+  Check,
 } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { ResponsiveDrawer } from '@/components/ui/drawer';
+import { ResponsiveDrawer, Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { PageToolbar } from '@/components/page-toolbar';
 import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
 import { Input } from '@/components/ui/input';
@@ -31,6 +34,8 @@ import {
 } from '@/components/ui/select';
 import { SummaryCard } from '@/components/ui/summary-card';
 import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import type { TransactionWithCategory, TransactionSummary } from '../types';
 import type { AccountWithEntity } from '@/features/accounts/types';
 import type { Category } from '@/features/categories/types';
@@ -109,8 +114,30 @@ export function TransactionList({
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isChartsOpen, setIsChartsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
+  const [selectedBudgetIds, setSelectedBudgetIds] = useState<Set<string>>(new Set());
+  const [isAccountDrawerOpen, setIsAccountDrawerOpen] = useState(false);
+  const [isBudgetDrawerOpen, setIsBudgetDrawerOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const toggleAccountFilter = useCallback((id: string) => {
+    setSelectedAccountIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleBudgetFilter = useCallback((id: string) => {
+    setSelectedBudgetIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   // Callbacks simplificados - los datos se actualizan automáticamente via updateTag()
   const onMutationStart = useCallback(() => {
@@ -232,21 +259,46 @@ export function TransactionList({
 
   const dateRangeFeedback = getDateRangeFeedback();
 
-  // Filtro de búsqueda client-side
+  // Filtro client-side: búsqueda + cuenta + presupuesto
   const filteredTransactions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return transactions;
     return transactions.filter((t) => {
-      const amount = formatCurrency(t.originalAmount, t.originalCurrency);
-      return (
-        t.description.toLowerCase().includes(q) ||
-        (t.accountName?.toLowerCase().includes(q) ?? false) ||
-        (t.categoryName?.toLowerCase().includes(q) ?? false) ||
-        (t.entityName?.toLowerCase().includes(q) ?? false) ||
-        amount.toLowerCase().includes(q)
-      );
+      // Filtro por cuenta
+      if (selectedAccountIds.size > 0 && (!t.accountId || !selectedAccountIds.has(t.accountId))) {
+        return false;
+      }
+      // Filtro por presupuesto
+      if (selectedBudgetIds.size > 0 && (!t.budgetId || !selectedBudgetIds.has(t.budgetId))) {
+        return false;
+      }
+      // Filtro por búsqueda
+      const q = searchQuery.trim().toLowerCase();
+      if (q) {
+        const amount = formatCurrency(t.originalAmount, t.originalCurrency);
+        return (
+          t.description.toLowerCase().includes(q) ||
+          (t.accountName?.toLowerCase().includes(q) ?? false) ||
+          (t.categoryName?.toLowerCase().includes(q) ?? false) ||
+          (t.entityName?.toLowerCase().includes(q) ?? false) ||
+          amount.toLowerCase().includes(q)
+        );
+      }
+      return true;
     });
-  }, [transactions, searchQuery]);
+  }, [transactions, searchQuery, selectedAccountIds, selectedBudgetIds]);
+
+  // Totales de transacciones filtradas
+  const filteredTotals = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const t of filteredTransactions) {
+      const amount = parseFloat(t.baseAmount);
+      if (t.type === 'income') income += amount;
+      else expense += amount;
+    }
+    return { income, expense, balance: income - expense };
+  }, [filteredTransactions]);
+
+  const hasActiveFilters = searchQuery || selectedAccountIds.size > 0 || selectedBudgetIds.size > 0;
 
   return (
     <div className="space-y-6">
@@ -321,7 +373,7 @@ export function TransactionList({
               }`}
             >
               <SlidersHorizontal className="h-4 w-4" />
-              {(currentType !== 'all' || currentPaid !== 'all') && (
+              {(currentType !== 'all' || currentPaid !== 'all' || selectedAccountIds.size > 0 || selectedBudgetIds.size > 0) && (
                 <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
               )}
             </button>
@@ -446,13 +498,52 @@ export function TransactionList({
                   Pendientes
                 </button>
               </div>
+
+              {/* Multi-select: Cuentas y Presupuestos */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setIsAccountDrawerOpen(true)}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-xs font-medium transition-colors inline-flex items-center gap-1.5',
+                    selectedAccountIds.size > 0
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                      : 'bg-background/80 text-muted-foreground',
+                  )}
+                >
+                  <Building2 className="h-3 w-3" />
+                  Cuentas
+                  {selectedAccountIds.size > 0 && (
+                    <span className="rounded-full bg-blue-200 dark:bg-blue-800 px-1.5 text-[10px]">
+                      {selectedAccountIds.size}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setIsBudgetDrawerOpen(true)}
+                  className={cn(
+                    'rounded-full px-3 py-1.5 text-xs font-medium transition-colors inline-flex items-center gap-1.5',
+                    selectedBudgetIds.size > 0
+                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300'
+                      : 'bg-background/80 text-muted-foreground',
+                  )}
+                >
+                  <Target className="h-3 w-3" />
+                  Presupuestos
+                  {selectedBudgetIds.size > 0 && (
+                    <span className="rounded-full bg-purple-200 dark:bg-purple-800 px-1.5 text-[10px]">
+                      {selectedBudgetIds.size}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
 
         {/* ── Desktop filters ── */}
         <div className="hidden sm:block space-y-2.5 w-full">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {/* Search */}
             <div className="relative flex-1 max-w-[220px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -515,45 +606,154 @@ export function TransactionList({
               ))}
             </div>
 
-            {/* Date controls */}
-            <div className="flex items-center gap-2 ml-auto">
-              <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              {hasCycles && (
-                <Select value={currentCycleId} onValueChange={handleCycleChange}>
-                  <SelectTrigger className="w-[160px] h-8 text-xs">
-                    <SelectValue placeholder="Seleccionar ciclo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cycles.map((cycle) => (
-                      <SelectItem key={cycle.id} value={cycle.id}>
-                        {cycle.name} {cycle.status === 'open' && '(actual)'}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom">Personalizado</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-              <div className="flex items-center gap-1.5">
-                <Input
-                  type="date"
-                  value={currentStartDate}
-                  onChange={(e) => handleDateChange('startDate', e.target.value)}
-                  className="w-[125px] h-8 text-xs"
-                />
-                <span className="text-xs text-muted-foreground">—</span>
-                <Input
-                  type="date"
-                  value={currentEndDate}
-                  onChange={(e) => handleDateChange('endDate', e.target.value)}
-                  className="w-[125px] h-8 text-xs"
-                />
-              </div>
-              {dateRangeFeedback && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {dateRangeFeedback}
-                </span>
-              )}
+            {/* Account filter */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 h-8 text-xs font-medium transition-colors',
+                    selectedAccountIds.size > 0
+                      ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300'
+                      : 'bg-background/50 text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  Cuentas
+                  {selectedAccountIds.size > 0 && (
+                    <span className="rounded-full bg-blue-200 dark:bg-blue-800 px-1.5 text-[10px] leading-4">
+                      {selectedAccountIds.size}
+                    </span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-56 p-2">
+                <div className="flex items-center justify-between px-2 pb-2">
+                  <span className="text-xs font-medium text-muted-foreground">Filtrar por cuenta</span>
+                  {selectedAccountIds.size > 0 && (
+                    <button
+                      onClick={() => setSelectedAccountIds(new Set())}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-0.5">
+                  {accounts.map((acc) => (
+                    <button
+                      key={acc.id}
+                      onClick={() => toggleAccountFilter(acc.id)}
+                      className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm hover:bg-muted/50 transition-colors"
+                    >
+                      <div className={cn(
+                        'h-4 w-4 rounded border flex items-center justify-center shrink-0',
+                        selectedAccountIds.has(acc.id)
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'border-input',
+                      )}>
+                        {selectedAccountIds.has(acc.id) && <Check className="h-3 w-3" />}
+                      </div>
+                      <span className="truncate">{acc.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Budget filter */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 h-8 text-xs font-medium transition-colors',
+                    selectedBudgetIds.size > 0
+                      ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-300'
+                      : 'bg-background/50 text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Target className="h-3.5 w-3.5" />
+                  Presupuestos
+                  {selectedBudgetIds.size > 0 && (
+                    <span className="rounded-full bg-purple-200 dark:bg-purple-800 px-1.5 text-[10px] leading-4">
+                      {selectedBudgetIds.size}
+                    </span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-56 p-2">
+                <div className="flex items-center justify-between px-2 pb-2">
+                  <span className="text-xs font-medium text-muted-foreground">Filtrar por presupuesto</span>
+                  {selectedBudgetIds.size > 0 && (
+                    <button
+                      onClick={() => setSelectedBudgetIds(new Set())}
+                      className="text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-0.5">
+                  {budgets.map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => toggleBudgetFilter(b.id)}
+                      className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm hover:bg-muted/50 transition-colors"
+                    >
+                      <div className={cn(
+                        'h-4 w-4 rounded border flex items-center justify-center shrink-0',
+                        selectedBudgetIds.has(b.id)
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'border-input',
+                      )}>
+                        {selectedBudgetIds.has(b.id) && <Check className="h-3 w-3" />}
+                      </div>
+                      <span className="truncate">{b.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+          </div>
+
+          {/* Date controls — segunda fila, alineada a la derecha */}
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+            {hasCycles && (
+              <Select value={currentCycleId} onValueChange={handleCycleChange}>
+                <SelectTrigger className="w-[160px] h-8 text-xs">
+                  <SelectValue placeholder="Seleccionar ciclo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cycles.map((cycle) => (
+                    <SelectItem key={cycle.id} value={cycle.id}>
+                      {cycle.name} {cycle.status === 'open' && '(actual)'}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="date"
+                value={currentStartDate}
+                onChange={(e) => handleDateChange('startDate', e.target.value)}
+                className="w-[125px] h-8 text-xs"
+              />
+              <span className="text-xs text-muted-foreground">—</span>
+              <Input
+                type="date"
+                value={currentEndDate}
+                onChange={(e) => handleDateChange('endDate', e.target.value)}
+                className="w-[125px] h-8 text-xs"
+              />
             </div>
+            {dateRangeFeedback && (
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {dateRangeFeedback}
+              </span>
+            )}
           </div>
         </div>
       </PageToolbar>
@@ -584,6 +784,112 @@ export function TransactionList({
           defaultCurrency={defaultCurrency}
         />
       </ResponsiveDrawer>
+
+      {/* Account Filter Drawer (mobile) */}
+      <Drawer open={isAccountDrawerOpen} onOpenChange={setIsAccountDrawerOpen}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Filtrar por cuenta</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-6 space-y-1">
+            {selectedAccountIds.size > 0 && (
+              <button
+                onClick={() => setSelectedAccountIds(new Set())}
+                className="text-xs text-muted-foreground hover:text-foreground mb-2"
+              >
+                Limpiar selección
+              </button>
+            )}
+            {accounts.map((acc) => (
+              <button
+                key={acc.id}
+                onClick={() => toggleAccountFilter(acc.id)}
+                className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm hover:bg-muted/50 transition-colors active:bg-muted"
+              >
+                <div className={cn(
+                  'h-5 w-5 rounded border-2 flex items-center justify-center shrink-0',
+                  selectedAccountIds.has(acc.id)
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : 'border-input',
+                )}>
+                  {selectedAccountIds.has(acc.id) && <Check className="h-3.5 w-3.5" />}
+                </div>
+                <span>{acc.name}</span>
+              </button>
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Budget Filter Drawer (mobile) */}
+      <Drawer open={isBudgetDrawerOpen} onOpenChange={setIsBudgetDrawerOpen}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Filtrar por presupuesto</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-6 space-y-1">
+            {selectedBudgetIds.size > 0 && (
+              <button
+                onClick={() => setSelectedBudgetIds(new Set())}
+                className="text-xs text-muted-foreground hover:text-foreground mb-2"
+              >
+                Limpiar selección
+              </button>
+            )}
+            {budgets.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => toggleBudgetFilter(b.id)}
+                className="flex items-center gap-3 w-full px-3 py-3 rounded-xl text-sm hover:bg-muted/50 transition-colors active:bg-muted"
+              >
+                <div className={cn(
+                  'h-5 w-5 rounded border-2 flex items-center justify-center shrink-0',
+                  selectedBudgetIds.has(b.id)
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : 'border-input',
+                )}>
+                  {selectedBudgetIds.has(b.id) && <Check className="h-3.5 w-3.5" />}
+                </div>
+                <span>{b.name}</span>
+              </button>
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Totales filtrados */}
+      {filteredTransactions.length > 0 && (
+        <div className="flex items-center gap-4 px-3 py-2 rounded-lg bg-muted/40 border border-border/50 text-sm">
+          <div className="flex items-center gap-1.5">
+            <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />
+            <span className="text-muted-foreground">Ingresos:</span>
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+              {formatCurrency(filteredTotals.income, defaultCurrency)}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <ArrowDownCircle className="h-3.5 w-3.5 text-red-500" />
+            <span className="text-muted-foreground">Gastos:</span>
+            <span className="font-semibold text-red-600 dark:text-red-400 tabular-nums">
+              {formatCurrency(filteredTotals.expense, defaultCurrency)}
+            </span>
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 ml-auto">
+            <span className="text-muted-foreground">Saldo:</span>
+            <span className={cn(
+              'font-semibold tabular-nums',
+              filteredTotals.balance >= 0
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-red-600 dark:text-red-400',
+            )}>
+              {formatCurrency(filteredTotals.balance, defaultCurrency)}
+            </span>
+          </div>
+          {hasActiveFilters && (
+            <span className="text-[10px] text-muted-foreground/60 ml-auto sm:ml-0">(filtrado)</span>
+          )}
+        </div>
+      )}
 
       {/* Transaction Table */}
       {transactions.length === 0 ? (

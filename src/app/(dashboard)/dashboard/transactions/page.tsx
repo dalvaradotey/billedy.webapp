@@ -8,6 +8,7 @@ import { getActiveSavingsGoals } from '@/features/savings/queries';
 import { getEntities } from '@/features/entities/queries';
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
+import { getToday } from '@/lib/formatting';
 import { getBillingCycles } from '@/features/billing-cycles/queries';
 import { TransactionList } from '@/features/transactions/components';
 import type { TransactionFilters } from '@/features/transactions/types';
@@ -71,9 +72,9 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     defaultEndDate = new Date(selectedCycle.endDate).toISOString().split('T')[0];
   } else {
     // Sin ciclos: últimos 30 días
-    const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const today = getToday();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
     defaultStartDate = thirtyDaysAgo.toISOString().split('T')[0];
     defaultEndDate = today.toISOString().split('T')[0];
   }
@@ -99,9 +100,9 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     filters.search = params.search;
   }
 
-  // Aplicar filtros de fecha
-  filters.startDate = new Date(defaultStartDate + 'T00:00:00');
-  filters.endDate = new Date(defaultEndDate + 'T23:59:59');
+  // Aplicar filtros de fecha (UTC para evitar desfases de timezone)
+  filters.startDate = new Date(defaultStartDate + 'T00:00:00Z');
+  filters.endDate = new Date(defaultEndDate + 'T23:59:59Z');
 
   // Cargar datos en paralelo
   const [transactions, summary, categories, accounts, budgets, savingsGoals, entities, project] = await Promise.all([

@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { budgets, projectMembers } from '@/lib/db/schema';
-import { eq, and, isNotNull, sql } from 'drizzle-orm';
+import { budgets, projectMembers, transactions, categories, accounts, entities } from '@/lib/db/schema';
+import { eq, and, isNotNull, sql, gte, lte, desc } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
 import {
   createBudgetSchema,
@@ -210,4 +210,98 @@ export async function reorderBudgets(
   invalidateRelatedCache('budgets');
 
   return { success: true, data: undefined };
+}
+
+/**
+ * Obtiene detalle de un presupuesto: progreso + transacciones para un rango de fechas
+ */
+export async function fetchBudgetDetail(
+  budgetId: string,
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<ActionResult<{
+  spentAmount: number;
+  budgetedAmount: number;
+  progressPercentage: number;
+  remainingAmount: number;
+  transactions: {
+    id: string;
+    date: Date;
+    description: string;
+    baseAmount: string;
+    categoryName: string | null;
+    categoryColor: string | null;
+    accountName: string | null;
+    entityId: string | null;
+    entityName: string | null;
+    entityImageUrl: string | null;
+  }[];
+}>> {
+  // Verificar que el presupuesto existe y el usuario tiene acceso
+  const existing = await db
+    .select({ projectId: budgets.projectId, defaultAmount: budgets.defaultAmount })
+    .from(budgets)
+    .innerJoin(projectMembers, eq(budgets.projectId, projectMembers.projectId))
+    .where(
+      and(
+        eq(budgets.id, budgetId),
+        eq(projectMembers.userId, userId),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+
+  if (!existing[0]) {
+    return { success: false, error: 'Presupuesto no encontrado' };
+  }
+
+  const budgetedAmount = parseFloat(existing[0].defaultAmount);
+  const start = new Date(startDate + 'T00:00:00Z');
+  const end = new Date(endDate + 'T23:59:59Z');
+
+  // Obtener transacciones del presupuesto en el rango
+  const txList = await db
+    .select({
+      id: transactions.id,
+      date: transactions.date,
+      description: transactions.description,
+      baseAmount: transactions.baseAmount,
+      categoryName: categories.name,
+      categoryColor: categories.color,
+      accountName: accounts.name,
+      entityId: transactions.entityId,
+      entityName: entities.name,
+      entityImageUrl: entities.imageUrl,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
+    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
+    .leftJoin(entities, eq(transactions.entityId, entities.id))
+    .where(
+      and(
+        eq(transactions.budgetId, budgetId),
+        eq(transactions.type, 'expense'),
+        gte(transactions.date, start),
+        lte(transactions.date, end)
+      )
+    )
+    .orderBy(desc(transactions.date));
+
+  const spentAmount = txList.reduce((sum, t) => sum + parseFloat(t.baseAmount), 0);
+  const remainingAmount = budgetedAmount - spentAmount;
+  const progressPercentage = budgetedAmount > 0
+    ? Math.min(100, Math.round((spentAmount / budgetedAmount) * 100))
+    : 0;
+
+  return {
+    success: true,
+    data: {
+      spentAmount,
+      budgetedAmount,
+      progressPercentage,
+      remainingAmount,
+      transactions: txList,
+    },
+  };
 }
