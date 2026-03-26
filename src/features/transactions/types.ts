@@ -18,6 +18,7 @@ export type TransactionFilters = {
   type?: TransactionType;
   categoryId?: string;
   isPaid?: boolean;
+  isReconciled?: boolean;
   startDate?: Date;
   endDate?: Date;
   search?: string;

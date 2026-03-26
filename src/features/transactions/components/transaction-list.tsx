@@ -181,6 +181,7 @@ export function TransactionList({
 
   const currentType = searchParams.get('type') ?? 'all';
   const currentPaid = searchParams.get('paid') ?? 'all';
+  const currentReconciled = searchParams.get('reconciled') ?? 'all';
   const currentStartDate = searchParams.get('startDate') ?? defaultStartDate ?? '';
   const currentEndDate = searchParams.get('endDate') ?? defaultEndDate ?? '';
 
@@ -376,7 +377,7 @@ export function TransactionList({
               }`}
             >
               <SlidersHorizontal className="h-4 w-4" />
-              {(currentType !== 'all' || currentPaid !== 'all' || selectedAccountIds.size > 0 || selectedBudgetIds.size > 0) && (
+              {(currentType !== 'all' || currentPaid !== 'all' || currentReconciled !== 'all' || selectedAccountIds.size > 0 || selectedBudgetIds.size > 0) && (
                 <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
               )}
             </button>
@@ -500,6 +501,31 @@ export function TransactionList({
                 >
                   Pendientes
                 </button>
+                <div className="w-px h-4 bg-border" />
+                <button
+                  onClick={() =>
+                    handleFilterChange('reconciled', currentReconciled === 'true' ? 'all' : 'true')
+                  }
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    currentReconciled === 'true'
+                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+                      : 'bg-background/80 text-muted-foreground'
+                  }`}
+                >
+                  Conciliadas
+                </button>
+                <button
+                  onClick={() =>
+                    handleFilterChange('reconciled', currentReconciled === 'false' ? 'all' : 'false')
+                  }
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    currentReconciled === 'false'
+                      ? 'bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
+                      : 'bg-background/80 text-muted-foreground'
+                  }`}
+                >
+                  Sin conciliar
+                </button>
               </div>
 
               {/* Multi-select: Cuentas y Presupuestos */}
@@ -600,6 +626,27 @@ export function TransactionList({
                   onClick={() => handleFilterChange('paid', opt.value)}
                   className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
                     currentPaid === opt.value
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Reconciled toggle */}
+            <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
+              {([
+                { value: 'all', label: 'Todas' },
+                { value: 'true', label: 'Conciliadas' },
+                { value: 'false', label: 'Sin conciliar' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleFilterChange('reconciled', opt.value)}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    currentReconciled === opt.value
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}

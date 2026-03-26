@@ -18,6 +18,7 @@ interface TransactionsPageProps {
     type?: string;
     category?: string;
     paid?: string;
+    reconciled?: string;
     search?: string;
     startDate?: string;
     endDate?: string;
@@ -94,6 +95,12 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     filters.isPaid = true;
   } else if (params.paid === 'false') {
     filters.isPaid = false;
+  }
+
+  if (params.reconciled === 'true') {
+    filters.isReconciled = true;
+  } else if (params.reconciled === 'false') {
+    filters.isReconciled = false;
   }
 
   if (params.search) {

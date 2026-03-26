@@ -34,6 +34,10 @@ export async function getTransactions(
     conditions.push(eq(transactions.isPaid, filters.isPaid));
   }
 
+  if (filters.isReconciled !== undefined) {
+    conditions.push(eq(transactions.isReconciled, filters.isReconciled));
+  }
+
   if (filters.startDate) {
     conditions.push(gte(transactions.date, filters.startDate));
   }
