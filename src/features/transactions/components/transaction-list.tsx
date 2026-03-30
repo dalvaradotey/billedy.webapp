@@ -809,8 +809,15 @@ export function TransactionList({
       </PageToolbar>
 
       {/* Transaction Dialog */}
-      <ResponsiveDrawer open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <ResponsiveDrawer
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) setEditingTransaction(null);
+        }}
+      >
         <TransactionDialogContent
+          key={editingTransaction?.id ?? 'create'}
           projectId={projectId}
           userId={userId}
           categories={categories}

@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, StickyNote, X, Calendar, ArrowRight, Check, ArrowRightLeft, CheckCircle2, XCircle, Settings } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, ArrowRight, Check, ArrowRightLeft, CheckCircle2, XCircle, Settings } from 'lucide-react';
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SuccessOverlay } from '@/components/success-overlay';
 import { SubmitButton } from '@/components/submit-button';
@@ -137,7 +137,6 @@ export function TransactionDialogContent({
   const [useManualDescription, setUseManualDescription] = useState(false);
   const [showManualCategory, setShowManualCategory] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [showDate, setShowDate] = useState(false);
 
   // Transfer form state (separate from main form)
   const [transferFromAccountId, setTransferFromAccountId] = useState('');
@@ -146,8 +145,8 @@ export function TransactionDialogContent({
   const [transferDate, setTransferDate] = useState<Date>(new Date());
   const [transferDescription, setTransferDescription] = useState('');
   const [transferNotes, setTransferNotes] = useState('');
-  const [showTransferDescription, setShowTransferDescription] = useState(false);
-  const [showTransferNotes, setShowTransferNotes] = useState(false);
+  const [showTransferAdvancedOptions, setShowTransferAdvancedOptions] = useState(false);
+  const [transferSavingsGoalId, setTransferSavingsGoalId] = useState<string | undefined>(undefined);
 
   // Update local categories when props change
   useEffect(() => {
@@ -237,16 +236,14 @@ export function TransactionDialogContent({
     setTransferDate(new Date());
     setTransferDescription('');
     setTransferNotes('');
-    setShowTransferDescription(false);
-    setShowTransferNotes(false);
+    setShowTransferAdvancedOptions(false);
+    setTransferSavingsGoalId(undefined);
     // Reset manual description toggle
     setUseManualDescription(false);
     // Reset manual category toggle - show budget selector if initialValues has budgetId
     setShowManualCategory(false);
     // Reset advanced options (expanded when editing, collapsed for new)
     setShowAdvancedOptions(!!transaction);
-    // Reset date toggle for transfer form
-    setShowDate(false);
     // Reset form mode
     if (transaction) {
       setFormMode(transaction.type as FormMode);
@@ -394,6 +391,7 @@ export function TransactionDialogContent({
         date: transferDate,
         description: transferDescription || undefined,
         notes: transferNotes || undefined,
+        savingsGoalId: transferSavingsGoalId || undefined,
       };
 
       const result = await createAccountTransfer(userId, transferData);
@@ -406,6 +404,8 @@ export function TransactionDialogContent({
         setTransferDate(new Date());
         setTransferDescription('');
         setTransferNotes('');
+        setTransferSavingsGoalId(undefined);
+        setShowTransferAdvancedOptions(false);
         onMutationSuccess?.(toastId, 'Transferencia creada');
         triggerSuccess();
       } else {
@@ -516,35 +516,55 @@ export function TransactionDialogContent({
                 valid={!!transferToAccountId}
               />
 
-              {/* Description (optional) */}
-              {showTransferDescription && (
-                <div className="space-y-2">
-                  <FloatingLabelInput
-                    label="Descripción"
-                    value={transferDescription}
-                    onChange={setTransferDescription}
-                    placeholder="Ej: Ahorro mensual"
-                    valid={!!transferDescription}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-auto p-0"
-                    onClick={() => {
-                      setTransferDescription('');
-                      setShowTransferDescription(false);
-                    }}
-                  >
-                    <X className="mr-1.5 h-3 w-3" />
-                    Quitar descripción
-                  </Button>
-                </div>
+              {/* Otras opciones toggle */}
+              {!showTransferAdvancedOptions && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-auto p-0"
+                  onClick={() => setShowTransferAdvancedOptions(true)}
+                >
+                  <Settings className="mr-1.5 h-3 w-3" />
+                  Otras opciones
+                </Button>
               )}
 
-              {/* Date (optional) */}
-              {showDate && (
-                <div className="space-y-2">
+              {/* Otras opciones section */}
+              {showTransferAdvancedOptions && (
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">Otras opciones</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-auto p-0"
+                      onClick={() => {
+                        setTransferDescription('');
+                        setTransferDate(new Date());
+                        setTransferNotes('');
+                        setTransferSavingsGoalId(undefined);
+                        setShowTransferAdvancedOptions(false);
+                      }}
+                    >
+                      Ocultar
+                    </Button>
+                  </div>
+
+                  {/* Savings Goal */}
+                  {savingsGoals.length > 0 && (
+                    <SavingsGoalSelector
+                      savingsGoals={savingsGoals}
+                      value={transferSavingsGoalId}
+                      onValueChange={(value) => setTransferSavingsGoalId(value ?? undefined)}
+                      label="Meta de ahorro (opcional)"
+                      searchPlaceholder="Buscar meta..."
+                      valid={!!transferSavingsGoalId}
+                    />
+                  )}
+
+                  {/* Date */}
                   <FloatingLabelInput
                     label="Fecha"
                     type="date"
@@ -552,87 +572,24 @@ export function TransactionDialogContent({
                     onChange={(val) => setTransferDate(new Date(val + 'T12:00:00'))}
                     valid={!!transferDate}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-auto p-0"
-                    onClick={() => {
-                      setTransferDate(new Date());
-                      setShowDate(false);
-                    }}
-                  >
-                    <X className="mr-1.5 h-3 w-3" />
-                    Usar fecha de hoy
-                  </Button>
-                </div>
-              )}
 
-              {/* Notes (optional) */}
-              {showTransferNotes && (
-                <div className="space-y-2">
+                  {/* Description */}
+                  <FloatingLabelInput
+                    label="Descripción (opcional)"
+                    value={transferDescription}
+                    onChange={setTransferDescription}
+                    placeholder="Ej: Ahorro mensual"
+                    valid={!!transferDescription}
+                  />
+
+                  {/* Notes */}
                   <FloatingLabelTextarea
-                    label="Notas"
+                    label="Notas (opcional)"
                     value={transferNotes}
                     onChange={setTransferNotes}
                     placeholder="Notas adicionales..."
                     valid={!!transferNotes}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-auto p-0"
-                    onClick={() => {
-                      setTransferNotes('');
-                      setShowTransferNotes(false);
-                    }}
-                  >
-                    <X className="mr-1.5 h-3 w-3" />
-                    Quitar notas
-                  </Button>
-                </div>
-              )}
-
-              {/* Optional toggles row */}
-              {(!showTransferDescription || !showDate || !showTransferNotes) && (
-                <div className="flex flex-wrap gap-3 pt-2 border-t">
-                  {!showTransferDescription && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-auto py-1 px-2"
-                      onClick={() => setShowTransferDescription(true)}
-                    >
-                      <Pencil className="mr-1.5 h-3 w-3" />
-                      Descripción
-                    </Button>
-                  )}
-                  {!showDate && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-auto py-1 px-2"
-                      onClick={() => setShowDate(true)}
-                    >
-                      <Calendar className="mr-1.5 h-3 w-3" />
-                      Fecha
-                    </Button>
-                  )}
-                  {!showTransferNotes && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-auto py-1 px-2"
-                      onClick={() => setShowTransferNotes(true)}
-                    >
-                      <StickyNote className="mr-1.5 h-3 w-3" />
-                      Notas
-                    </Button>
-                  )}
                 </div>
               )}
 

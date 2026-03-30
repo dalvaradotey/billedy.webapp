@@ -53,6 +53,7 @@ export const createAccountTransferSchema = z.object({
   date: z.date({ message: 'La fecha es requerida' }),
   description: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  savingsGoalId: z.string().uuid().optional().nullable(),
 }).refine((data) => data.fromAccountId !== data.toAccountId, {
   message: 'La cuenta origen y destino deben ser diferentes',
   path: ['toAccountId'],
@@ -63,6 +64,7 @@ export const updateAccountTransferSchema = z.object({
   date: z.date().optional(),
   description: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
+  savingsGoalId: z.string().uuid().optional().nullable(),
 });
 
 export type CreateAccountTransferInput = z.infer<typeof createAccountTransferSchema>;

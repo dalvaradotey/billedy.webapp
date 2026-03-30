@@ -133,6 +133,7 @@ export async function createAccountTransfer(
       baseCurrency: project[0].currency,
       exchangeRate: '1',
       linkedTransactionId: outTransaction.id,
+      savingsGoalId: parsed.data.savingsGoalId ?? null,
     })
     .returning({ id: transactions.id });
 
@@ -148,6 +149,7 @@ export async function createAccountTransfer(
   await updateAccountBalance(parsed.data.toAccountId, amountNum);
 
   invalidateRelatedCache('transactions');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: { id: outTransaction.id } };
 }
@@ -238,6 +240,12 @@ export async function updateAccountTransfer(
     newAmount = parsed.data.amount;
   }
 
+  // Determinar cuál es la transacción de ingreso para aplicar savingsGoalId
+  const incomeUpdateData: Record<string, unknown> = {};
+  if (parsed.data.savingsGoalId !== undefined) {
+    incomeUpdateData.savingsGoalId = parsed.data.savingsGoalId ?? null;
+  }
+
   // Actualizar descripciones si se proporciona
   if (parsed.data.description !== undefined) {
     // Extraer el nombre de la cuenta del destino de la descripción actual
@@ -248,6 +256,7 @@ export async function updateAccountTransfer(
       .update(transactions)
       .set({
         ...updateData,
+        ...(transaction.type === 'income' ? incomeUpdateData : {}),
         description: `${parsed.data.description} → ${toAccountName}`
       })
       .where(eq(transactions.id, transactionId));
@@ -257,6 +266,7 @@ export async function updateAccountTransfer(
         .update(transactions)
         .set({
           ...updateData,
+          ...(transaction.type === 'expense' ? incomeUpdateData : {}),
           description: `${parsed.data.description} ← ${fromAccountName}`
         })
         .where(eq(transactions.id, linkedTransaction.id));
@@ -265,13 +275,19 @@ export async function updateAccountTransfer(
     // Actualizar ambas transacciones
     await db
       .update(transactions)
-      .set(updateData)
+      .set({
+        ...updateData,
+        ...(transaction.type === 'income' ? incomeUpdateData : {}),
+      })
       .where(eq(transactions.id, transactionId));
 
     if (linkedTransaction) {
       await db
         .update(transactions)
-        .set(updateData)
+        .set({
+          ...updateData,
+          ...(transaction.type === 'expense' ? incomeUpdateData : {}),
+        })
         .where(eq(transactions.id, linkedTransaction.id));
     }
   }
@@ -288,6 +304,7 @@ export async function updateAccountTransfer(
   }
 
   invalidateRelatedCache('transactions');
+  invalidateRelatedCache('savings');
 
   return { success: true, data: undefined };
 }
