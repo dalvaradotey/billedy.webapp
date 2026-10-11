@@ -4,22 +4,33 @@ import { db } from '@/lib/db';
 import { billingCycles, projectMembers } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
+import { requireUserId } from '@/lib/auth/guards';
 import {
   createBillingCycleSchema,
   updateBillingCycleSchema,
   type CreateBillingCycleInput,
   type UpdateBillingCycleInput,
 } from '../schemas';
-import { type ActionResult, verifyProjectAccess } from './utils';
+import {
+  type ActionResult,
+  UNAUTHORIZED_ERROR,
+  verifyProjectAccess,
+  findOverlappingCycle,
+  overlapError,
+} from './utils';
 import { loadCycleTransactions } from './cycle-transactions';
 
 /**
  * Crea un nuevo ciclo de facturación
  */
 export async function createBillingCycle(
-  userId: string,
   input: CreateBillingCycleInput
 ): Promise<ActionResult<{ id: string }>> {
+  const userId = await requireUserId();
+  if (!userId) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createBillingCycleSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -31,8 +42,8 @@ export async function createBillingCycle(
     return { success: false, error: 'No tienes acceso a este proyecto' };
   }
 
-  // Verificar que no haya un ciclo abierto que se solape
-  const overlapping = await db
+  // Solo puede haber un ciclo abierto
+  const openCycle = await db
     .select({ id: billingCycles.id })
     .from(billingCycles)
     .where(
@@ -40,11 +51,20 @@ export async function createBillingCycle(
     )
     .limit(1);
 
-  if (overlapping.length > 0) {
+  if (openCycle.length > 0) {
     return {
       success: false,
       error: 'Ya existe un ciclo abierto. Ciérralo antes de crear uno nuevo.',
     };
+  }
+
+  const overlapping = await findOverlappingCycle(
+    parsed.data.projectId,
+    parsed.data.startDate,
+    parsed.data.endDate
+  );
+  if (overlapping) {
+    return { success: false, error: overlapError(overlapping.name) };
   }
 
   const [newCycle] = await db
@@ -74,25 +94,16 @@ export async function createBillingCycle(
 }
 
 /**
- * Actualiza un ciclo de facturación
+ * Busca un ciclo verificando que el usuario sea miembro del proyecto
  */
-export async function updateBillingCycle(
-  cycleId: string,
-  userId: string,
-  input: UpdateBillingCycleInput
-): Promise<ActionResult> {
-  const parsed = updateBillingCycleSchema.safeParse(input);
-
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
-  }
-
-  // Verificar que el ciclo existe y el usuario tiene acceso
-  const existing = await db
+async function getCycleForUser(cycleId: string, userId: string) {
+  const [existing] = await db
     .select({
       id: billingCycles.id,
       projectId: billingCycles.projectId,
       status: billingCycles.status,
+      startDate: billingCycles.startDate,
+      endDate: billingCycles.endDate,
     })
     .from(billingCycles)
     .innerJoin(projectMembers, eq(billingCycles.projectId, projectMembers.projectId))
@@ -105,12 +116,47 @@ export async function updateBillingCycle(
     )
     .limit(1);
 
-  if (!existing[0]) {
+  return existing ?? null;
+}
+
+/**
+ * Actualiza un ciclo de facturación
+ */
+export async function updateBillingCycle(
+  cycleId: string,
+  input: UpdateBillingCycleInput
+): Promise<ActionResult> {
+  const userId = await requireUserId();
+  if (!userId) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
+  const parsed = updateBillingCycleSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+
+  const existing = await getCycleForUser(cycleId, userId);
+
+  if (!existing) {
     return { success: false, error: 'Ciclo no encontrado' };
   }
 
-  if (existing[0].status === 'closed') {
+  if (existing.status === 'closed') {
     return { success: false, error: 'No se puede editar un ciclo cerrado' };
+  }
+
+  const startDate = parsed.data.startDate ?? new Date(existing.startDate);
+  const endDate = parsed.data.endDate ?? new Date(existing.endDate);
+
+  if (endDate <= startDate) {
+    return { success: false, error: 'La fecha de fin debe ser posterior a la fecha de inicio' };
+  }
+
+  const overlapping = await findOverlappingCycle(existing.projectId, startDate, endDate, cycleId);
+  if (overlapping) {
+    return { success: false, error: overlapError(overlapping.name) };
   }
 
   const updateData: Record<string, unknown> = {
@@ -132,27 +178,15 @@ export async function updateBillingCycle(
 /**
  * Elimina un ciclo de facturación
  */
-export async function deleteBillingCycle(
-  cycleId: string,
-  userId: string
-): Promise<ActionResult> {
-  const existing = await db
-    .select({
-      id: billingCycles.id,
-      projectId: billingCycles.projectId,
-    })
-    .from(billingCycles)
-    .innerJoin(projectMembers, eq(billingCycles.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(billingCycles.id, cycleId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+export async function deleteBillingCycle(cycleId: string): Promise<ActionResult> {
+  const userId = await requireUserId();
+  if (!userId) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
 
-  if (!existing[0]) {
+  const existing = await getCycleForUser(cycleId, userId);
+
+  if (!existing) {
     return { success: false, error: 'Ciclo no encontrado' };
   }
 

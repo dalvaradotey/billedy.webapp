@@ -331,7 +331,7 @@ export function TransactionList({
         <SummaryCard
           title="Saldo"
           value={formatCurrency(summary.balance, defaultCurrency)}
-          subtitle="en base a pagados"
+          subtitle="caja: después de pago TC y ahorro"
           icon={<Wallet className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant={summary.balance >= 0 ? 'success' : 'danger'}
         />

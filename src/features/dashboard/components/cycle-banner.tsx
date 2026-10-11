@@ -2,19 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import {
-  CalendarDays,
-  ArrowRight,
-  TrendingUp,
-  TrendingDown,
-  PiggyBank,
-  Wallet,
-  ChevronDown,
-} from 'lucide-react';
+import { CalendarDays, ArrowRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AnimatedCurrency } from '@/components/animated-currency';
-import { formatCurrency } from '@/lib/formatting';
+import { CycleCascade, balanceColor } from '@/features/billing-cycles/components/cycle-cascade';
 import { useDashboard } from '../hooks';
 
 export function DashboardCycleBanner() {
@@ -23,7 +15,9 @@ export function DashboardCycleBanner() {
 
   if (!cycle) return null;
 
+  const { balance } = cycle;
   const progressPercentage = Math.round((cycle.daysElapsed / cycle.daysTotal) * 100);
+  const hasProjection = balance.finalBalance.projected !== balance.finalBalance.real;
 
   return (
     <div className="rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-900 dark:to-slate-950 p-4 md:p-5">
@@ -47,153 +41,50 @@ export function DashboardCycleBanner() {
         </Button>
       </div>
 
-      {/* Mobile: Resumen compacto con saldo y botón expandir */}
-      <div className="md:hidden mt-4">
-        <div className="bg-slate-700/30 rounded-xl p-4">
-          <div className="flex items-center justify-between">
+      <div className="mt-4 md:grid md:grid-cols-2 md:gap-6">
+        {/* Saldo final + progreso */}
+        <div className="bg-slate-700/30 rounded-xl p-4 md:self-start">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs text-slate-400 mb-1">Saldo del ciclo</p>
+              <p className="text-xs text-slate-400 mb-1">Saldo final del ciclo</p>
               <AnimatedCurrency
-                value={cycle.currentBalance}
-                className={`text-2xl font-bold ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
+                value={balance.finalBalance.real}
+                className={`text-2xl font-bold ${balanceColor(balance.finalBalance.real, 'dark')}`}
               />
+              <p className="text-[11px] text-slate-500">después de ahorro, con lo ya pagado</p>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-500">
-                <AnimatedCurrency value={cycle.currentIncome} className="text-xs" /> ingresos
-              </p>
-              <p className="text-xs text-slate-500">
-                <AnimatedCurrency value={cycle.currentExpenses} className="text-xs" /> gastos
-              </p>
-            </div>
+            {hasProjection && (
+              <div className="text-right">
+                <p className="text-xs text-slate-400 mb-1">Proyectado</p>
+                <AnimatedCurrency
+                  value={balance.finalBalance.projected}
+                  className={`text-sm font-semibold ${balanceColor(balance.finalBalance.projected, 'dark')}`}
+                />
+                <p className="text-[11px] text-slate-500">con pendientes</p>
+              </div>
+            )}
           </div>
 
-          {/* Progress bar */}
-          <Progress
-            value={progressPercentage}
-            className="mt-3 h-3 bg-slate-600/50"
-          />
+          <Progress value={progressPercentage} className="mt-3 h-3 bg-slate-600/50" />
           <p className="text-xs text-slate-500 mt-1 text-center">
             {cycle.daysRemaining} días restantes
           </p>
         </div>
 
-        {/* Botón expandir detalles */}
+        {/* Mobile: botón expandir detalles */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full flex items-center justify-center gap-2 py-2 text-slate-400 text-sm hover:text-white transition-colors"
+          className="md:hidden w-full min-h-11 flex items-center justify-center gap-2 py-2 text-slate-400 text-sm hover:text-white transition-colors"
+          aria-expanded={isExpanded}
         >
-          {isExpanded ? 'Ocultar detalles' : 'Ver detalles'}
+          {balance.warnings.length > 0 && <AlertTriangle className="w-4 h-4 text-amber-400" />}
+          {isExpanded ? 'Ocultar detalle' : 'Ver detalle'}
           <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </button>
 
-        {/* Detalles expandibles */}
-        {isExpanded && (
-          <div className="grid grid-cols-2 gap-3 pb-1">
-            <div className="bg-slate-700/30 rounded-lg p-3">
-              <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                Ingresos
-              </p>
-              <AnimatedCurrency value={cycle.currentIncome} className="text-emerald-400 font-bold" />
-              {cycle.pendingIncome > 0 && (
-                <p className="text-slate-500 text-[10px] mt-0.5">
-                  Pagado: {formatCurrency(cycle.paidIncome)} · Pend: {formatCurrency(cycle.pendingIncome)}
-                </p>
-              )}
-            </div>
-            <div className="bg-slate-700/30 rounded-lg p-3">
-              <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
-                <TrendingDown className="w-3 h-3" />
-                Gastos
-              </p>
-              <AnimatedCurrency value={cycle.currentExpenses} className="text-red-400 font-bold" />
-              {cycle.pendingExpenses > 0 && (
-                <p className="text-slate-500 text-[10px] mt-0.5">
-                  Pagado: {formatCurrency(cycle.paidExpenses)} · Pend: {formatCurrency(cycle.pendingExpenses)}
-                </p>
-              )}
-            </div>
-            <div className="bg-slate-700/30 rounded-lg p-3">
-              <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
-                <PiggyBank className="w-3 h-3" />
-                Ahorro
-              </p>
-              <AnimatedCurrency value={cycle.currentSavings} className="text-blue-400 font-bold" />
-            </div>
-            <div className="bg-slate-700/30 rounded-lg p-3">
-              <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
-                <Wallet className="w-3 h-3" />
-                Saldo
-              </p>
-              <AnimatedCurrency
-                value={cycle.currentBalance}
-                className={`font-bold ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
-              />
-              <p className="text-slate-500 text-[10px] mt-0.5">en base a pagados</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Desktop: Contenido completo */}
-      <div className="hidden md:block mt-4 space-y-4">
-        {/* Barra de progreso */}
-        <div className="space-y-1.5">
-          <Progress value={progressPercentage} className="h-3 bg-slate-700" />
-          <div className="flex justify-between text-xs text-slate-500">
-            <span>{cycle.daysElapsed} días transcurridos</span>
-            <span>{cycle.daysRemaining} días restantes</span>
-          </div>
-        </div>
-
-        {/* Separador */}
-        <div className="h-px bg-slate-700" />
-
-        {/* Métricas */}
-        <div className="grid grid-cols-4 gap-4">
-          <div>
-            <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />
-              Ingresos
-            </p>
-            <AnimatedCurrency value={cycle.currentIncome} className="text-emerald-400 font-bold text-lg" />
-            {cycle.pendingIncome > 0 && (
-              <p className="text-slate-500 text-[10px] mt-0.5">
-                Pagado: {formatCurrency(cycle.paidIncome)} · Pend: {formatCurrency(cycle.pendingIncome)}
-              </p>
-            )}
-          </div>
-          <div>
-            <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
-              <TrendingDown className="w-3 h-3" />
-              Gastos
-            </p>
-            <AnimatedCurrency value={cycle.currentExpenses} className="text-red-400 font-bold text-lg" />
-            {cycle.pendingExpenses > 0 && (
-              <p className="text-slate-500 text-[10px] mt-0.5">
-                Pagado: {formatCurrency(cycle.paidExpenses)} · Pend: {formatCurrency(cycle.pendingExpenses)}
-              </p>
-            )}
-          </div>
-          <div>
-            <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
-              <PiggyBank className="w-3 h-3" />
-              Ahorro
-            </p>
-            <AnimatedCurrency value={cycle.currentSavings} className="text-blue-400 font-bold text-lg" />
-          </div>
-          <div>
-            <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">
-              <Wallet className="w-3 h-3" />
-              Saldo
-            </p>
-            <AnimatedCurrency
-              value={cycle.currentBalance}
-              className={`font-bold text-lg ${cycle.currentBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
-            />
-            <p className="text-slate-500 text-[10px] mt-0.5">en base a pagados</p>
-          </div>
+        {/* Cascada: siempre visible en desktop, expandible en mobile */}
+        <div className={`${isExpanded ? 'block' : 'hidden'} md:block pb-1`}>
+          <CycleCascade balance={balance} isOpen={cycle.status === 'open'} tone="dark" animated />
         </div>
       </div>
     </div>

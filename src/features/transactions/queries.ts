@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { getRangeBalance } from '@/features/billing-cycles/lib/cycle-balance';
 import { transactions, categories, projectMembers, accounts, budgets, entities } from '@/lib/db/schema';
 import { eq, and, desc, gte, lte, like, sql, isNotNull, isNull, or } from 'drizzle-orm';
 import type {
@@ -231,6 +232,13 @@ export async function getTransactionSummary(
     }
   }
 
+  // Saldo de caja del período: misma cascada que los ciclos
+  // (ingresos + abonos − débito − pago TC − ahorro, solo lo pagado)
+  const balance =
+    startDate && endDate && result.length > 0
+      ? (await getRangeBalance(projectId, startDate, endDate)).finalBalance.real
+      : paidIncome - paidExpense;
+
   return {
     totalIncome: paidIncome + pendingIncome,
     totalExpense: paidExpense + pendingExpense,
@@ -238,7 +246,7 @@ export async function getTransactionSummary(
     pendingIncome,
     paidExpense,
     pendingExpense,
-    balance: paidIncome - paidExpense,
+    balance,
     paidCount,
     pendingCount,
   };

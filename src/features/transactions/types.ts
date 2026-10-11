@@ -31,6 +31,7 @@ export type TransactionSummary = {
   pendingIncome: number;
   paidExpense: number;
   pendingExpense: number;
+  /** Saldo de caja del período (misma cascada que los ciclos) */
   balance: number;
   paidCount: number;
   pendingCount: number;

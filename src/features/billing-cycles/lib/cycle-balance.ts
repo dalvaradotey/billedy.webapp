@@ -1,0 +1,328 @@
+import { and, eq, inArray } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { accounts } from '@/lib/db/schema';
+import { getToday } from '@/lib/formatting';
+import {
+  bucketAggregationQuery,
+  parseBucketRows,
+  type Bucket,
+  type BucketRow,
+  type DateRange,
+} from './cycle-buckets';
+
+/**
+ * Saldo de caja de un ciclo (cascada única).
+ * Ver docs/PLAN_SALDOS_CICLOS_Y_TECHO_TC.md §3.
+ *
+ *   Ingresos + Abonos − Gastos débito − Pago TC = Saldo antes de ahorro
+ *   − Aportes a ahorro + Retiros de ahorro      = Saldo final
+ */
+
+/**
+ * Diferencia tolerada entre el pago TC y la vista estado de cuenta.
+ * Bajo este monto no se avisa (ajustes, intereses, compras pagadas en el mismo ciclo).
+ */
+const CARD_PAYMENT_MISMATCH_THRESHOLD = 10_000;
+
+export type Amounts = {
+  /** Solo lo pagado (en TC, además con fecha <= hoy) */
+  real: number;
+  /** Real + pendientes registrados del ciclo */
+  committed: number;
+  /** Comprometido + pago TC pendiente (solo ciclo abierto) */
+  projected: number;
+};
+
+export type CycleWarning =
+  | { kind: 'overdue_pending'; count: number; amount: number }
+  | { kind: 'card_payment_missing'; cardName: string; expected: number }
+  | { kind: 'card_payment_mismatch'; cardName: string; expected: number; paid: number }
+  | { kind: 'gap_before'; days: number };
+
+export type CycleBalance = {
+  income: Amounts;
+  reimbursements: Amounts;
+  debitExpenses: Amounts;
+  cardPayment: Amounts;
+  balanceBeforeSavings: Amounts;
+  savingsIn: Amounts;
+  savingsOut: Amounts;
+  finalBalance: Amounts;
+  card: {
+    /** Gasto en TC del ciclo, ya cargado (se paga el próximo ciclo) */
+    spent: number;
+    /** Devoluciones y abonos en TC del ciclo */
+    credits: number;
+    /** Lo que se pagará el próximo ciclo según la vista estado de cuenta */
+    upcomingStatement: number;
+    /** Igual que el anterior, incluyendo ítems de plantilla aún no confirmados */
+    upcomingStatementCommitted: number;
+    /** Pago TC que falta hacer en este ciclo (factura del ciclo anterior) */
+    pendingPayment: number;
+  };
+  warnings: CycleWarning[];
+};
+
+export type BalanceRange = DateRange & {
+  status: 'open' | 'closed';
+};
+
+const ZERO: Amounts = { real: 0, committed: 0, projected: 0 };
+
+function toDateString(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function daysBetweenStrings(start: string, end: string): number {
+  return Math.round(
+    (new Date(end + 'T00:00:00Z').getTime() - new Date(start + 'T00:00:00Z').getTime()) /
+      86_400_000
+  );
+}
+
+function sum(rows: BucketRow[], predicate: (row: BucketRow) => boolean): number {
+  return rows.reduce((acc, row) => (predicate(row) ? acc + row.total : acc), 0);
+}
+
+function count(rows: BucketRow[], predicate: (row: BucketRow) => boolean): number {
+  return rows.reduce((acc, row) => (predicate(row) ? acc + row.count : acc), 0);
+}
+
+function cashLine(rows: BucketRow[], bucket: Bucket, isOpen: boolean): Amounts {
+  const real = sum(rows, (r) => r.bucket === bucket && r.inRange && r.isReal);
+  const committed = isOpen ? sum(rows, (r) => r.bucket === bucket && r.inRange) : real;
+  return { real, committed, projected: committed };
+}
+
+function combine(...parts: Array<[Amounts, 1 | -1]>): Amounts {
+  return parts.reduce<Amounts>(
+    (acc, [amounts, sign]) => ({
+      real: acc.real + sign * amounts.real,
+      committed: acc.committed + sign * amounts.committed,
+      projected: acc.projected + sign * amounts.projected,
+    }),
+    ZERO
+  );
+}
+
+/**
+ * Vista estado de cuenta por tarjeta: lo que se pagará en el ciclo siguiente.
+ * Compras sin cuota cargadas en el ciclo + cuotas fechadas en la ventana
+ * posterior al fin del ciclo − devoluciones/abonos en TC del ciclo.
+ */
+function statementByCard(rows: BucketRow[]): Map<string, { real: number; committed: number }> {
+  const result = new Map<string, { real: number; committed: number }>();
+  for (const row of rows) {
+    if (!row.cardAccountId) continue;
+    let real = 0;
+    let pendingTemplate = 0;
+    if (row.bucket === 'card_spend' && row.inRange && !row.isInstallment) {
+      if (row.isReal) real = row.total;
+      else if (!row.isPaid) pendingTemplate = row.total;
+    } else if (row.bucket === 'card_spend' && !row.inRange && row.isInstallment) {
+      real = row.total;
+    } else if (row.bucket === 'card_credit' && row.inRange) {
+      real = -row.total;
+    } else {
+      continue;
+    }
+    const current = result.get(row.cardAccountId) ?? { real: 0, committed: 0 };
+    result.set(row.cardAccountId, {
+      real: current.real + real,
+      committed: current.committed + real + pendingTemplate,
+    });
+  }
+  return result;
+}
+
+/** Total pagado por tarjeta en el ciclo (un pago puede venir en varias partes) */
+function paymentsByCard(rows: BucketRow[]): Map<string, { amount: number }> {
+  const result = new Map<string, { amount: number }>();
+  for (const row of rows) {
+    if (row.bucket !== 'card_payment' || !row.inRange || !row.isReal || !row.cardAccountId) continue;
+    const current = result.get(row.cardAccountId) ?? { amount: 0 };
+    result.set(row.cardAccountId, { amount: current.amount + row.total });
+  }
+  return result;
+}
+
+/**
+ * Arma la cascada de cada rango a partir de las filas agregadas.
+ * Los rangos deben venir ordenados por fecha de inicio: el anterior a cada
+ * uno se usa para el pago TC pendiente y las validaciones.
+ */
+export function buildBalances(
+  ranges: BalanceRange[],
+  rows: BucketRow[],
+  cardNames: Map<string, string>
+): Map<string, CycleBalance> {
+  const rowsByKey = new Map<string, BucketRow[]>();
+  for (const row of rows) {
+    const list = rowsByKey.get(row.key) ?? [];
+    list.push(row);
+    rowsByKey.set(row.key, list);
+  }
+
+  const cardName = (id: string) => cardNames.get(id) ?? 'Tarjeta';
+  const result = new Map<string, CycleBalance>();
+
+  ranges.forEach((range, index) => {
+    const rangeRows = rowsByKey.get(range.key) ?? [];
+    const previous = index > 0 ? ranges[index - 1] : null;
+    const previousStatement = previous
+      ? statementByCard(rowsByKey.get(previous.key) ?? [])
+      : new Map<string, { real: number; committed: number }>();
+    const isOpen = range.status === 'open';
+
+    const income = cashLine(rangeRows, 'income', isOpen);
+    const reimbursements = cashLine(rangeRows, 'reimbursement', isOpen);
+    const debitExpenses = cashLine(rangeRows, 'debit_expense', isOpen);
+    const savingsIn = cashLine(rangeRows, 'savings_in', isOpen);
+    const savingsOut = cashLine(rangeRows, 'savings_out', isOpen);
+    const paidCardPayment = cashLine(rangeRows, 'card_payment', isOpen);
+
+    const payments = paymentsByCard(rangeRows);
+    const warnings: CycleWarning[] = [];
+
+    let pendingPayment = 0;
+    for (const [cardId, statement] of previousStatement) {
+      const payment = payments.get(cardId);
+      if (!payment) {
+        if (statement.real <= 0) continue;
+        if (isOpen) {
+          pendingPayment += statement.real;
+        } else if (statement.real > CARD_PAYMENT_MISMATCH_THRESHOLD) {
+          warnings.push({
+            kind: 'card_payment_missing',
+            cardName: cardName(cardId),
+            expected: statement.real,
+          });
+        }
+      } else if (Math.abs(payment.amount - statement.real) > CARD_PAYMENT_MISMATCH_THRESHOLD) {
+        warnings.push({
+          kind: 'card_payment_mismatch',
+          cardName: cardName(cardId),
+          expected: statement.real,
+          paid: payment.amount,
+        });
+      }
+    }
+    const cardPayment: Amounts = {
+      ...paidCardPayment,
+      projected: paidCardPayment.projected + pendingPayment,
+    };
+
+    const balanceBeforeSavings = combine(
+      [income, 1],
+      [reimbursements, 1],
+      [debitExpenses, -1],
+      [cardPayment, -1]
+    );
+    const finalBalance = combine([balanceBeforeSavings, 1], [savingsIn, -1], [savingsOut, 1]);
+
+    if (!isOpen) {
+      const overdue = (r: BucketRow) =>
+        r.inRange &&
+        !r.isPaid &&
+        (r.bucket === 'income' ||
+          r.bucket === 'reimbursement' ||
+          r.bucket === 'debit_expense' ||
+          (r.bucket === 'card_spend' && !r.isInstallment));
+      const overdueCount = count(rangeRows, overdue);
+      if (overdueCount > 0) {
+        warnings.push({
+          kind: 'overdue_pending',
+          count: overdueCount,
+          amount: sum(rangeRows, overdue),
+        });
+      }
+    }
+
+    if (previous) {
+      const gap = daysBetweenStrings(previous.end, range.start) - 1;
+      if (gap > 0) warnings.push({ kind: 'gap_before', days: gap });
+    }
+
+    const upcoming = [...statementByCard(rangeRows).values()];
+
+    result.set(range.key, {
+      income,
+      reimbursements,
+      debitExpenses,
+      cardPayment,
+      balanceBeforeSavings,
+      savingsIn,
+      savingsOut,
+      finalBalance,
+      card: {
+        spent: sum(rangeRows, (r) => r.bucket === 'card_spend' && r.inRange && r.isReal),
+        credits: sum(rangeRows, (r) => r.bucket === 'card_credit' && r.inRange),
+        upcomingStatement: upcoming.reduce((acc, s) => acc + s.real, 0),
+        upcomingStatementCommitted: upcoming.reduce((acc, s) => acc + s.committed, 0),
+        pendingPayment,
+      },
+      warnings,
+    });
+  });
+
+  return result;
+}
+
+async function getCardNames(projectId: string): Promise<Map<string, string>> {
+  const rows = await db
+    .select({ id: accounts.id, name: accounts.name })
+    .from(accounts)
+    .where(and(eq(accounts.projectId, projectId), inArray(accounts.type, ['credit_card'])));
+  return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+async function fetchBucketRows(projectId: string, ranges: DateRange[]): Promise<BucketRow[]> {
+  if (ranges.length === 0) return [];
+  const today = toDateString(getToday());
+  const rows = await db.execute(bucketAggregationQuery(projectId, ranges, today));
+  return parseBucketRows(rows as unknown as Parameters<typeof parseBucketRows>[0]);
+}
+
+/**
+ * Saldo de varios ciclos con una sola consulta.
+ * Recibe los ciclos del proyecto (en cualquier orden); el anterior de cada
+ * ciclo se usa para el pago TC pendiente y las validaciones.
+ */
+export async function getCycleBalances(
+  projectId: string,
+  cycles: Array<{ id: string; startDate: Date; endDate: Date; status: 'open' | 'closed' }>
+): Promise<Map<string, CycleBalance>> {
+  const ranges: BalanceRange[] = [...cycles]
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+    .map((c) => ({
+      key: c.id,
+      start: toDateString(c.startDate),
+      end: toDateString(c.endDate),
+      status: c.status,
+    }));
+
+  const [rows, cardNames] = await Promise.all([
+    fetchBucketRows(projectId, ranges),
+    getCardNames(projectId),
+  ]);
+  return buildBalances(ranges, rows, cardNames);
+}
+
+/**
+ * Saldo de caja (real) de un rango arbitrario de fechas.
+ * Sin pago TC pendiente: no hay "ciclo anterior" del cual tomarlo.
+ */
+export async function getRangeBalance(
+  projectId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<CycleBalance> {
+  const range: BalanceRange = {
+    key: 'range',
+    start: toDateString(startDate),
+    end: toDateString(endDate),
+    status: 'closed',
+  };
+  const rows = await fetchBucketRows(projectId, [range]);
+  return buildBalances([range], rows, new Map()).get('range')!;
+}

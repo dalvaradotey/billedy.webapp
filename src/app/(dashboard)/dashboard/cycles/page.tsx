@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
 import {
   getBillingCycles,
-  getBillingCyclesSummary,
+  summarizeBillingCycles,
   suggestNextCycleDates,
 } from '@/features/billing-cycles/queries';
 import { getCurrentProjectId } from '@/features/projects/actions';
@@ -27,11 +27,11 @@ export default async function CyclesPage() {
   }
 
   // Cargar datos en paralelo
-  const [cycles, summary, suggestedDates] = await Promise.all([
+  const [cycles, suggestedDates] = await Promise.all([
     getBillingCycles(projectId, session.user.id),
-    getBillingCyclesSummary(projectId, session.user.id),
     suggestNextCycleDates(projectId, session.user.id),
   ]);
+  const summary = summarizeBillingCycles(cycles);
 
   return (
     <div className="space-y-6">
@@ -46,7 +46,6 @@ export default async function CyclesPage() {
         cycles={cycles}
         summary={summary}
         projectId={projectId}
-        userId={session.user.id}
         suggestedDates={suggestedDates}
       />
     </div>

@@ -1,128 +1,50 @@
 import { db } from '@/lib/db';
-import { billingCycles, transactions, projectMembers, accounts } from '@/lib/db/schema';
-import { eq, and, sql, isNotNull, isNull, desc, gte, lte, asc } from 'drizzle-orm';
+import { billingCycles, projectMembers } from '@/lib/db/schema';
+import { eq, and, isNotNull, desc } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import { getToday, daysBetween } from '@/lib/formatting';
+import { getCycleBalances } from './lib/cycle-balance';
 import type { BillingCycleWithTotals, BillingCycleSummary } from './types';
 
-/**
- * Calcula totales de transacciones para un rango de fechas
- */
-async function calculateTotalsForRange(
-  projectId: string,
-  startDate: Date,
-  endDate: Date
-): Promise<{
-  income: number;
-  expenses: number;
-  paidIncome: number;
-  pendingIncome: number;
-  paidExpenses: number;
-  pendingExpenses: number;
-  savings: number;
-  balance: number;
-}> {
-  // Excluir income de cuentas previsionales (pension, unemployment, savings) del conteo de ingresos
-  const provisionTypes = ['pension', 'unemployment', 'savings'];
-  const isNotProvision = sql`(${accounts.type} IS NULL OR ${accounts.type} NOT IN (${sql.join(provisionTypes.map(t => sql`${t}`), sql`, `)}))`;
-
-  const [transactionTotals, savingsTotals] = await Promise.all([
-    db
-      .select({
-        paidIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = true AND ${isNotProvision} THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-        pendingIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = false AND ${isNotProvision} THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-        paidExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-        pendingExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = false THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-      })
-      .from(transactions)
-      .leftJoin(accounts, eq(transactions.accountId, accounts.id))
-      .where(
-        and(
-          eq(transactions.projectId, projectId),
-          gte(transactions.date, startDate),
-          lte(transactions.date, endDate),
-          isNull(transactions.linkedTransactionId)
-        )
-      ),
-    db
-      .select({
-        totalSavings: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.savingsGoalId} IS NOT NULL AND ${transactions.type} = 'income' THEN ABS(${transactions.baseAmount}) ELSE 0 END), 0)`,
-      })
-      .from(transactions)
-      .where(
-        and(
-          eq(transactions.projectId, projectId),
-          gte(transactions.date, startDate),
-          lte(transactions.date, endDate),
-          isNotNull(transactions.savingsGoalId)
-        )
-      ),
-  ]);
-
-  const paidIncome = parseFloat(transactionTotals[0]?.paidIncome ?? '0');
-  const pendingIncome = parseFloat(transactionTotals[0]?.pendingIncome ?? '0');
-  const paidExpenses = parseFloat(transactionTotals[0]?.paidExpenses ?? '0');
-  const pendingExpenses = parseFloat(transactionTotals[0]?.pendingExpenses ?? '0');
-  const income = paidIncome + pendingIncome;
-  const expenses = paidExpenses + pendingExpenses;
-  const savings = parseFloat(savingsTotals[0]?.totalSavings ?? '0');
-  const balance = paidIncome - paidExpenses - savings;
-
-  return { income, expenses, paidIncome, pendingIncome, paidExpenses, pendingExpenses, savings, balance };
-}
+type BillingCycleRow = typeof billingCycles.$inferSelect;
 
 /**
- * Obtiene un ciclo con sus totales calculados
+ * Calcula el saldo de todos los ciclos del proyecto con una sola consulta
+ * y les agrega los días transcurridos/restantes.
  */
-async function enrichCycleWithTotals(
-  cycle: typeof billingCycles.$inferSelect,
+async function enrichCyclesWithTotals(
+  cycles: BillingCycleRow[],
   projectId: string
-): Promise<BillingCycleWithTotals> {
+): Promise<BillingCycleWithTotals[]> {
+  const balances = await getCycleBalances(
+    projectId,
+    cycles.map((c) => ({
+      id: c.id,
+      startDate: new Date(c.startDate),
+      endDate: new Date(c.endDate),
+      status: c.status,
+    }))
+  );
+
   const today = getToday();
-  const startDate = new Date(cycle.startDate);
-  const endDate = new Date(cycle.endDate);
 
-  const daysTotal = daysBetween(startDate, endDate) + 1; // +1: endDate es inclusivo
-  const daysElapsed = Math.min(daysTotal, Math.max(0, daysBetween(startDate, today) + 1));
-  const daysRemaining = Math.max(0, daysTotal - daysElapsed);
+  return cycles.map((cycle) => {
+    const startDate = new Date(cycle.startDate);
+    const endDate = new Date(cycle.endDate);
+    const daysTotal = daysBetween(startDate, endDate) + 1; // +1: endDate es inclusivo
+    const daysElapsed =
+      cycle.status === 'closed'
+        ? daysTotal
+        : Math.min(daysTotal, Math.max(0, daysBetween(startDate, today) + 1));
 
-  // Si está cerrado, usar snapshot (no hay desglose histórico)
-  if (cycle.status === 'closed') {
-    const snapshotIncome = parseFloat(cycle.snapshotIncome ?? '0');
-    const snapshotExpenses = parseFloat(cycle.snapshotExpenses ?? '0');
     return {
       ...cycle,
-      currentIncome: snapshotIncome,
-      currentExpenses: snapshotExpenses,
-      paidIncome: snapshotIncome,
-      pendingIncome: 0,
-      paidExpenses: snapshotExpenses,
-      pendingExpenses: 0,
-      currentSavings: parseFloat(cycle.snapshotSavings ?? '0'),
-      currentBalance: parseFloat(cycle.snapshotBalance ?? '0'),
+      balance: balances.get(cycle.id)!,
       daysTotal,
-      daysElapsed: daysTotal,
-      daysRemaining: 0,
+      daysElapsed,
+      daysRemaining: Math.max(0, daysTotal - daysElapsed),
     };
-  }
-
-  // Si está abierto, calcular en tiempo real
-  const totals = await calculateTotalsForRange(projectId, startDate, endDate);
-
-  return {
-    ...cycle,
-    currentIncome: totals.income,
-    currentExpenses: totals.expenses,
-    paidIncome: totals.paidIncome,
-    pendingIncome: totals.pendingIncome,
-    paidExpenses: totals.paidExpenses,
-    pendingExpenses: totals.pendingExpenses,
-    currentSavings: totals.savings,
-    currentBalance: totals.balance,
-    daysTotal,
-    daysElapsed,
-    daysRemaining,
-  };
+  });
 }
 
 /**
@@ -145,7 +67,7 @@ async function verifyProjectAccess(projectId: string, userId: string): Promise<b
 }
 
 /**
- * Obtiene todos los ciclos de un proyecto
+ * Obtiene todos los ciclos de un proyecto (más reciente primero)
  */
 export async function getBillingCycles(
   projectId: string,
@@ -162,42 +84,19 @@ export async function getBillingCycles(
     .where(eq(billingCycles.projectId, projectId))
     .orderBy(desc(billingCycles.startDate));
 
-  const enrichedCycles = await Promise.all(
-    cycles.map((cycle) => enrichCycleWithTotals(cycle, projectId))
-  );
-
-  return enrichedCycles;
+  return enrichCyclesWithTotals(cycles, projectId);
 }
 
 /**
- * Query interna para obtener ciclo actual
+ * Query interna para obtener ciclo actual.
+ * Carga todos los ciclos porque el pago TC pendiente depende del ciclo anterior.
  */
 async function _getCurrentCycle(
   projectId: string,
   userId: string
 ): Promise<BillingCycleWithTotals | null> {
-  const hasAccess = await verifyProjectAccess(projectId, userId);
-  if (!hasAccess) {
-    return null;
-  }
-
-  const cycle = await db
-    .select()
-    .from(billingCycles)
-    .where(
-      and(
-        eq(billingCycles.projectId, projectId),
-        eq(billingCycles.status, 'open')
-      )
-    )
-    .orderBy(desc(billingCycles.startDate))
-    .limit(1);
-
-  if (!cycle[0]) {
-    return null;
-  }
-
-  return enrichCycleWithTotals(cycle[0], projectId);
+  const cycles = await getBillingCycles(projectId, userId);
+  return cycles.find((c) => c.status === 'open') ?? null;
 }
 
 /**
@@ -211,76 +110,15 @@ export const getCurrentCycle = cachedQuery(
 );
 
 /**
- * Obtiene un ciclo por ID
+ * Resume una lista de ciclos ya cargada (evita volver a consultar)
  */
-export async function getBillingCycleById(
-  cycleId: string,
-  userId: string
-): Promise<BillingCycleWithTotals | null> {
-  const result = await db
-    .select()
-    .from(billingCycles)
-    .innerJoin(projectMembers, eq(billingCycles.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(billingCycles.id, cycleId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!result[0]) {
-    return null;
-  }
-
-  const cycle = result[0].n1n4_billing_cycles;
-  return enrichCycleWithTotals(cycle, cycle.projectId);
-}
-
-/**
- * Obtiene resumen de ciclos de un proyecto
- */
-export async function getBillingCyclesSummary(
-  projectId: string,
-  userId: string
-): Promise<BillingCycleSummary> {
-  const cycles = await getBillingCycles(projectId, userId);
-  const currentCycle = cycles.find((c) => c.status === 'open') ?? null;
-
+export function summarizeBillingCycles(cycles: BillingCycleWithTotals[]): BillingCycleSummary {
   return {
     totalCycles: cycles.length,
     openCycles: cycles.filter((c) => c.status === 'open').length,
     closedCycles: cycles.filter((c) => c.status === 'closed').length,
-    currentCycle,
+    currentCycle: cycles.find((c) => c.status === 'open') ?? null,
   };
-}
-
-/**
- * Calcula totales para un rango de fechas personalizado
- * (útil para el dashboard con filtros)
- */
-export async function getTransactionsSummaryByRange(
-  projectId: string,
-  userId: string,
-  startDate: Date,
-  endDate: Date
-): Promise<{
-  income: number;
-  expenses: number;
-  savings: number;
-  balance: number;
-  daysTotal: number;
-}> {
-  const hasAccess = await verifyProjectAccess(projectId, userId);
-  if (!hasAccess) {
-    return { income: 0, expenses: 0, savings: 0, balance: 0, daysTotal: 0 };
-  }
-
-  const totals = await calculateTotalsForRange(projectId, startDate, endDate);
-  const daysTotal = daysBetween(startDate, endDate);
-
-  return { ...totals, daysTotal };
 }
 
 /**
@@ -317,27 +155,27 @@ export async function suggestNextCycleDates(
     return {
       startDate: today,
       endDate: nextMonth,
-      name: `Ciclo ${monthName} ${nextMonth.getFullYear()}`,
+      name: `Ciclo ${monthName} ${nextMonth.getUTCFullYear()}`,
     };
   }
 
   // Sugerir basándose en el último ciclo
   const lastEndDate = new Date(lastCycle[0].endDate);
   const startDate = new Date(lastEndDate);
-  startDate.setDate(startDate.getDate() + 1); // Día siguiente al último
+  startDate.setUTCDate(startDate.getUTCDate() + 1); // Día siguiente al último
 
   // Calcular duración del último ciclo para mantener consistencia
   const lastStartDate = new Date(lastCycle[0].startDate);
   const lastDuration = daysBetween(lastStartDate, lastEndDate);
 
   const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + lastDuration);
+  endDate.setUTCDate(endDate.getUTCDate() + lastDuration);
 
-  const monthName = MONTH_NAMES[endDate.getMonth()];
+  const monthName = MONTH_NAMES[endDate.getUTCMonth()];
 
   return {
     startDate,
     endDate,
-    name: `Ciclo ${monthName} ${endDate.getFullYear()}`,
+    name: `Ciclo ${monthName} ${endDate.getUTCFullYear()}`,
   };
 }

@@ -83,24 +83,41 @@ export function DashboardProvider({
           });
         }
 
-        // 2. Actualizar ciclo
+        // 2. Actualizar ciclo (misma cascada que el servidor)
         let newCycle = prev.cycle;
-        if (prev.cycle && affectsBalance) {
-          const incomeChange = type === 'income' ? amount : 0;
-          const expenseChange = type === 'expense' ? amount : 0;
+        if (prev.cycle) {
+          const balance = prev.cycle.balance;
+          const isLiquid = accountType === 'checking' || accountType === 'cash';
 
-          newCycle = {
-            ...prev.cycle,
-            currentIncome: prev.cycle.currentIncome + incomeChange,
-            currentExpenses: prev.cycle.currentExpenses + expenseChange,
-            paidIncome: prev.cycle.paidIncome + (type === 'income' && isPaid ? amount : 0),
-            pendingIncome: prev.cycle.pendingIncome + (type === 'income' && !isPaid ? amount : 0),
-            paidExpenses: prev.cycle.paidExpenses + (type === 'expense' && isPaid ? amount : 0),
-            pendingExpenses: prev.cycle.pendingExpenses + (type === 'expense' && !isPaid ? amount : 0),
-            currentBalance: isPaid
-              ? prev.cycle.currentBalance + (type === 'income' ? amount : -amount)
-              : prev.cycle.currentBalance,
-          };
+          if (accountType === 'credit_card' && type === 'expense' && isPaid) {
+            // Un gasto en TC no mueve la caja del ciclo: se paga el próximo ciclo
+            newCycle = {
+              ...prev.cycle,
+              balance: { ...balance, card: { ...balance.card, spent: balance.card.spent + amount } },
+            };
+          } else if (isLiquid) {
+            // Ingreso o gasto directo en cuenta líquida
+            const delta = type === 'income' ? amount : -amount;
+            const shift = (a: typeof balance.income, includeReal: boolean) => ({
+              real: a.real + (includeReal ? delta : 0),
+              committed: a.committed + delta,
+              projected: a.projected + delta,
+            });
+            const line = type === 'income' ? 'income' : 'debitExpenses';
+            newCycle = {
+              ...prev.cycle,
+              balance: {
+                ...balance,
+                [line]: {
+                  real: balance[line].real + (isPaid ? amount : 0),
+                  committed: balance[line].committed + amount,
+                  projected: balance[line].projected + amount,
+                },
+                balanceBeforeSavings: shift(balance.balanceBeforeSavings, isPaid),
+                finalBalance: shift(balance.finalBalance, isPaid),
+              },
+            };
+          }
         }
 
         // 3. Actualizar resumen de cuentas

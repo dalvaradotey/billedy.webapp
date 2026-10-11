@@ -108,8 +108,8 @@ export const RELATED_TAGS = {
     CACHE_TAGS.billingCycles,
   ],
 
-  // Cuentas afectan: dashboard, transactions (para selects)
-  accounts: [CACHE_TAGS.accounts, CACHE_TAGS.dashboard, CACHE_TAGS.summary],
+  // Cuentas afectan: dashboard, transactions (para selects), billing cycles (el tipo de cuenta define el saldo)
+  accounts: [CACHE_TAGS.accounts, CACHE_TAGS.dashboard, CACHE_TAGS.summary, CACHE_TAGS.billingCycles],
 
   // Créditos afectan: dashboard, transactions (cuotas)
   credits: [

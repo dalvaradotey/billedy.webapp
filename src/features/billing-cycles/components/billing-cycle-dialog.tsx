@@ -27,7 +27,6 @@ import type { BillingCycleWithTotals } from '../types';
 
 interface BillingCycleDialogContentProps {
   projectId: string;
-  userId: string;
   cycle: BillingCycleWithTotals | null;
   suggestedDates: { startDate: Date; endDate: Date; name: string } | null;
   onSuccess: () => void;
@@ -38,7 +37,6 @@ interface BillingCycleDialogContentProps {
 
 export function BillingCycleDialogContent({
   projectId,
-  userId,
   cycle,
   suggestedDates,
   onSuccess,
@@ -105,13 +103,13 @@ export function BillingCycleDialogContent({
 
     startTransition(async () => {
       const result = isEditing
-        ? await updateBillingCycle(cycle.id, userId, {
+        ? await updateBillingCycle(cycle.id, {
             name: data.name,
             startDate: data.startDate,
             endDate: data.endDate,
             notes: data.notes,
           })
-        : await createBillingCycle(userId, data);
+        : await createBillingCycle(data);
 
       if (result.success) {
         form.reset();
