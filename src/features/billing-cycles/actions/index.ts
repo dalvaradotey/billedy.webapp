@@ -1,8 +1,6 @@
-// Utils
-export { type ActionResult, verifyProjectAccess, calculateTotalsForRange } from './utils';
-
-// Cycle transactions
-export { loadCycleTransactions } from './cycle-transactions';
+// Solo server actions: los helpers internos (utils, cycle-transactions) no se
+// exportan para que no queden expuestos como endpoints ni lleguen al cliente.
+export type { ActionResult } from './utils';
 
 // CRUD
 export {
@@ -12,8 +10,4 @@ export {
 } from './billing-cycle-crud';
 
 // Status operations
-export {
-  closeBillingCycle,
-  reopenBillingCycle,
-  recalculateSnapshot,
-} from './billing-cycle-status';
+export { closeBillingCycle, reopenBillingCycle } from './billing-cycle-status';

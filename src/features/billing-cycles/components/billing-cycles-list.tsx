@@ -26,7 +26,6 @@ interface BillingCyclesListProps {
   cycles: BillingCycleWithTotals[];
   summary: BillingCycleSummary;
   projectId: string;
-  userId: string;
   suggestedDates: { startDate: Date; endDate: Date; name: string } | null;
 }
 
@@ -34,7 +33,6 @@ export function BillingCyclesList({
   cycles,
   summary,
   projectId,
-  userId,
   suggestedDates,
 }: BillingCyclesListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -89,24 +87,24 @@ export function BillingCyclesList({
         />
         <SummaryCard
           title="Ingresos del Ciclo"
-          value={cc ? formatCurrency(cc.currentIncome) : '—'}
-          subtitle={cc ? 'ciclo actual' : 'sin ciclo abierto'}
+          value={cc ? formatCurrency(cc.balance.income.real + cc.balance.reimbursements.real) : '—'}
+          subtitle={cc ? 'incluye abonos' : 'sin ciclo abierto'}
           icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="success"
         />
         <SummaryCard
-          title="Gastos del Ciclo"
-          value={cc ? formatCurrency(cc.currentExpenses) : '—'}
-          subtitle={cc ? 'ciclo actual' : 'sin ciclo abierto'}
+          title="Salidas del Ciclo"
+          value={cc ? formatCurrency(cc.balance.debitExpenses.real + cc.balance.cardPayment.real) : '—'}
+          subtitle={cc ? 'débito + pago TC' : 'sin ciclo abierto'}
           icon={<TrendingDown className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="danger"
         />
         <SummaryCard
-          title="Balance"
-          value={cc ? formatCurrency(cc.currentBalance) : '—'}
-          subtitle={cc ? `${cc.daysRemaining} días restantes` : 'sin ciclo abierto'}
+          title="Saldo final"
+          value={cc ? formatCurrency(cc.balance.finalBalance.real) : '—'}
+          subtitle={cc ? `después de ahorro · ${cc.daysRemaining} días restantes` : 'sin ciclo abierto'}
           icon={<Wallet className="h-4 w-4 sm:h-5 sm:w-5" />}
-          variant={!cc ? 'neutral' : cc.currentBalance >= 0 ? 'success' : 'danger'}
+          variant={!cc ? 'neutral' : cc.balance.finalBalance.real >= 0 ? 'success' : 'danger'}
         />
       </SummaryCardsSlider>
 
@@ -115,7 +113,6 @@ export function BillingCyclesList({
         <BillingCycleDialogContent
           key={editingCycle?.id ?? 'new'}
           projectId={projectId}
-          userId={userId}
           cycle={editingCycle}
           suggestedDates={suggestedDates}
           onSuccess={handleDialogClose}
@@ -142,7 +139,6 @@ export function BillingCyclesList({
               <BillingCycleCard
                 key={cycle.id}
                 cycle={cycle}
-                userId={userId}
                 onEdit={() => handleEdit(cycle)}
                 onMutationStart={onMutationStart}
                 onMutationSuccess={onMutationSuccess}

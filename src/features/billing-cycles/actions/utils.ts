@@ -1,16 +1,12 @@
-'use server';
-
 import { db } from '@/lib/db';
-import {
-  projectMembers,
-  transactions,
-  accounts,
-} from '@/lib/db/schema';
-import { eq, and, isNotNull, gte, lte, sql } from 'drizzle-orm';
+import { billingCycles, projectMembers } from '@/lib/db/schema';
+import { eq, and, isNotNull, lte, gte, ne } from 'drizzle-orm';
 
 export type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+export const UNAUTHORIZED_ERROR = 'Tu sesión expiró. Vuelve a iniciar sesión.';
 
 /**
  * Verifica que el usuario tenga acceso al proyecto
@@ -35,43 +31,33 @@ export async function verifyProjectAccess(
 }
 
 /**
- * Calcula totales de transacciones para un rango de fechas
- * Los ahorros se calculan desde transacciones con savingsGoalId (income)
+ * Busca un ciclo del proyecto cuyas fechas se crucen con el rango dado.
+ * Un solape hace que un pago de TC quede en dos ciclos (o en el equivocado).
  */
-export async function calculateTotalsForRange(
+export async function findOverlappingCycle(
   projectId: string,
   startDate: Date,
-  endDate: Date
-): Promise<{
-  income: number;
-  expenses: number;
-  savings: number;
-  balance: number;
-}> {
-  // Excluir income de cuentas previsionales (pension, unemployment, savings) del conteo de ingresos
-  const provisionTypes = ['pension', 'unemployment', 'savings'];
-  const isNotProvision = sql`(${accounts.type} IS NULL OR ${accounts.type} NOT IN (${sql.join(provisionTypes.map(t => sql`${t}`), sql`, `)}))`;
+  endDate: Date,
+  excludeCycleId?: string
+): Promise<{ id: string; name: string } | null> {
+  const conditions = [
+    eq(billingCycles.projectId, projectId),
+    lte(billingCycles.startDate, endDate),
+    gte(billingCycles.endDate, startDate),
+  ];
+  if (excludeCycleId) {
+    conditions.push(ne(billingCycles.id, excludeCycleId));
+  }
 
-  const transactionTotals = await db
-    .select({
-      totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${isNotProvision} THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-      totalExpenses: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' THEN ${transactions.baseAmount} ELSE 0 END), 0)`,
-      totalSavings: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.savingsGoalId} IS NOT NULL AND ${transactions.type} = 'income' THEN ABS(${transactions.baseAmount}) ELSE 0 END), 0)`,
-    })
-    .from(transactions)
-    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
-    .where(
-      and(
-        eq(transactions.projectId, projectId),
-        gte(transactions.date, startDate),
-        lte(transactions.date, endDate)
-      )
-    );
+  const [overlapping] = await db
+    .select({ id: billingCycles.id, name: billingCycles.name })
+    .from(billingCycles)
+    .where(and(...conditions))
+    .limit(1);
 
-  const income = parseFloat(transactionTotals[0]?.totalIncome ?? '0');
-  const expenses = parseFloat(transactionTotals[0]?.totalExpenses ?? '0');
-  const savings = parseFloat(transactionTotals[0]?.totalSavings ?? '0');
-  const balance = income - expenses - savings;
+  return overlapping ?? null;
+}
 
-  return { income, expenses, savings, balance };
+export function overlapError(cycleName: string): string {
+  return `Las fechas se cruzan con "${cycleName}". Ajusta el inicio o el fin para que no se solapen.`;
 }

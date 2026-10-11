@@ -8,11 +8,12 @@ import {
   Trash2,
   Lock,
   Unlock,
-  RefreshCw,
   CheckCircle2,
   Clock,
   MoreVertical,
   X,
+  ChevronDown,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -34,18 +35,13 @@ import { cn } from '@/lib/utils';
 import { cardStyles } from '@/components/card-styles';
 
 import { formatCurrency, formatDate } from '@/lib/formatting';
-import {
-  closeBillingCycle,
-  reopenBillingCycle,
-  deleteBillingCycle,
-  recalculateSnapshot,
-} from '../actions';
+import { closeBillingCycle, reopenBillingCycle, deleteBillingCycle } from '../actions';
 import type { BillingCycleWithTotals } from '../types';
 import { formatDateInput } from './utils';
+import { CycleCascade, balanceColor } from './cycle-cascade';
 
 interface BillingCycleCardProps {
   cycle: BillingCycleWithTotals;
-  userId: string;
   onEdit: () => void;
   onMutationStart?: () => void;
   onMutationSuccess?: (toastId: string | number, message: string) => void;
@@ -54,7 +50,6 @@ interface BillingCycleCardProps {
 
 export function BillingCycleCard({
   cycle,
-  userId,
   onEdit,
   onMutationStart,
   onMutationSuccess,
@@ -66,7 +61,9 @@ export function BillingCycleCard({
   const [closeEndDate, setCloseEndDate] = useState<Date>(new Date(cycle.endDate));
   const [showActionsDrawer, setShowActionsDrawer] = useState(false);
   const [showInlineActions, setShowInlineActions] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const isMobile = useIsMobile();
+  const { balance } = cycle;
 
   const isOpen = cycle.status === 'open';
   const progressPercentage =
@@ -81,7 +78,7 @@ export function BillingCycleCard({
     const toastId = toast.loading('Cerrando ciclo...');
     onMutationStart?.();
     startTransition(async () => {
-      const result = await closeBillingCycle(cycle.id, userId, { endDate: closeEndDate });
+      const result = await closeBillingCycle(cycle.id, { endDate: closeEndDate });
       setShowCloseDialog(false);
       if (result.success) {
         onMutationSuccess?.(toastId, 'Ciclo cerrado');
@@ -95,7 +92,7 @@ export function BillingCycleCard({
     const toastId = toast.loading('Reabriendo ciclo...');
     onMutationStart?.();
     startTransition(async () => {
-      const result = await reopenBillingCycle(cycle.id, userId);
+      const result = await reopenBillingCycle(cycle.id);
       if (result.success) {
         onMutationSuccess?.(toastId, 'Ciclo reabierto');
       } else {
@@ -108,23 +105,10 @@ export function BillingCycleCard({
     const toastId = toast.loading('Eliminando ciclo...');
     onMutationStart?.();
     startTransition(async () => {
-      const result = await deleteBillingCycle(cycle.id, userId);
+      const result = await deleteBillingCycle(cycle.id);
       setShowDeleteDialog(false);
       if (result.success) {
         onMutationSuccess?.(toastId, 'Ciclo eliminado');
-      } else {
-        onMutationError?.(toastId, result.error);
-      }
-    });
-  };
-
-  const handleRecalculate = () => {
-    const toastId = toast.loading('Recalculando snapshot...');
-    onMutationStart?.();
-    startTransition(async () => {
-      const result = await recalculateSnapshot(cycle.id, userId);
-      if (result.success) {
-        onMutationSuccess?.(toastId, 'Snapshot recalculado');
       } else {
         onMutationError?.(toastId, result.error);
       }
@@ -155,12 +139,6 @@ export function BillingCycleCard({
             icon: <Unlock />,
             onClick: handleReopen,
           },
-          {
-            key: 'recalculate',
-            label: 'Recalcular snapshot',
-            icon: <RefreshCw />,
-            onClick: handleRecalculate,
-          },
         ]),
     {
       key: 'delete',
@@ -173,9 +151,8 @@ export function BillingCycleCard({
 
   const description = `${formatDate(cycle.startDate)} - ${formatDate(cycle.endDate)}`;
 
-  const balanceColor = cycle.currentBalance >= 0
-    ? 'text-emerald-600 dark:text-emerald-400'
-    : 'text-red-600 dark:text-red-400';
+  const finalBalance = balance.finalBalance.real;
+  const savingsNet = balance.savingsIn.real - balance.savingsOut.real;
 
   return (
     <>
@@ -225,9 +202,12 @@ export function BillingCycleCard({
               </div>
 
               {/* Desktop: Balance */}
-              <p className={cn('hidden sm:block text-2xl font-bold tabular-nums shrink-0', balanceColor)}>
-                {formatCurrency(cycle.currentBalance)}
-              </p>
+              <div className="hidden sm:block text-right shrink-0">
+                <p className={cn('text-2xl font-bold tabular-nums', balanceColor(finalBalance))}>
+                  {formatCurrency(finalBalance)}
+                </p>
+                <p className="text-[11px] text-muted-foreground">saldo final</p>
+              </div>
 
               {/* Actions toggle */}
               <button
@@ -255,8 +235,11 @@ export function BillingCycleCard({
             </div>
 
             {/* Mobile: Balance below description */}
-            <p className={cn('text-2xl font-bold tabular-nums mt-1 sm:hidden', balanceColor)}>
-              {formatCurrency(cycle.currentBalance)}
+            <p className="mt-1 sm:hidden">
+              <span className={cn('text-2xl font-bold tabular-nums', balanceColor(finalBalance))}>
+                {formatCurrency(finalBalance)}
+              </span>
+              <span className="ml-1.5 text-xs text-muted-foreground">saldo final</span>
             </p>
 
             {/* Mobile actions drawer */}
@@ -334,43 +317,40 @@ export function BillingCycleCard({
           </div>
         )}
 
-        {/* Totals */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-          <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
-            <p className="text-xs text-muted-foreground">Ingresos</p>
-            <p className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-              {formatCurrency(cycle.currentIncome)}
-            </p>
-            {cycle.pendingIncome > 0 && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Pagado: {formatCurrency(cycle.paidIncome)} · Pend: {formatCurrency(cycle.pendingIncome)}
-              </p>
-            )}
-          </div>
-          <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
-            <p className="text-xs text-muted-foreground">Gastos</p>
-            <p className="font-semibold tabular-nums text-red-600 dark:text-red-400">
-              {formatCurrency(cycle.currentExpenses)}
-            </p>
-            {cycle.pendingExpenses > 0 && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Pagado: {formatCurrency(cycle.paidExpenses)} · Pend: {formatCurrency(cycle.pendingExpenses)}
-              </p>
-            )}
-          </div>
-          <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
-            <p className="text-xs text-muted-foreground">Ahorro</p>
-            <p className="font-semibold tabular-nums text-blue-600 dark:text-blue-400">
-              {formatCurrency(cycle.currentSavings)}
-            </p>
-          </div>
-          <div className="text-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40">
-            <p className="text-xs text-muted-foreground">Saldo</p>
-            <p className={cn('font-semibold tabular-nums', balanceColor)}>
-              {formatCurrency(cycle.currentBalance)}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">en base a pagados</p>
-          </div>
+        {/* Resumen + detalle de la cascada */}
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDetails(!showDetails);
+            }}
+            className="flex w-full min-h-11 items-center justify-between gap-3 rounded-xl bg-muted/40 dark:bg-muted/20 px-3 py-2 text-left text-sm"
+            aria-expanded={showDetails}
+          >
+            <span className="min-w-0 text-muted-foreground">
+              Antes de ahorro{' '}
+              <span className={cn('font-semibold tabular-nums', balanceColor(balance.balanceBeforeSavings.real))}>
+                {formatCurrency(balance.balanceBeforeSavings.real)}
+              </span>
+              {' · '}Ahorro{' '}
+              <span className="font-semibold tabular-nums text-foreground">{formatCurrency(savingsNet)}</span>
+            </span>
+            <span className="flex shrink-0 items-center gap-1.5">
+              {balance.warnings.length > 0 && (
+                <AlertTriangle className="h-4 w-4 text-amber-500" aria-label="Hay avisos" />
+              )}
+              <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', showDetails && 'rotate-180')} />
+            </span>
+          </button>
+          {showDetails && (
+            <div
+              className="mt-3 animate-in fade-in slide-in-from-top-1 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <CycleCascade balance={balance} isOpen={isOpen} />
+            </div>
+          )}
         </div>
 
         {cycle.notes && (
@@ -419,8 +399,8 @@ export function BillingCycleCard({
             <DrawerHeader>
               <DrawerTitle>Cerrar ciclo</DrawerTitle>
               <DrawerDescription>
-                Ajusta la fecha de cierre si es necesario. Se guardará un snapshot de los
-                totales.
+                Ajusta la fecha de cierre si es necesario. El saldo al cierre queda guardado
+                como referencia.
               </DrawerDescription>
             </DrawerHeader>
             <div className="space-y-4 px-4 pb-4">
