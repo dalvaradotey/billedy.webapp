@@ -3,6 +3,23 @@
 import { useState, useRef, useEffect, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Clases de columnas escritas literalmente: Tailwind solo genera las clases que
+ * encuentra completas en el código, así que no se pueden armar interpolando el número.
+ */
+const GRID_COLS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+  5: 'grid-cols-5',
+  6: 'grid-cols-6',
+};
+
+function gridCols(count: number): string {
+  return GRID_COLS[Math.min(Math.max(count, 1), 6)];
+}
+
 interface SummaryCardsSliderProps {
   children: ReactNode[];
   /** Items per page on mobile (default: 2) */
@@ -104,7 +121,7 @@ export function SummaryCardsSlider({
         >
           {pages.map((pageItems, pageIndex) => (
             <div key={pageIndex} className="flex-shrink-0 w-full snap-center">
-              <div className={cn('grid gap-3', `grid-cols-${itemsPerPage}`)}>
+              <div className={cn('grid gap-3', gridCols(itemsPerPage))}>
                 {pageItems}
               </div>
             </div>
@@ -132,7 +149,7 @@ export function SummaryCardsSlider({
 
       {/* Desktop: Grid with slider if more than desktopMaxCols */}
       {totalDesktopPages <= 1 ? (
-        <div className={cn(classes.desktop, 'gap-3', `grid-cols-${children.length}`)}>
+        <div className={cn(classes.desktop, 'gap-3', gridCols(children.length))}>
           {children}
         </div>
       ) : (
@@ -144,7 +161,7 @@ export function SummaryCardsSlider({
           >
             {desktopPages.map((pageItems, pageIndex) => (
               <div key={pageIndex} className="flex-shrink-0 w-full snap-center">
-                <div className={cn('grid gap-3', `grid-cols-${desktopMaxCols}`)}>
+                <div className={cn('grid gap-3', gridCols(desktopMaxCols))}>
                   {pageItems}
                 </div>
               </div>
