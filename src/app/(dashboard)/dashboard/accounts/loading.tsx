@@ -1,5 +1,5 @@
-import { PageSkeleton } from '@/components/page-skeleton';
+import { AccountsSkeleton } from '@/components/pulse-skeletons';
 
 export default function Loading() {
-  return <PageSkeleton title="Cuentas" showSummary listType="list" />;
+  return <AccountsSkeleton />;
 }

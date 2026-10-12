@@ -1,5 +1,5 @@
-import { PageSkeleton } from '@/components/page-skeleton';
+import { MovementsSkeleton } from '@/components/pulse-skeletons';
 
 export default function Loading() {
-  return <PageSkeleton title="Transacciones" showSummary listType="table" />;
+  return <MovementsSkeleton />;
 }
