@@ -17,11 +17,11 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="flex flex-col items-center justify-center py-12">
-      <div className="rounded-full bg-destructive/10 p-4 mb-4">
-        <AlertCircle className="h-10 w-10 text-destructive" />
+    <div className="mx-auto mt-8 flex max-w-sm flex-col items-center justify-center rounded-[28px] border border-line bg-surface p-6 text-center">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-coral-soft">
+        <AlertCircle className="h-7 w-7 text-coral" />
       </div>
-      <h2 className="text-xl font-semibold">Algo salió mal</h2>
+      <h2 className="text-xl font-extrabold tracking-[-0.02em]">Algo salió mal</h2>
       <p className="mt-2 text-muted-foreground text-center max-w-md">
         Hubo un error al cargar esta página. Por favor intenta de nuevo.
       </p>
@@ -30,7 +30,7 @@ export default function Error({
           Código: {error.digest}
         </p>
       )}
-      <Button onClick={reset} className="mt-6">
+      <Button onClick={reset} className="mt-6 w-full">
         <RefreshCw className="mr-2 h-4 w-4" />
         Intentar de nuevo
       </Button>
