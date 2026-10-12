@@ -59,6 +59,7 @@ export async function createCategory(
       projectId: parsed.data.projectId,
       name: parsed.data.name,
       color: parsed.data.color,
+      defaultNature: parsed.data.defaultNature ?? null,
     })
     .returning({ id: categories.id });
 

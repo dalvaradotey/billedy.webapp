@@ -19,6 +19,7 @@ export type TransactionFilters = {
   categoryId?: string;
   isPaid?: boolean;
   isReconciled?: boolean;
+  nature?: import('./nature').TransactionNature;
   startDate?: Date;
   endDate?: Date;
   search?: string;

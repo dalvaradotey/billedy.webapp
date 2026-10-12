@@ -35,6 +35,10 @@ export async function getTransactions(
     conditions.push(eq(transactions.isPaid, filters.isPaid));
   }
 
+  if (filters.nature) {
+    conditions.push(eq(transactions.nature, filters.nature));
+  }
+
   if (filters.isReconciled !== undefined) {
     conditions.push(eq(transactions.isReconciled, filters.isReconciled));
   }

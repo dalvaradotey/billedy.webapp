@@ -20,12 +20,15 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, ResponsiveDrawer } from '@/components/ui/drawer';
+import { Button } from '@/components/ui/button';
+import { NatureSelector } from '@/features/transactions/components/nature-selector';
+import { NATURE_LABELS, type TransactionNature } from '@/features/transactions/nature';
 import { cn } from '@/lib/utils';
 import { cardStyles } from '@/components/card-styles';
 
 import { formatCurrency, formatDateLong } from '@/lib/formatting';
-import { chargeInstallment, archiveCardPurchase, deleteCardPurchase, regenerateInstallments } from '../actions';
+import { chargeInstallment, archiveCardPurchase, deleteCardPurchase, regenerateInstallments, updateCardPurchase } from '../actions';
 import type { CardPurchaseWithDetails } from '../types';
 
 interface CardPurchaseCardProps {
@@ -52,6 +55,8 @@ export function CardPurchaseCard({
   const [showActionsDrawer, setShowActionsDrawer] = useState(false);
   const [showInlineActions, setShowInlineActions] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showNatureDrawer, setShowNatureDrawer] = useState(false);
+  const [selectedNature, setSelectedNature] = useState<TransactionNature>(purchase.nature);
   const isMobile = useIsMobile();
 
   const hasInterest = parseFloat(purchase.interestAmount) > 0;
@@ -116,6 +121,23 @@ export function CardPurchaseCard({
     });
   };
 
+  const handleSaveNature = () => {
+    const toastId = toast.loading('Actualizando naturaleza...');
+    onMutationStart?.();
+    startTransition(async () => {
+      const result = await updateCardPurchase(purchase.id, userId, {
+        nature: selectedNature as 'own' | 'external' | 'reimbursable' | 'fund',
+      });
+      setShowNatureDrawer(false);
+      if (result.success) {
+        onMutationSuccess?.(toastId, 'Naturaleza actualizada en la compra y sus cuotas');
+        onUpdate();
+      } else {
+        onMutationError?.(toastId, result.error ?? 'Error al actualizar');
+      }
+    });
+  };
+
   // Build description line
   const descriptionParts: string[] = [];
   if (purchase.entityName) descriptionParts.push(purchase.entityName);
@@ -134,6 +156,16 @@ export function CardPurchaseCard({
           onClick: handleChargeInstallment,
         }]
       : []),
+    {
+      key: 'nature',
+      label: 'Cambiar naturaleza',
+      icon: <Users />,
+      onClick: () => {
+        setSelectedNature(purchase.nature);
+        setShowNatureDrawer(true);
+      },
+      closeOnClick: false,
+    },
     {
       key: 'regenerate',
       label: 'Regenerar cuotas',
@@ -198,10 +230,10 @@ export function CardPurchaseCard({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-base truncate">{purchase.description}</p>
-                  {purchase.isExternalDebt && (
+                  {purchase.nature !== 'own' && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0">
                       <Users className="h-3 w-3" />
-                      Externa
+                      {NATURE_LABELS[purchase.nature]}
                     </span>
                   )}
                   {!purchase.isActive && (
@@ -570,6 +602,26 @@ export function CardPurchaseCard({
         isPending={isPending}
         onConfirm={handleRegenerate}
       />
+
+      {/* Naturaleza */}
+      <ResponsiveDrawer open={showNatureDrawer} onOpenChange={setShowNatureDrawer}>
+        <DrawerContent>
+          <div className="mx-auto w-full max-w-lg">
+            <DrawerHeader>
+              <DrawerTitle>Naturaleza de la compra</DrawerTitle>
+              <DrawerDescription>Se aplica a la compra y a todas sus cuotas.</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-4">
+              <NatureSelector type="expense" label="¿De quién es esta compra?" value={selectedNature} onChange={setSelectedNature} />
+              <DrawerFooter className="px-0 pt-4">
+                <Button onClick={handleSaveNature} disabled={isPending || selectedNature === purchase.nature} className="w-full">
+                  {isPending ? 'Guardando...' : 'Guardar'}
+                </Button>
+              </DrawerFooter>
+            </div>
+          </div>
+        </DrawerContent>
+      </ResponsiveDrawer>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

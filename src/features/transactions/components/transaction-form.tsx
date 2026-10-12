@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
+import { useState, useTransition, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/form';
 import { SwitchCard } from '@/components/switch-card';
 import { CategorySelector } from '@/components/category-selector';
+import { NatureSelector } from './nature-selector';
+import { normalizeNature, type TransactionNature } from '../nature';
 import { CurrencyInput } from '@/components/currency-input';
 import { EntitySelector } from '@/components/entity-selector';
 import { AccountSelector } from '@/components/account-selector';
@@ -200,6 +202,7 @@ export function TransactionDialogContent({
         savingsGoalId: transaction.savingsGoalId ?? undefined,
         entityId: transaction.entityId ?? undefined,
         isPaid: transaction.isPaid,
+        nature: transaction.nature as TransactionNature,
         notes: transaction.notes ?? '',
         accountId: transaction.accountId ?? defaultAccount?.id ?? '',
       };
@@ -216,6 +219,7 @@ export function TransactionDialogContent({
       savingsGoalId: undefined as string | undefined,
       entityId: undefined as string | undefined,
       isPaid: false,
+      nature: 'own' as TransactionNature,
       notes: '',
       accountId: initialValues?.accountId ?? defaultAccount?.id ?? '',
     };
@@ -255,6 +259,24 @@ export function TransactionDialogContent({
   }, [transaction, form, getDefaultValues, defaultAccount?.id, initialValues]);
 
   const activeCategories = localCategories.filter((c) => !c.isArchived);
+
+  // Naturaleza: se sugiere según la categoría, salvo que el usuario la haya elegido a mano
+  const natureTouched = useRef(false);
+  const watchedCategoryId = form.watch('categoryId');
+  const watchedNatureType = form.watch('type');
+  useEffect(() => {
+    natureTouched.current = !!transaction;
+  }, [transaction]);
+  useEffect(() => {
+    const currentNature = form.getValues('nature') ?? 'own';
+    if (!natureTouched.current) {
+      const category = localCategories.find((c) => c.id === watchedCategoryId);
+      const suggested = normalizeNature(category?.defaultNature, watchedNatureType);
+      if (suggested !== currentNature) form.setValue('nature', suggested);
+    } else if (normalizeNature(currentNature, watchedNatureType) !== currentNature) {
+      form.setValue('nature', 'own');
+    }
+  }, [watchedCategoryId, watchedNatureType, localCategories, form]);
 
   // Detectar tipo de cuenta seleccionada
   const watchedAccountId = form.watch('accountId');
@@ -688,6 +710,26 @@ export function TransactionDialogContent({
                 </FormItem>
               )}
             />
+
+            {/* Naturaleza: separa lo propio de lo que se compensa */}
+            {!isProvisionAccount && (
+              <FormField
+                control={form.control}
+                name="nature"
+                render={({ field }) => (
+                  <FormItem data-field="nature">
+                    <NatureSelector
+                      type={watchedType}
+                      value={normalizeNature(field.value, watchedType)}
+                      onChange={(value) => {
+                        natureTouched.current = true;
+                        field.onChange(value);
+                      }}
+                    />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Saldo proveedor - solo cuentas previsionales */}
             {isProvisionAccount && (

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRANSACTION_NATURES } from './nature';
 
 export const createTransactionSchema = z.object({
   projectId: z.string().uuid('El proyecto es requerido'),
@@ -13,6 +14,8 @@ export const createTransactionSchema = z.object({
   description: z.string().min(1, 'La descripción es requerida').max(500),
   notes: z.string().max(1000).optional().nullable(),
   isPaid: z.boolean().optional(),
+  // Naturaleza (propio, de otra persona, reembolsable, del fondo, abono). Se ajusta al tipo en el servidor.
+  nature: z.enum(TRANSACTION_NATURES).optional(),
   // Campos para cuentas previsionales (pensión/cesantía)
   providerBalance: z.number().nonnegative().optional().nullable(),
   profitabilityCategoryId: z.string().uuid().optional().nullable(),

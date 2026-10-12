@@ -1,5 +1,6 @@
 'use client';
 
+import { NATURE_LABELS, TRANSACTION_NATURES } from '../nature';
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -93,6 +94,11 @@ export interface TransactionListProps {
   selectedCycleId?: string;
 }
 
+const NATURE_FILTER_OPTIONS = [
+  { value: 'all', label: 'Toda naturaleza' },
+  ...TRANSACTION_NATURES.map((nature) => ({ value: nature, label: NATURE_LABELS[nature] })),
+];
+
 export function TransactionList({
   transactions,
   categories,
@@ -182,6 +188,7 @@ export function TransactionList({
   const currentType = searchParams.get('type') ?? 'all';
   const currentPaid = searchParams.get('paid') ?? 'all';
   const currentReconciled = searchParams.get('reconciled') ?? 'all';
+  const currentNature = searchParams.get('nature') ?? 'all';
   const currentStartDate = searchParams.get('startDate') ?? defaultStartDate ?? '';
   const currentEndDate = searchParams.get('endDate') ?? defaultEndDate ?? '';
 
@@ -377,7 +384,7 @@ export function TransactionList({
               }`}
             >
               <SlidersHorizontal className="h-4 w-4" />
-              {(currentType !== 'all' || currentPaid !== 'all' || currentReconciled !== 'all' || selectedAccountIds.size > 0 || selectedBudgetIds.size > 0) && (
+              {(currentType !== 'all' || currentPaid !== 'all' || currentReconciled !== 'all' || currentNature !== 'all' || selectedAccountIds.size > 0 || selectedBudgetIds.size > 0) && (
                 <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary" />
               )}
             </button>
@@ -528,6 +535,23 @@ export function TransactionList({
                 </button>
               </div>
 
+              {/* Naturaleza */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+                {NATURE_FILTER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleFilterChange('nature', opt.value)}
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                      currentNature === opt.value
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+                        : 'bg-background/80 text-muted-foreground'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
               {/* Multi-select: Cuentas y Presupuestos */}
               <div className="flex items-center gap-1.5">
                 <button
@@ -647,6 +671,23 @@ export function TransactionList({
                   onClick={() => handleFilterChange('reconciled', opt.value)}
                   className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
                     currentReconciled === opt.value
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Nature filter */}
+            <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
+              {NATURE_FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleFilterChange('nature', opt.value)}
+                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    currentNature === opt.value
                       ? 'bg-background text-foreground shadow-sm'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}

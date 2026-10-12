@@ -27,6 +27,7 @@ import type {
 import type { ActionResult } from '../types';
 import { updateAccountBalance } from '@/features/accounts/lib/balance';
 import { verifyProjectAccess } from '../lib/access';
+import { normalizeNature } from '../nature';
 
 /**
  * Crea una nueva transacción
@@ -90,6 +91,7 @@ export async function createTransaction(
       budgetId: parsed.data.budgetId ?? null,
       savingsGoalId: parsed.data.savingsGoalId ?? null,
       type: parsed.data.type,
+      nature: normalizeNature(parsed.data.nature, parsed.data.type),
       description: parsed.data.description,
       notes: parsed.data.notes,
       date: parsed.data.date,
@@ -186,6 +188,7 @@ export async function updateTransaction(
       projectId: transactions.projectId,
       accountId: transactions.accountId,
       type: transactions.type,
+      nature: transactions.nature,
       originalAmount: transactions.originalAmount,
       isPaid: transactions.isPaid,
     })
@@ -210,6 +213,14 @@ export async function updateTransaction(
     ...parsed.data,
     updatedAt: new Date(),
   };
+
+  // La naturaleza debe ser coherente con el tipo (si cambia el tipo, puede dejar de aplicar)
+  if (parsed.data.nature !== undefined || parsed.data.type !== undefined) {
+    updateData.nature = normalizeNature(
+      parsed.data.nature ?? oldTransaction.nature,
+      parsed.data.type ?? oldTransaction.type
+    );
+  }
 
   // Convertir categoryId vacío a null
   if ('categoryId' in updateData) {

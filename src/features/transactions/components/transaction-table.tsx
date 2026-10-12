@@ -1,5 +1,6 @@
 'use client';
 
+import { NATURE_LABELS } from '../nature';
 import { useState, useTransition, useCallback, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
@@ -711,6 +712,11 @@ export function TransactionTable({
                     <div className={(isCC ? settled : transaction.isPaid) ? 'line-through' : ''}>
                       {transaction.description}
                     </div>
+                    {transaction.nature !== 'own' && (
+                      <span className="mt-0.5 inline-flex rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                        {NATURE_LABELS[transaction.nature]}
+                      </span>
+                    )}
                     {(transaction.entityName || transaction.accountName) && (
                       <div className="text-xs text-muted-foreground">
                         {[transaction.entityName, transaction.accountName].filter(Boolean).join(' • ')}

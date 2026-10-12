@@ -29,10 +29,11 @@ import {
 import { CurrencyInput } from '@/components/currency-input';
 import { InstallmentSelector } from '@/components/installment-selector';
 import { Separator } from '@/components/ui/separator';
-import { SwitchCard } from '@/components/switch-card';
 import { EntitySelector } from '@/components/entity-selector';
 import { CategorySelector } from '@/components/category-selector';
 import { AccountSelector } from '@/components/account-selector';
+import { NatureSelector } from '@/features/transactions/components/nature-selector';
+import { EXPENSE_NATURES, normalizeNature } from '@/features/transactions/nature';
 
 import { formatCurrency } from '@/lib/formatting';
 import { createCardPurchaseSchema, type CreateCardPurchaseInput } from '../schemas';
@@ -130,9 +131,21 @@ export function CreatePurchaseDialog({
       firstChargeDate: new Date(),
       chargedInstallments: 0,
       isExternalDebt: false,
+      nature: 'own',
       notes: '',
     },
   });
+
+  // Naturaleza sugerida por la categoría, salvo que el usuario la elija a mano
+  const [natureTouched, setNatureTouched] = useState(false);
+  const watchCategoryId = form.watch('categoryId');
+  useEffect(() => {
+    if (natureTouched) return;
+    const category = categories.find((c) => c.id === watchCategoryId);
+    const suggested = normalizeNature(category?.defaultNature, 'expense') as (typeof EXPENSE_NATURES)[number];
+    form.setValue('nature', suggested);
+    form.setValue('isExternalDebt', suggested === 'external');
+  }, [watchCategoryId, categories, natureTouched, form]);
 
   // Watch fields for conditional rendering
   const watchPurchaseDate = form.watch('purchaseDate');
@@ -193,6 +206,7 @@ export function CreatePurchaseDialog({
       if (result.success) {
         toast.success('Compra registrada', { id: toastId });
         form.reset();
+        setNatureTouched(false);
         triggerSuccess();
       } else {
         const errorMessage = result.error || 'Error al crear la compra';
@@ -402,6 +416,26 @@ export function CreatePurchaseDialog({
               )}
             />
 
+            {/* Naturaleza: propio, de otra persona, reembolsable o del fondo */}
+            <FormField
+              control={form.control}
+              name="nature"
+              render={({ field }) => (
+                <FormItem data-field="nature">
+                  <NatureSelector
+                    type="expense"
+                    label="¿De quién es esta compra?"
+                    value={field.value ?? 'own'}
+                    onChange={(value) => {
+                      setNatureTouched(true);
+                      field.onChange(value);
+                      form.setValue('isExternalDebt', value === 'external');
+                    }}
+                  />
+                </FormItem>
+              )}
+            />
+
             {/* Amount */}
             <FormField
               control={form.control}
@@ -549,24 +583,6 @@ export function CreatePurchaseDialog({
                     Ocultar
                   </Button>
                 </div>
-
-                {/* External Debt Switch */}
-                <FormField
-                  control={form.control}
-                  name="isExternalDebt"
-                  render={({ field }) => (
-                    <FormItem data-field="isExternalDebt">
-                      <FormControl>
-                        <SwitchCard
-                          title="Deuda externa (familiar/tercero)"
-                          description="Marca si compraste para alguien que te pagará las cuotas. No se contará en tu límite de endeudamiento."
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
 
                 {/* Notes */}
                 <FormField

@@ -51,6 +51,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { createCategory, updateCategory, archiveCategory, restoreCategory, deleteCategory } from './actions';
 import { createCategorySchema, type CreateCategoryInput } from './schemas';
+import { NATURE_LABELS, TRANSACTION_NATURES } from '@/features/transactions/nature';
 import type { Category } from './types';
 
 // Colores predefinidos para categorías
@@ -286,6 +287,7 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
     projectId,
     name: category?.name ?? '',
     color: category?.color ?? PRESET_COLORS[0],
+    defaultNature: category?.defaultNature ?? null,
   }), [projectId, category]);
 
   const form = useForm<CreateCategoryInput>({
@@ -304,7 +306,7 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
 
     startTransition(async () => {
       const result = category
-        ? await updateCategory(category.id, userId, { name: data.name, color: data.color })
+        ? await updateCategory(category.id, userId, { name: data.name, color: data.color, defaultNature: data.defaultNature ?? null })
         : await createCategory(userId, data);
 
       if (result.success) {
@@ -380,6 +382,40 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
                   </div>
                 </FormControl>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="defaultNature"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Naturaleza sugerida</FormLabel>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Naturaleza sugerida">
+                  {([null, ...TRANSACTION_NATURES] as const).map((nature) => {
+                    const selected = (field.value ?? null) === nature;
+                    return (
+                      <button
+                        key={nature ?? 'none'}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => field.onChange(nature)}
+                        className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
+                          selected
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {nature ? NATURE_LABELS[nature] : 'Sin sugerencia'}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Al usar esta categoría, el formulario marca esta naturaleza (la puedes cambiar).
+                </p>
               </FormItem>
             )}
           />

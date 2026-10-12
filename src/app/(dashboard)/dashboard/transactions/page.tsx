@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { TRANSACTION_NATURES, type TransactionNature } from '@/features/transactions/nature';
 import { auth } from '@/lib/auth';
 import { getTransactions, getTransactionSummary } from '@/features/transactions/queries';
 import { getActiveCategories } from '@/features/categories/queries';
@@ -19,6 +20,7 @@ interface TransactionsPageProps {
     category?: string;
     paid?: string;
     reconciled?: string;
+    nature?: string;
     search?: string;
     startDate?: string;
     endDate?: string;
@@ -95,6 +97,10 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     filters.isPaid = true;
   } else if (params.paid === 'false') {
     filters.isPaid = false;
+  }
+
+  if (params.nature && (TRANSACTION_NATURES as readonly string[]).includes(params.nature)) {
+    filters.nature = params.nature as TransactionNature;
   }
 
   if (params.reconciled === 'true') {
