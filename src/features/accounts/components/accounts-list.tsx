@@ -225,7 +225,7 @@ export function AccountsList({
           description="Crea una cuenta para comenzar a registrar tus transacciones."
         />
       ) : (
-        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start md:gap-5">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start md:gap-5">
           {/* Patrimonio */}
           <section className="md:col-start-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
