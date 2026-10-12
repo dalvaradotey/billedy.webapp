@@ -9,6 +9,7 @@ import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { getBillingCycles } from '../queries';
 import { getCyclePlanStatus, type CyclePlanStatus } from '../lib/cycle-plan';
 import {
+  abonoWindowStart,
   createSettlement,
   getAvailableAbonos,
   getPendingExpenses,
@@ -115,10 +116,9 @@ export async function fetchPendingSettlements(
     return { success: false, error: 'No tienes acceso a este proyecto' };
   }
 
-  const [expenses, abonos] = await Promise.all([
-    getPendingExpenses(projectId),
-    getAvailableAbonos(projectId),
-  ]);
+  const expenses = await getPendingExpenses(projectId);
+  const toCollect = expenses.filter((e) => e.nature !== 'fund');
+  const abonos = toCollect.length > 0 ? await getAvailableAbonos(projectId, abonoWindowStart(toCollect)) : [];
   return { success: true, data: { expenses, abonos } };
 }
 

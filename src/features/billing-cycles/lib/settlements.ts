@@ -30,6 +30,15 @@ export type AvailableAbono = {
 const num = (v: unknown) => Math.round(Number(v ?? 0));
 const isoDate = (d: unknown) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10));
 
+/** Se ofrecen abonos desde un mes antes del gasto pendiente más antiguo */
+export function abonoWindowStart(expenses: Array<{ date: string }>): string | undefined {
+  if (expenses.length === 0) return undefined;
+  const oldest = expenses.reduce((min, e) => (e.date < min ? e.date : min), expenses[0].date);
+  const d = new Date(oldest + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 31);
+  return d.toISOString().slice(0, 10);
+}
+
 export async function getPendingExpenses(projectId: string): Promise<PendingExpense[]> {
   const today = isoDate(getToday());
   const result = (await db.execute(sql`
@@ -58,8 +67,12 @@ export async function getPendingExpenses(projectId: string): Promise<PendingExpe
   }));
 }
 
-/** Abonos (ingresos 'reimbursement') que todavía tienen saldo sin asignar */
-export async function getAvailableAbonos(projectId: string): Promise<AvailableAbono[]> {
+/**
+ * Abonos (ingresos 'reimbursement') que todavía tienen saldo sin asignar.
+ * `fromDate` evita ofrecer abonos antiguos que ya se usaron antes de que
+ * existieran las compensaciones (el historial se cerró como 'waived').
+ */
+export async function getAvailableAbonos(projectId: string, fromDate?: string): Promise<AvailableAbono[]> {
   const result = (await db.execute(sql`
     select * from (
       select
@@ -67,6 +80,7 @@ export async function getAvailableAbonos(projectId: string): Promise<AvailableAb
         t.base_amount - coalesce((select sum(s.amount) from n1n4_settlements s where s.settling_transaction_id = t.id), 0) as remaining
       from n1n4_transactions t
       where t.project_id = ${projectId} and t.type = 'income' and t.nature = 'reimbursement'
+        and (${fromDate ?? null}::date is null or t.date >= ${fromDate ?? null}::date)
     ) p
     where remaining > 0.5
     order by date desc
@@ -101,7 +115,7 @@ export async function createSettlement(input: {
     if (expense.nature === 'fund') {
       return { success: false, error: 'Los gastos del fondo se compensan liquidando el fondo' };
     }
-    const abonos = await getAvailableAbonos(input.projectId);
+    const abonos = await getAvailableAbonos(input.projectId, abonoWindowStart([expense]));
     const abono = abonos.find((a) => a.id === input.settlingTransactionId);
     if (!abono) return { success: false, error: 'El abono no tiene saldo disponible' };
     amount = Math.min(amount, abono.remaining);
