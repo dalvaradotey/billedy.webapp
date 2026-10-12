@@ -34,6 +34,9 @@ import {
 import { SwitchCard } from '@/components/switch-card';
 import { CategorySelector } from '@/components/category-selector';
 import { NatureSelector } from './nature-selector';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { fetchCyclePlanStatus } from '@/features/billing-cycles/actions';
+import { formatCurrency } from '@/lib/formatting';
 import { normalizeNature, type TransactionNature } from '../nature';
 import { CurrencyInput } from '@/components/currency-input';
 import { EntitySelector } from '@/components/entity-selector';
@@ -285,6 +288,23 @@ export function TransactionDialogContent({
   const watchedDescription = form.watch('description');
   const selectedAccount = accountsMap.get(watchedAccountId);
   const isCreditCardExpense = selectedAccount?.type === 'credit_card' && watchedType === 'expense';
+
+  // Techo de gasto propio en TC: se consulta al cargar un gasto propio nuevo con tarjeta
+  const watchedNature = form.watch('nature');
+  const isOwnCardExpense =
+    !transaction && isCreditCardExpense && normalizeNature(watchedNature, 'expense') === 'own';
+  const [cardAvailable, setCardAvailable] = useState<number | null>(null);
+  const cardPlanRequested = useRef(false);
+  const [capConfirmData, setCapConfirmData] = useState<CreateTransactionInput | null>(null);
+  useEffect(() => {
+    if (!isOwnCardExpense || cardPlanRequested.current) return;
+    cardPlanRequested.current = true;
+    fetchCyclePlanStatus(projectId, userId).then((result) => {
+      if (result.success && result.data) setCardAvailable(result.data.card.available);
+    });
+  }, [isOwnCardExpense, projectId, userId]);
+  const cardRemainingAfter =
+    isOwnCardExpense && cardAvailable != null ? cardAvailable - (watchedAmount || 0) : null;
   const isProvisionAccount = selectedAccount?.type === 'pension' || selectedAccount?.type === 'unemployment' || selectedAccount?.type === 'savings';
 
   // Estado para saldo del proveedor (modo previsional)
@@ -342,7 +362,17 @@ export function TransactionDialogContent({
   }, [transferAmount, transferFromAccountId, transferToAccountId]);
 
   const onSubmit = (data: CreateTransactionInput) => {
+    // Pasarse del techo de gasto propio en TC requiere confirmación explícita
+    if (isOwnCardExpense && cardAvailable != null && data.originalAmount > cardAvailable && !capConfirmData) {
+      setCapConfirmData(data);
+      return;
+    }
+    submitTransaction(data);
+  };
+
+  const submitTransaction = (data: CreateTransactionInput) => {
     setError(null);
+    setCapConfirmData(null);
 
     // Inyectar campos previsionales si aplica
     if (isProvisionAccount && providerBalance != null) {
@@ -458,6 +488,23 @@ export function TransactionDialogContent({
   return (
     <DrawerContent>
       <SuccessOverlay show={showSuccess} />
+      <ConfirmDialog
+        open={capConfirmData != null}
+        onOpenChange={(open) => {
+          if (!open) setCapConfirmData(null);
+        }}
+        title="Te pasas del techo de TC"
+        description={
+          capConfirmData && cardAvailable != null
+            ? `Con este gasto superas tu techo de gasto propio en TC por ${formatCurrency(capConfirmData.originalAmount - cardAvailable)}. Si sigues así, tu ahorro del ciclo se ve afectado. ¿Guardar igual?`
+            : ''
+        }
+        confirmText="Guardar igual"
+        size="sm"
+        onConfirm={() => {
+          if (capConfirmData) submitTransaction(capConfirmData);
+        }}
+      />
       <div className="mx-auto w-full max-w-lg md:flex md:flex-col md:h-full">
         <DrawerHeader>
           <div className="md:flex md:items-center md:justify-between">
@@ -726,6 +773,20 @@ export function TransactionDialogContent({
                         field.onChange(value);
                       }}
                     />
+                    {cardRemainingAfter != null && (
+                      <p
+                        className={cn(
+                          'rounded-lg px-3 py-2 text-xs font-medium',
+                          cardRemainingAfter >= 0
+                            ? 'bg-muted/50 text-muted-foreground'
+                            : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                        )}
+                      >
+                        {cardRemainingAfter >= 0
+                          ? `Con este gasto te quedan ${formatCurrency(cardRemainingAfter)} del techo de TC.`
+                          : `Con este gasto te pasas del techo de TC por ${formatCurrency(-cardRemainingAfter)}.`}
+                      </p>
+                    )}
                   </FormItem>
                 )}
               />

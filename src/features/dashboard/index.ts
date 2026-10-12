@@ -4,6 +4,7 @@ export {
   DashboardCycleBanner,
   DashboardAccountsBanner,
   DashboardBudgetsSection,
+  DashboardPlanCard,
 } from './components';
 
 // Hooks

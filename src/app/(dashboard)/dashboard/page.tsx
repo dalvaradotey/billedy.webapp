@@ -9,6 +9,7 @@ import {
   DashboardAccountsBanner,
   DashboardCycleBanner,
   DashboardBudgetsSection,
+  DashboardPlanCard,
 } from '@/features/dashboard';
 
 export default async function DashboardPage() {
@@ -62,6 +63,7 @@ export default async function DashboardPage() {
     allEntities,
     isOwner,
     budgetsProgress,
+    planStatus,
     projectId,
     totalExternalDebt,
   } = data;
@@ -125,6 +127,21 @@ export default async function DashboardPage() {
 
         {/* Banner de resumen del ciclo */}
         {currentCycle && <DashboardCycleBanner />}
+
+        {/* Plan del ciclo: libre, techo TC, ahorro y pendientes */}
+        {planStatus && (
+          <DashboardPlanCard
+            plan={planStatus}
+            projectId={projectId}
+            userId={session.user.id}
+            isOwner={isOwner}
+            savingsAccounts={accounts
+              .filter((a) => a.type === 'savings' && !a.isArchived)
+              .map((a) => ({ id: a.id, name: a.name }))}
+            savingsTargetValue={project?.savingsTarget != null ? Math.round(Number(project.savingsTarget)) : null}
+            cardSpendingCapValue={project?.cardSpendingCap != null ? Math.round(Number(project.cardSpendingCap)) : null}
+          />
+        )}
 
         {/* Slider de presupuestos con drawer de transacciones */}
         {currentCycle && (
