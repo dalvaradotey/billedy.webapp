@@ -20,6 +20,7 @@ import {
   entities,
   categoryTypeEnum,
   transactionNatureEnum,
+  accountFunds,
 } from './core';
 import { savingsGoals } from './savings';
 
@@ -153,6 +154,8 @@ export const transactions = pgTable('n1n4_transactions', {
   isHistoricallyPaid: boolean('is_historically_paid').default(false).notNull(),
   isReconciled: boolean('is_reconciled').default(false).notNull(),
   nature: transactionNatureEnum('nature').default('own').notNull(),
+  // Gasto pagado con un fondo de la cuenta
+  accountFundId: uuid('account_fund_id').references(() => accountFunds.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });

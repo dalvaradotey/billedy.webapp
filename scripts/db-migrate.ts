@@ -21,6 +21,7 @@ async function main() {
     prepare: false,
     max: 1,
     ssl: { rejectUnauthorized: false },
+    onnotice: () => {},
   });
 
   try {

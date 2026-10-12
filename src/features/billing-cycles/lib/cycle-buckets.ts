@@ -148,6 +148,53 @@ export function bucketAggregationQuery(
     from b
     where in_range or (bucket = 'card_spend' and is_installment)
     group by key, bucket, nature, card_account_id, in_range, is_installment, is_paid, is_real
+
+    -- Fondos dentro de cuentas corrientes: apartar = aporte de ahorro, liberar = retiro.
+    -- Los fondos de terceros no son tu ahorro; en cuentas de ahorro el fondo es solo una etiqueta.
+    union all
+    select
+      r.key,
+      case when m.kind = 'allocate' then 'savings_in' else 'savings_out' end as bucket,
+      'own' as nature,
+      null as card_account_id,
+      true as in_range,
+      false as is_installment,
+      true as is_paid,
+      true as is_real,
+      sum(m.amount)::text as total,
+      count(*)::int as n
+    from ranges r
+    join n1n4_fund_movements m on m.date between r.start_date and r.end_date
+    join n1n4_account_funds f on f.id = m.fund_id
+    join n1n4_accounts a on a.id = f.account_id
+    where f.project_id = ${projectId}
+      and not f.is_third_party
+      and a.type in ('checking', 'cash')
+      and m.kind in ('allocate', 'release')
+    group by r.key, m.kind
+
+    -- Gasto pagado con un fondo: se compensa (la plata se apartó antes, o no es tuya)
+    union all
+    select
+      r.key,
+      'savings_out' as bucket,
+      'own' as nature,
+      null as card_account_id,
+      true as in_range,
+      false as is_installment,
+      t.is_paid,
+      t.is_paid as is_real,
+      sum(t.base_amount)::text as total,
+      count(*)::int as n
+    from ranges r
+    join n1n4_transactions t
+      on t.project_id = ${projectId}
+     and t.date between r.start_date and r.end_date
+     and t.account_fund_id is not null
+     and t.type = 'expense'
+    join n1n4_accounts a on a.id = t.account_id
+    where a.type in ('checking', 'cash')
+    group by r.key, t.is_paid
   `;
 }
 

@@ -16,6 +16,8 @@ export const createTransactionSchema = z.object({
   isPaid: z.boolean().optional(),
   // Naturaleza (propio, de otra persona, reembolsable, del fondo, abono). Se ajusta al tipo en el servidor.
   nature: z.enum(TRANSACTION_NATURES).optional(),
+  // Gasto pagado con un fondo de la misma cuenta (null = sin fondo)
+  accountFundId: z.string().uuid().nullable().optional(),
   // Campos para cuentas previsionales (pensión/cesantía)
   providerBalance: z.number().nonnegative().optional().nullable(),
   profitabilityCategoryId: z.string().uuid().optional().nullable(),
