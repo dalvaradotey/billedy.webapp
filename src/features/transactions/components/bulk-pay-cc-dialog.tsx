@@ -253,7 +253,7 @@ export function BulkPayCreditCardDialog({
                         <TableCell className="py-1.5">
                           <div className="truncate max-w-[200px]">{t.description}</div>
                         </TableCell>
-                        <TableCell className="py-1.5 text-right font-medium text-red-600 dark:text-red-400 w-[100px]">
+                        <TableCell className="py-1.5 text-right font-medium text-coral-text w-[100px]">
                           {formatCurrency(t.baseAmount, t.baseCurrency)}
                         </TableCell>
                       </TableRow>

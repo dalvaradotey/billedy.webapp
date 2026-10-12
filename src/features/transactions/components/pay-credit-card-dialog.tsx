@@ -93,7 +93,7 @@ function TransactionSelector({
                     {t.categoryName}
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-medium text-red-600 dark:text-red-400">
+                <TableCell className="text-right font-medium text-coral-text">
                   {formatCurrency(t.baseAmount, t.baseCurrency)}
                 </TableCell>
               </TableRow>

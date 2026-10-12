@@ -212,7 +212,7 @@ export function TransactionChartsContent({
                   <div className="flex" style={{ minWidth: Y_AXIS_WIDTH + barChartWidth }}>
                     {/* Sticky Y-axis */}
                     <div
-                      className="sticky left-0 z-10 shrink-0 bg-card dark:bg-slate-900"
+                      className="sticky left-0 z-10 shrink-0 bg-surface"
                       style={{ width: Y_AXIS_WIDTH }}
                     >
                       <BarChart

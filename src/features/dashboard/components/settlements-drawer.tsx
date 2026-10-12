@@ -129,7 +129,7 @@ export function SettlementsDrawerContent({ projectId, userId, onChanged }: Settl
                             </span>
                             <span className="flex shrink-0 items-center gap-1.5 tabular-nums">
                               {formatCurrency(abono.remaining)}
-                              <Check className="h-4 w-4 text-emerald-500" />
+                              <Check className="h-4 w-4 text-jade" />
                             </span>
                           </button>
                         ))}
