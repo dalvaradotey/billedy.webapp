@@ -65,7 +65,10 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
       label: 'Pago TC',
       value: balance.cardPayment.real,
       sign: '−',
-      hint: pendingCardPayment > 0 ? `Falta pagar ${formatCurrency(pendingCardPayment)}` : undefined,
+      hint:
+        pendingCardPayment > 0
+          ? `Falta pagar ${formatCurrency(pendingCardPayment)}`
+          : paymentBreakdownText(balance),
     },
   ];
 
@@ -158,7 +161,25 @@ function warningText(warning: CycleWarning): string {
       return `El pago de ${warning.cardName} (${formatCurrency(warning.paid)}) no calza con su estado de cuenta (${formatCurrency(warning.expected)}).`;
     case 'gap_before':
       return `Hay ${warning.days} ${warning.days === 1 ? 'día' : 'días'} sin ciclo antes de este.`;
+    case 'changed_since_close':
+      return `Cambió ${formatCurrency(warning.current - warning.closedAt)} desde el cierre (al cerrar: ${formatCurrency(warning.closedAt)}). Se editaron movimientos de este ciclo.`;
   }
+}
+
+/**
+ * "Propio $X · de otros $Y · …" para el pago TC (solo si no es todo propio).
+ */
+function paymentBreakdownText(balance: CycleBalance): string | undefined {
+  const b = balance.card.paymentBreakdown;
+  if (!b || balance.cardPayment.real === 0) return undefined;
+  const parts = [
+    b.external > 0 && `de otros ${formatCurrency(b.external)}`,
+    b.fund > 0 && `fondo ${formatCurrency(b.fund)}`,
+    b.reimbursable > 0 && `reembolsable ${formatCurrency(b.reimbursable)}`,
+    b.credits > 0 && `devoluciones −${formatCurrency(b.credits)}`,
+  ].filter(Boolean);
+  if (parts.length === 0) return undefined;
+  return [`propio ${formatCurrency(b.own)}`, ...parts].join(' · ');
 }
 
 export function CycleWarnings({ warnings, tone = 'light' }: { warnings: CycleWarning[]; tone?: Tone }) {

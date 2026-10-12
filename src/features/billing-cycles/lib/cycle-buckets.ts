@@ -31,8 +31,9 @@ export type Bucket = (typeof BUCKETS)[number];
 export const INSTALLMENT_WINDOW_DAYS = 16;
 
 /**
- * Heurística temporal de abonos (Fase 1). Se reemplaza por
- * `nature = 'reimbursement'` en la Fase 2.
+ * Abonos: `nature = 'reimbursement'`. Mientras los datos históricos no estén
+ * marcados, se usa además esta heurística para los ingresos con naturaleza 'own'
+ * (categoría Reembolsos/Externo o descripción "Abono…").
  */
 const REIMBURSEMENT_CATEGORIES = ['Reembolsos', 'Externo'];
 const REIMBURSEMENT_DESCRIPTION_PREFIX = 'abono%';
@@ -43,9 +44,12 @@ export type DateRange = {
   end: string; // YYYY-MM-DD
 };
 
+export type Nature = 'own' | 'external' | 'reimbursable' | 'fund' | 'reimbursement';
+
 export type BucketRow = {
   key: string;
   bucket: Bucket;
+  nature: Nature;
   cardAccountId: string | null;
   inRange: boolean;
   isInstallment: boolean;
@@ -88,6 +92,7 @@ export function bucketAggregationQuery(
         t.base_amount,
         t.date,
         t.is_paid,
+        t.nature::text as nature,
         t.is_historically_paid,
         t.linked_transaction_id,
         t.card_purchase_id,
@@ -112,12 +117,15 @@ export function bucketAggregationQuery(
         (date <= end_date) as in_range,
         (card_purchase_id is not null) as is_installment,
         is_paid,
+        nature,
         (is_paid and not coalesce(is_historically_paid, false) and (acc <> 'credit_card' or date <= ${today}::date)) as is_real,
         base_amount,
         case
           when acc in ('checking', 'cash') and type = 'income' and linked_transaction_id is null
-               and (cat in (${reimbursementCategories})
-                    or ltrim(description) ilike ${REIMBURSEMENT_DESCRIPTION_PREFIX})
+               and (nature = 'reimbursement'
+                    or (nature = 'own'
+                        and (cat in (${reimbursementCategories})
+                             or ltrim(description) ilike ${REIMBURSEMENT_DESCRIPTION_PREFIX})))
             then 'reimbursement'
           when acc in ('checking', 'cash') and type = 'income' and linked_transaction_id is null
             then 'income'
@@ -146,6 +154,7 @@ export function bucketAggregationQuery(
     select
       key,
       bucket,
+      nature,
       card_account_id,
       in_range,
       is_installment,
@@ -155,13 +164,14 @@ export function bucketAggregationQuery(
       count(*)::int as n
     from b
     where in_range or (bucket = 'card_spend' and is_installment)
-    group by key, bucket, card_account_id, in_range, is_installment, is_paid, is_real
+    group by key, bucket, nature, card_account_id, in_range, is_installment, is_paid, is_real
   `;
 }
 
 type RawBucketRow = {
   key: string;
   bucket: Bucket;
+  nature: Nature;
   card_account_id: string | null;
   in_range: boolean;
   is_installment: boolean;
@@ -175,6 +185,7 @@ export function parseBucketRows(rows: RawBucketRow[]): BucketRow[] {
   return rows.map((r) => ({
     key: r.key,
     bucket: r.bucket,
+    nature: r.nature,
     cardAccountId: r.card_account_id,
     inRange: r.in_range,
     isInstallment: r.is_installment,

@@ -6,7 +6,7 @@ import { eq, and, isNotNull } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { requireUserId } from '@/lib/auth/guards';
 import { closeBillingCycleSchema, type CloseBillingCycleInput } from '../schemas';
-import { getCycleBalances } from '../lib/cycle-balance';
+import { getCycleBalances, toClosingSnapshot } from '../lib/cycle-balance';
 import {
   type ActionResult,
   UNAUTHORIZED_ERROR,
@@ -120,6 +120,7 @@ export async function closeBillingCycle(
       snapshotExpenses: String(balance.debitExpenses.real + balance.cardPayment.real),
       snapshotSavings: String(balance.savingsIn.real - balance.savingsOut.real),
       snapshotBalance: String(balance.finalBalance.real),
+      closingSnapshot: toClosingSnapshot(balance),
       updatedAt: new Date(),
     })
     .where(eq(billingCycles.id, cycleId));
@@ -187,6 +188,7 @@ export async function reopenBillingCycle(cycleId: string): Promise<ActionResult>
       snapshotExpenses: null,
       snapshotSavings: null,
       snapshotBalance: null,
+      closingSnapshot: null,
       updatedAt: new Date(),
     })
     .where(eq(billingCycles.id, cycleId));
