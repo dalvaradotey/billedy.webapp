@@ -25,6 +25,20 @@ function CardBackground({ design }: { design: CardDesign }) {
   return design.Art ? <design.Art /> : null;
 }
 
+/** Logo de la institución sobre una placa blanca, para que se lea sobre cualquier color. */
+function BankLogo({ src, name, size = 'md' }: { src: string; name: string; size?: 'sm' | 'md' }) {
+  return (
+    <span
+      className={cn(
+        'flex shrink-0 items-center justify-center bg-white',
+        size === 'md' ? 'h-9 min-w-9 max-w-[84px] rounded-[10px] px-1.5' : 'h-[14px] min-w-[14px] max-w-[26px] rounded-[4px] px-0.5'
+      )}
+    >
+      <img src={src} alt={name} className={cn('w-auto object-contain', size === 'md' ? 'h-6 max-w-[72px]' : 'h-[10px] max-w-[22px]')} />
+    </span>
+  );
+}
+
 function Chip() {
   return (
     <svg width="34" height="26" viewBox="0 0 34 26" aria-hidden className="shrink-0">
@@ -99,7 +113,7 @@ export function WalletCard({ account, selected, onSelect, className }: WalletCar
               <span className="block text-[11px] font-extrabold tracking-[0.06em] opacity-70">{accountKindLabel(account.type)}</span>
               <span className="mt-0.5 block truncate text-lg font-extrabold tracking-[-0.02em]">{account.name}</span>
             </span>
-            <Chip />
+            {account.entity?.imageUrl ? <BankLogo src={account.entity.imageUrl} name={account.entity.name} /> : <Chip />}
           </span>
           <span className="relative">
             {usage}
@@ -139,11 +153,16 @@ export function WalletChip({ account }: { account: AccountWithEntity }) {
   return (
     <span aria-hidden className={cn('relative block h-[30px] w-[46px] shrink-0 overflow-hidden rounded-[7px]', design.bg, design.ink)}>
       <CardBackground design={design} />
-      {design.kind !== 'photo' && (
-        <span className="absolute bottom-[5px] left-1.5 text-[9px] font-extrabold">
-          {(account.entity?.name ?? account.bankName ?? account.name).slice(0, 3).toUpperCase()}
-        </span>
-      )}
+      {design.kind !== 'photo' &&
+        (account.entity?.imageUrl ? (
+          <span className="absolute right-1 top-1">
+            <BankLogo src={account.entity.imageUrl} name={account.entity.name} size="sm" />
+          </span>
+        ) : (
+          <span className="absolute bottom-[5px] left-1.5 text-[9px] font-extrabold">
+            {(account.entity?.name ?? account.bankName ?? account.name).slice(0, 3).toUpperCase()}
+          </span>
+        ))}
     </span>
   );
 }
