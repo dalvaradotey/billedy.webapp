@@ -4,7 +4,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { Plus, Settings, ShieldCheck, LogOut, ChevronsUpDown } from 'lucide-react';
+import { Plus, ShieldCheck, LogOut, ChevronsUpDown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -126,9 +126,6 @@ export function AppSidebar({
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" className="w-[212px] rounded-2xl">
           <DropdownMenuLabel className="text-xs text-muted-foreground">Tu cuenta</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <a href="/dashboard/settings"><Settings className="h-4 w-4" />Configuración</a>
-          </DropdownMenuItem>
           {isAdmin && (
             <DropdownMenuItem asChild>
               <a href="/admin/entities"><ShieldCheck className="h-4 w-4" />Administrar entidades</a>

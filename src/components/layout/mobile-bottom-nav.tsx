@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { LayoutGrid, Plus, X, Settings, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Plus, X, LogOut, ShieldCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Drawer,
@@ -145,14 +145,6 @@ export function MobileBottomNav({ user, isAdmin = false }: MobileBottomNavProps)
               </div>
 
               <div className="mt-4 space-y-1 border-t border-line pt-4">
-                <a
-                  href="/dashboard/settings"
-                  onClick={() => setIsMoreOpen(false)}
-                  className="flex min-h-12 items-center gap-3 rounded-2xl px-3 text-sm font-semibold text-muted-foreground hover:bg-surface-2 hover:text-foreground"
-                >
-                  <Settings className="h-5 w-5" />
-                  Configuración
-                </a>
                 {isAdmin && (
                   <a
                     href="/admin/entities"
