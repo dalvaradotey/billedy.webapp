@@ -11,6 +11,7 @@ export const createAccountSchema = z.object({
   currency: z.string().length(3, 'Código de moneda inválido'),
   initialBalance: z.number(),
   creditLimit: z.number().optional().nullable(), // Solo para tarjetas de crédito
+  cardDesign: z.string().max(40).optional().nullable(),
   isDefault: z.boolean(),
 });
 
@@ -22,6 +23,7 @@ export const updateAccountSchema = z.object({
   currency: z.string().length(3).optional(),
   initialBalance: z.number().optional(),
   creditLimit: z.number().optional().nullable(),
+  cardDesign: z.string().max(40).optional().nullable(),
   isDefault: z.boolean().optional(),
 });
 

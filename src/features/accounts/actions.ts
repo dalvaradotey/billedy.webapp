@@ -83,6 +83,7 @@ export async function createAccount(
       initialBalance: String(parsed.data.initialBalance),
       currentBalance: String(parsed.data.initialBalance), // Start with initial balance
       creditLimit: parsed.data.creditLimit != null ? String(parsed.data.creditLimit) : null,
+      cardDesign: parsed.data.cardDesign ?? null,
       isDefault: parsed.data.isDefault,
     })
     .returning({ id: accounts.id });
@@ -166,6 +167,7 @@ export async function updateAccount(
   if (parsed.data.entityId !== undefined) updateData.entityId = parsed.data.entityId;
   if (parsed.data.currency !== undefined) updateData.currency = parsed.data.currency;
   if (parsed.data.isDefault !== undefined) updateData.isDefault = parsed.data.isDefault;
+  if (parsed.data.cardDesign !== undefined) updateData.cardDesign = parsed.data.cardDesign;
   if (parsed.data.initialBalance !== undefined) {
     updateData.initialBalance = String(parsed.data.initialBalance);
   }

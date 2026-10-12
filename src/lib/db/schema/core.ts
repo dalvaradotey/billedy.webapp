@@ -195,6 +195,8 @@ export const accounts = pgTable('n1n4_accounts', {
     .notNull(),
   // Credit limit for credit cards (null for other account types)
   creditLimit: decimal('credit_limit', { precision: 15, scale: 2 }),
+  // Diseño de tarjeta de la billetera (null = automático según el banco)
+  cardDesign: varchar('card_design', { length: 40 }),
   isDefault: boolean('is_default').default(false).notNull(),
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
