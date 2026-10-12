@@ -309,6 +309,7 @@ export function PulseHome({
                   midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
                   endLabel={shortDate(end)}
                   todayLabel={shortDate(today)}
+                  dayLabel={(d) => shortDate(addDays(start, d - 1))}
                   height={200}
                   ariaLabel={`Gasto propio con tarjeta: ${formatCurrency(card.spent)} a hoy; proyección ${formatCurrency(card.projection)}; techo ${formatCurrency(card.cap)}`}
                 />
@@ -344,6 +345,7 @@ export function PulseHome({
                   midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
                   endLabel={shortDate(end)}
                   todayLabel={shortDate(today)}
+                  dayLabel={(d) => shortDate(addDays(start, d - 1))}
                   height={200}
                   ariaLabel={`Saldo de caja del ciclo: ${formatCurrency(cashNow)} a hoy; cierre proyectado ${formatCurrency(cycle.balance.finalBalance.projected)}`}
                 />
@@ -385,6 +387,7 @@ export function PulseHome({
                   midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
                   endLabel={shortDate(end)}
                   todayLabel={shortDate(today)}
+                  dayLabel={(d) => shortDate(addDays(start, d - 1))}
                   height={200}
                   ariaLabel={`Ahorro del ciclo: ${formatCurrency(savings.done)}${savings.target != null ? ` de ${formatCurrency(savings.target)}` : ''}`}
                 />

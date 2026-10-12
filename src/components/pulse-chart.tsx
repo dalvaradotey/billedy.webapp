@@ -29,6 +29,8 @@ interface PulseChartProps {
   midLabel?: string;
   endLabel: string;
   todayLabel: string;
+  /** Fecha de un día del ciclo, para el valor al recorrer el gráfico (por defecto "día N") */
+  dayLabel?: (day: number) => string;
   height?: number;
   showTooltip?: boolean;
   ariaLabel: string;
@@ -75,11 +77,15 @@ export function PulseChart({
   midLabel,
   endLabel,
   todayLabel,
+  dayLabel = (d) => `día ${d}`,
   height = 186,
   showTooltip = true,
   ariaLabel,
 }: PulseChartProps) {
   const [ref, W] = useWidth<HTMLDivElement>();
+  // Día bajo el dedo o el mouse: al recorrer el gráfico se ve el valor de cada día
+  const [scrubDay, setScrubDay] = useState<number | null>(null);
+  const pressing = useRef(false);
   const st = STYLES[variant];
   const top = 6;
   const base = height - 22;
@@ -128,8 +134,56 @@ export function PulseChart({
   // Si la burbuja de hoy tapa la etiqueta del techo, la etiqueta baja bajo la línea
   const capLabelBelow = showTooltip && !pendingAmount && tipX < 150 && tipY < capY + 4 && tipY + 40 > capY - 18;
 
+  const dayAt = (clientX: number, el: Element) => {
+    const x = clientX - el.getBoundingClientRect().left;
+    return Math.min(daysTotal, Math.max(1, Math.round((x / Math.max(1, W)) * dspan) + 1));
+  };
+  const scrub = (() => {
+    if (scrubDay == null || !points.length) return null;
+    const real = scrubDay <= last.day;
+    let value: number;
+    if (real) {
+      // El acumulado de un día es el del último punto hasta ese día
+      const p = [...points].reverse().find((pt) => pt.day <= scrubDay);
+      value = p ? p.total : baseline;
+    } else if (projection != null && !pendingAmount) {
+      value = last.total + ((projection - last.total) * (scrubDay - last.day)) / Math.max(1, daysTotal - last.day);
+    } else {
+      return null;
+    }
+    const ideal = hasCap ? baseline + ((cap! - baseline) * (scrubDay - 1)) / dspan : null;
+    return { day: scrubDay, real, value, ideal, x: X(scrubDay), y: Y(value) };
+  })();
+  const scrubTipW = 132;
+  const scrubTipH = scrub?.ideal != null ? 54 : 40;
+  const scrubTipX = scrub ? Math.min(Math.max(0, scrub.x - scrubTipW / 2), Math.max(0, W - scrubTipW)) : 0;
+  const scrubTipY = scrub ? (scrub.y - scrubTipH - 14 >= 0 ? scrub.y - scrubTipH - 14 : Math.min(base - scrubTipH, scrub.y + 14)) : 0;
+
   return (
-    <div ref={ref} className="w-full" style={{ height }}>
+    <div
+      ref={ref}
+      className="w-full touch-pan-y select-none"
+      style={{ height }}
+      onPointerDown={(e) => {
+        pressing.current = true;
+        setScrubDay(dayAt(e.clientX, e.currentTarget));
+      }}
+      onPointerMove={(e) => {
+        if (e.pointerType === 'mouse' || pressing.current) setScrubDay(dayAt(e.clientX, e.currentTarget));
+      }}
+      onPointerUp={(e) => {
+        pressing.current = false;
+        if (e.pointerType !== 'mouse') setScrubDay(null);
+      }}
+      onPointerCancel={() => {
+        pressing.current = false;
+        setScrubDay(null);
+      }}
+      onPointerLeave={() => {
+        pressing.current = false;
+        setScrubDay(null);
+      }}
+    >
       {W > 0 && (
         <svg width={W} height={height} viewBox={`0 0 ${W} ${height}`} role="img" aria-label={ariaLabel} className="overflow-visible">
           {gridValues.map((v) => (
@@ -180,13 +234,40 @@ export function PulseChart({
               <text x={tX + 12} y={pY + 4} className="fill-foreground text-[12px] font-extrabold">{formatCurrency(afterPending)}</text>
             </>
           ) : (
-            showTooltip && (
+            showTooltip && !scrub && (
               <g transform={`translate(${tipX},${tipY})`}>
                 <rect width={tipW} height={40} rx={12} className="fill-cream" />
                 <text x={10} y={16} className="fill-[#6B6172] text-[10px] font-bold uppercase">hoy · {todayLabel}</text>
                 <text x={10} y={32} className="fill-cream-ink text-[14px] font-extrabold">{formatCurrency(last.total)}</text>
               </g>
             )
+          )}
+
+          {scrub && (
+            <g pointerEvents="none">
+              <line x1={scrub.x} x2={scrub.x} y1={top} y2={base} stroke="#F4EFE8" strokeOpacity={0.45} strokeDasharray="2 3" />
+              {scrub.ideal != null && <circle cx={scrub.x} cy={Y(scrub.ideal)} r={3.5} className="fill-background" stroke="#A79DB0" strokeWidth={2} />}
+              <circle
+                cx={scrub.x}
+                cy={scrub.y}
+                r={5.5}
+                className={scrub.real ? `${st.dot} stroke-surface` : `fill-surface ${st.line}`}
+                strokeWidth={scrub.real ? 3 : 2.5}
+              />
+              <g transform={`translate(${scrubTipX},${scrubTipY})`}>
+                <rect width={scrubTipW} height={scrubTipH} rx={12} className="fill-cream" />
+                <text x={10} y={16} className="fill-[#6B6172] text-[10px] font-bold uppercase">
+                  {scrub.day === last.day ? `hoy · ${todayLabel}` : dayLabel(scrub.day)}
+                  {!scrub.real && ' · proyección'}
+                </text>
+                <text x={10} y={32} className="fill-cream-ink text-[14px] font-extrabold">{formatCurrency(Math.round(scrub.value))}</text>
+                {scrub.ideal != null && (
+                  <text x={10} y={47} className="fill-[#6B6172] text-[10px] font-bold">
+                    {variant === 'cap' ? 'ritmo sano' : 'ritmo a la meta'} {compact(scrub.ideal)}
+                  </text>
+                )}
+              </g>
+            </g>
           )}
 
           <line x1="0" x2={W} y1={base} y2={base} className="stroke-line-strong" />
