@@ -31,11 +31,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { SwitchCard } from '@/components/switch-card';
+import { Switch } from '@/components/ui/switch';
 import { CategorySelector } from '@/components/category-selector';
 import { NatureSelector } from './nature-selector';
+import { DescriptionField } from './description-field';
+import { CapImpactNotice } from './cap-impact-notice';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { fetchCyclePlanStatus } from '@/features/billing-cycles/actions';
+import { fetchCardImpactData, type CardImpactData } from '@/features/billing-cycles/actions';
 import { fetchAccountFunds } from '@/features/accounts/fund-actions';
 import type { AccountFund } from '@/features/accounts/lib/funds';
 import { formatCurrency } from '@/lib/formatting';
@@ -49,6 +51,8 @@ import {
   createTransaction,
   updateTransaction,
   createAccountTransfer,
+  fetchDescriptionSuggestions,
+  type DescriptionSuggestion,
 } from '../actions';
 import {
   createTransactionSchema,
@@ -141,7 +145,7 @@ export function TransactionDialogContent({
   const { onInvalid } = useFormValidation();
   const { showSuccess, triggerSuccess } = useSuccessAnimation({ onComplete: onSuccess });
   const [formMode, setFormMode] = useState<FormMode>('expense');
-  const [useManualDescription, setUseManualDescription] = useState(false);
+  const [useManualDescription, setUseManualDescription] = useState(!transaction?.entityId);
   const [showManualCategory, setShowManualCategory] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
@@ -224,7 +228,7 @@ export function TransactionDialogContent({
       budgetId: initialValues?.budgetId ?? undefined as string | undefined,
       savingsGoalId: undefined as string | undefined,
       entityId: undefined as string | undefined,
-      isPaid: false,
+      isPaid: true,
       nature: 'own' as TransactionNature,
       accountFundId: null as string | null,
       notes: '',
@@ -250,7 +254,7 @@ export function TransactionDialogContent({
     setShowTransferAdvancedOptions(false);
     setTransferSavingsGoalId(undefined);
     // Reset manual description toggle
-    setUseManualDescription(false);
+    setUseManualDescription(!transaction?.entityId);
     // Reset manual category toggle - show budget selector if initialValues has budgetId
     setShowManualCategory(false);
     // Reset advanced options (expanded when editing, collapsed for new)
@@ -297,16 +301,37 @@ export function TransactionDialogContent({
   const watchedNature = form.watch('nature');
   const isOwnCardExpense =
     !transaction && isCreditCardExpense && normalizeNature(watchedNature, 'expense') === 'own';
-  const [cardAvailable, setCardAvailable] = useState<number | null>(null);
+  const [cardImpact, setCardImpact] = useState<CardImpactData | null>(null);
+  const cardAvailable = cardImpact?.available ?? null;
   const cardPlanRequested = useRef(false);
   const [capConfirmData, setCapConfirmData] = useState<CreateTransactionInput | null>(null);
   useEffect(() => {
     if (!isOwnCardExpense || cardPlanRequested.current) return;
     cardPlanRequested.current = true;
-    fetchCyclePlanStatus(projectId, userId).then((result) => {
-      if (result.success && result.data) setCardAvailable(result.data.card.available);
+    fetchCardImpactData(projectId, userId).then((result) => {
+      if (result.success && result.data) setCardImpact(result.data);
     });
   }, [isOwnCardExpense, projectId, userId]);
+
+  // Sugerencias de descripción (lo que ya usaste en el proyecto)
+  const [descriptionSuggestions, setDescriptionSuggestions] = useState<DescriptionSuggestion[]>([]);
+  useEffect(() => {
+    if (transaction) return;
+    let active = true;
+    fetchDescriptionSuggestions(projectId, userId).then((result) => {
+      if (active && result.success) setDescriptionSuggestions(result.data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [transaction, projectId, userId]);
+
+  const handlePickSuggestion = (s: DescriptionSuggestion) => {
+    form.setValue('description', s.description, { shouldValidate: true });
+    if (s.categoryId) form.setValue('categoryId', s.categoryId);
+    if (s.budgetId && budgets.some((b) => b.id === s.budgetId)) form.setValue('budgetId', s.budgetId);
+    if (s.accountId && accountsMap.get(s.accountId)) form.setValue('accountId', s.accountId);
+  };
   // Fondos de la cuenta: un gasto se puede pagar con un fondo de la misma cuenta
   const [projectFunds, setProjectFunds] = useState<AccountFund[] | null>(null);
   const fundsRequested = useRef(false);
@@ -331,8 +356,6 @@ export function TransactionDialogContent({
     if (!stillValid) form.setValue('accountFundId', null);
   }, [watchedAccountId, watchedType, projectFunds, accountFundsForSelected, form]);
 
-  const cardRemainingAfter =
-    isOwnCardExpense && cardAvailable != null ? cardAvailable - (watchedAmount || 0) : null;
   const isProvisionAccount = selectedAccount?.type === 'pension' || selectedAccount?.type === 'unemployment' || selectedAccount?.type === 'savings';
 
   // Estado para saldo del proveedor (modo previsional)
@@ -537,7 +560,7 @@ export function TransactionDialogContent({
         <DrawerHeader>
           <div className="md:flex md:items-center md:justify-between">
             <DrawerTitle>
-              {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
+              {isEditing ? 'Editar movimiento' : isTransferMode ? 'Nuevo traspaso' : 'Nuevo movimiento'}
             </DrawerTitle>
             {/* Progress indicator - desktop only */}
             {!isEditing && (
@@ -568,7 +591,7 @@ export function TransactionDialogContent({
               </TabsTrigger>
               <TabsTrigger value="transfer" className="flex-1 gap-2">
                 <ArrowLeftRight className="h-4 w-4" />
-                Transferencia
+                Traspaso
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -760,6 +783,87 @@ export function TransactionDialogContent({
               )}
             />
 
+            {/* Entity or Manual Description toggle - ocultar para cuentas previsionales */}
+            {!isProvisionAccount && (
+              entities.length > 0 && !useManualDescription ? (
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="entityId"
+                    render={({ field, fieldState }) => (
+                      <FormItem data-field="entityId">
+                        <FormControl>
+                          <EntitySelector
+                            entities={entities}
+                            value={field.value}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Auto-generar descripción basada en la entidad y tipo
+                              if (value) {
+                                const currentType = form.getValues('type');
+                                const autoDescription = generateDescription(value, currentType);
+                                form.setValue('description', autoDescription);
+                              }
+                            }}
+                            label="Tienda"
+                            searchPlaceholder="Buscar tienda..."
+                            valid={!!field.value}
+                            invalid={!!fieldState.error}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground h-auto p-0"
+                    onClick={() => setUseManualDescription(true)}
+                  >
+                    <Pencil className="mr-1.5 h-3 w-3" />
+                    Escribir la descripción
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field, fieldState }) => (
+                      <FormItem data-field="description">
+                        <FormControl>
+                          <DescriptionField
+                            value={field.value ?? ''}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            onPick={handlePickSuggestion}
+                            suggestions={descriptionSuggestions}
+                            type={watchedType}
+                            invalid={!!fieldState.error}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {entities.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground h-auto p-0"
+                      onClick={() => setUseManualDescription(false)}
+                    >
+                      <Store className="mr-1.5 h-3 w-3" />
+                      Elegir tienda del listado
+                    </Button>
+                  )}
+                </div>
+              )
+            )}
+
             {/* Account */}
             <FormField
               control={form.control}
@@ -801,19 +905,17 @@ export function TransactionDialogContent({
                         field.onChange(value);
                       }}
                     />
-                    {cardRemainingAfter != null && (
-                      <p
-                        className={cn(
-                          'rounded-lg px-3 py-2 text-xs font-medium',
-                          cardRemainingAfter >= 0
-                            ? 'bg-muted/50 text-muted-foreground'
-                            : 'bg-red-500/10 text-red-600 dark:text-red-400'
-                        )}
-                      >
-                        {cardRemainingAfter >= 0
-                          ? `Con este gasto te quedan ${formatCurrency(cardRemainingAfter)} del techo de TC.`
-                          : `Con este gasto te pasas del techo de TC por ${formatCurrency(-cardRemainingAfter)}.`}
-                      </p>
+                    {isOwnCardExpense && cardImpact && (
+                      <div className="pt-2">
+                        <CapImpactNotice
+                          data={cardImpact}
+                          amount={watchedAmount || 0}
+                          onNotMine={() => {
+                            natureTouched.current = true;
+                            field.onChange('external');
+                          }}
+                        />
+                      </div>
                     )}
                   </FormItem>
                 )}
@@ -827,7 +929,7 @@ export function TransactionDialogContent({
                 name="accountFundId"
                 render={({ field }) => (
                   <FormItem data-field="accountFundId">
-                    <p className="text-sm font-medium text-muted-foreground">¿Lo pagas con un fondo?</p>
+                    <p className="text-[13px] font-extrabold">¿Lo pagas con un fondo?</p>
                     <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Fondo">
                       {[{ id: null, name: 'Sin fondo', balance: null as number | null }, ...accountFundsForSelected].map((fund) => {
                         const selected = (field.value ?? null) === fund.id;
@@ -843,13 +945,13 @@ export function TransactionDialogContent({
                             aria-checked={selected}
                             onClick={() => field.onChange(fund.id)}
                             className={cn(
-                              'min-h-11 rounded-xl border px-3 py-2 text-left text-sm transition-colors',
-                              selected ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
+                              'min-h-[52px] rounded-2xl border px-3.5 py-2 text-left text-sm transition-colors',
+                              selected ? 'border-amber bg-amber-soft text-foreground' : 'border-line text-muted-foreground hover:bg-surface-2'
                             )}
                           >
                             <span className="block truncate font-medium">{fund.name}</span>
                             {available != null && (
-                              <span className={cn('text-[11px] tabular-nums', insufficient && 'text-red-600 dark:text-red-400')}>
+                              <span className={cn('text-[11px] tabular-nums', insufficient && 'text-coral-text')}>
                                 {formatCurrency(available)}
                               </span>
                             )}
@@ -862,6 +964,40 @@ export function TransactionDialogContent({
                         El gasto baja el saldo del fondo y no descuadra tu ciclo (esa plata ya estaba apartada).
                       </p>
                     )}
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Pagado: siempre visible y prendido por defecto (casi todo se registra ya pagado) */}
+            {!isProvisionAccount && (
+              <FormField
+                control={form.control}
+                name="isPaid"
+                render={({ field }) => (
+                  <FormItem data-field="isPaid">
+                    <label
+                      className={cn(
+                        'flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl pl-4 pr-3.5 transition-colors',
+                        field.value ? 'bg-jade-soft' : 'border border-line bg-background'
+                      )}
+                    >
+                      <span className="flex-1">
+                        <span className="block text-sm font-extrabold">Pagado</span>
+                        <span className={cn('text-xs', field.value ? 'text-jade-text' : 'text-muted-foreground')}>
+                          {field.value
+                            ? isCreditCardExpense
+                              ? 'ya quedó cargado en la tarjeta'
+                              : watchedType === 'income'
+                                ? 'ya llegó a la cuenta'
+                                : 'ya salió de la cuenta'
+                            : 'queda pendiente: cuenta como comprometido'}
+                        </span>
+                      </span>
+                      <FormControl>
+                        <Switch checked={field.value ?? false} onCheckedChange={field.onChange} aria-label="Pagado" />
+                      </FormControl>
+                    </label>
                   </FormItem>
                 )}
               />
@@ -881,93 +1017,13 @@ export function TransactionDialogContent({
                 {profitabilityPreview !== null && (
                   <p className={cn(
                     'text-xs font-medium px-1',
-                    profitabilityPreview > 0 ? 'text-emerald-500' : 'text-red-500'
+                    profitabilityPreview > 0 ? 'text-jade' : 'text-coral'
                   )}>
                     Rentabilidad: {profitabilityPreview > 0 ? '+' : ''}
                     {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(profitabilityPreview)}
                   </p>
                 )}
               </div>
-            )}
-
-            {/* Entity or Manual Description toggle - ocultar para cuentas previsionales */}
-            {!isProvisionAccount && (
-              entities.length > 0 && !useManualDescription ? (
-                <div className="space-y-2">
-                  <FormField
-                    control={form.control}
-                    name="entityId"
-                    render={({ field, fieldState }) => (
-                      <FormItem data-field="entityId">
-                        <FormControl>
-                          <EntitySelector
-                            entities={entities}
-                            value={field.value}
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              // Auto-generar descripción basada en la entidad y tipo
-                              if (value) {
-                                const currentType = form.getValues('type');
-                                const autoDescription = generateDescription(value, currentType);
-                                form.setValue('description', autoDescription);
-                              }
-                            }}
-                            label="Tienda"
-                            searchPlaceholder="Buscar tienda..."
-                            valid={!!field.value}
-                            invalid={!!fieldState.error}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-auto p-0"
-                    onClick={() => setUseManualDescription(true)}
-                  >
-                    <Pencil className="mr-1.5 h-3 w-3" />
-                    Escribir tienda manualmente
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field, fieldState }) => (
-                      <FormItem data-field="description">
-                        <FormControl>
-                          <FloatingLabelInput
-                            label="Descripción"
-                            value={field.value}
-                            onChange={field.onChange}
-                            onBlur={field.onBlur}
-                            valid={!!field.value}
-                            invalid={!!fieldState.error}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {entities.length > 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-auto p-0"
-                      onClick={() => setUseManualDescription(false)}
-                    >
-                      <Store className="mr-1.5 h-3 w-3" />
-                      Seleccionar tienda
-                    </Button>
-                  )}
-                </div>
-              )
             )}
 
             {/* Otras opciones toggle */}
@@ -1134,7 +1190,7 @@ export function TransactionDialogContent({
                             <span
                               className={cn(
                                 "absolute left-3 top-1.5 text-xs flex items-center gap-1 pointer-events-none",
-                                hasValue ? "text-emerald-600" : hasError ? "text-destructive" : "text-muted-foreground"
+                                hasValue ? "text-jade" : hasError ? "text-destructive" : "text-muted-foreground"
                               )}
                             >
                               Fecha
@@ -1164,7 +1220,7 @@ export function TransactionDialogContent({
                               }}
                               className={cn(
                                 "h-14 pt-5 pb-1",
-                                hasValue && "ring-1 ring-emerald-500",
+                                hasValue && "ring-1 ring-jade",
                                 hasError && "ring-1 ring-destructive"
                               )}
                             />
@@ -1198,27 +1254,6 @@ export function TransactionDialogContent({
                   )}
                 />
 
-                {/* isPaid switch - ocultar para cuentas previsionales (siempre pagado) */}
-                {!isProvisionAccount && (
-                <FormField
-                  control={form.control}
-                  name="isPaid"
-                  render={({ field }) => (
-                    <FormItem data-field="isPaid">
-                      <FormControl>
-                        <SwitchCard
-                          title="Pagado"
-                          description={isCreditCardExpense
-                            ? "Marca si este cargo ya se aplicó a la tarjeta"
-                            : "Marca si esta transacción ya fue pagada"}
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                )}
               </div>
             )}
 
@@ -1230,7 +1265,7 @@ export function TransactionDialogContent({
                   pendingText="Guardando..."
                   icon={isEditing ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
                 >
-                  {isEditing ? 'Guardar cambios' : 'Crear transacción'}
+                  {isEditing ? 'Guardar cambios' : watchedType === 'income' ? 'Guardar ingreso' : 'Guardar gasto'}
                 </SubmitButton>
               </DrawerFooter>
               </form>

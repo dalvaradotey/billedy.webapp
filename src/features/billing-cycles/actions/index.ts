@@ -16,8 +16,9 @@ export { closeBillingCycle, reopenBillingCycle } from './billing-cycle-status';
 export {
   updateProjectPlan,
   fetchCyclePlanStatus,
+  fetchCardImpactData,
   fetchPendingSettlements,
   settleExpense,
   liquidateFund,
 } from './plan-actions';
-export type { ProjectPlanInput } from './plan-actions';
+export type { ProjectPlanInput, CardImpactData } from './plan-actions';

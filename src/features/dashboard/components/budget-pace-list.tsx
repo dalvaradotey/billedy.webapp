@@ -4,16 +4,8 @@ import { Plus, ShoppingBasket } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatting';
 import { cn } from '@/lib/utils';
 import type { BudgetProgress } from '@/features/budgets/types';
+import { TONE_CLASSES, toneForName } from '@/lib/pulse-tone';
 
-/** Cada presupuesto toma un color de la paleta, en orden, para reconocerlo de un vistazo. */
-const TONES = [
-  { bar: 'bg-amber', soft: 'bg-amber-soft', icon: 'text-amber' },
-  { bar: 'bg-sky', soft: 'bg-sky-soft', icon: 'text-sky' },
-  { bar: 'bg-rose', soft: 'bg-rose-soft', icon: 'text-rose' },
-  { bar: 'bg-coral', soft: 'bg-coral-soft', icon: 'text-coral' },
-  { bar: 'bg-violet', soft: 'bg-violet-soft', icon: 'text-violet' },
-  { bar: 'bg-jade', soft: 'bg-jade-soft', icon: 'text-jade' },
-];
 
 interface BudgetPaceListProps {
   budgets: BudgetProgress[];
@@ -38,8 +30,9 @@ export function BudgetPaceList({ budgets, pace, onAddTransaction }: BudgetPaceLi
       </div>
       <p className="mt-1 text-xs text-faint">La rayita blanca es dónde deberías ir hoy.</p>
       <ul className="mt-2.5 rounded-[22px] border border-line bg-surface px-3.5 py-1 md:border-0 md:bg-transparent md:p-0">
-        {budgets.map((b, i) => {
-          const tone = TONES[i % TONES.length];
+        {budgets.map((b) => {
+          const t = TONE_CLASSES[toneForName(b.categoryName ?? b.name)];
+          const tone = { bar: t.bar, soft: t.soft, icon: t.text };
           const ratio = b.budgetedAmount > 0 ? b.spentAmount / b.budgetedAmount : 0;
           const state =
             ratio >= 0.95

@@ -23,3 +23,6 @@ export {
   fetchUnpaidCCTransactions,
   setTransactionsHistoricallyPaid,
 } from './credit-card-actions';
+
+// Sugerencias para el formulario
+export { fetchDescriptionSuggestions, type DescriptionSuggestion } from './suggestion-actions';

@@ -7,7 +7,7 @@ import { accounts, projects } from '@/lib/db/schema';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { getBillingCycles } from '../queries';
-import { getCyclePlanStatus, type CyclePlanStatus } from '../lib/cycle-plan';
+import { getCyclePlanStatus, getCardPaceSeries, type CyclePlanStatus, type CardPacePoint } from '../lib/cycle-plan';
 import {
   abonoWindowStart,
   createSettlement,
@@ -100,6 +100,55 @@ export async function fetchCyclePlanStatus(
   if (!open) return { success: true, data: null };
 
   return { success: true, data: await getCyclePlanStatus(open) };
+}
+
+export type CardImpactData = {
+  cap: number;
+  spent: number;
+  available: number;
+  committedFixed: number;
+  projection: number;
+  daysTotal: number;
+  daysElapsed: number;
+  startDate: string;
+  endDate: string;
+  points: CardPacePoint[];
+};
+
+/**
+ * Datos para el aviso "Impacto en tu ritmo" del formulario: techo, gasto propio y su serie diaria.
+ */
+export async function fetchCardImpactData(
+  projectId: string,
+  userId: string
+): Promise<ActionResult<CardImpactData | null>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
+  const cycles = await getBillingCycles(projectId, userId);
+  const open = cycles.find((c) => c.status === 'open');
+  if (!open) return { success: true, data: null };
+
+  const plan = await getCyclePlanStatus(open);
+  const pace = await getCardPaceSeries(open, plan.card.spent);
+  const iso = (d: Date | string) => (typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10));
+
+  return {
+    success: true,
+    data: {
+      cap: plan.card.cap,
+      spent: plan.card.spent,
+      available: plan.card.available,
+      committedFixed: plan.card.committedFixed,
+      projection: plan.card.projection,
+      daysTotal: open.daysTotal,
+      daysElapsed: open.daysElapsed,
+      startDate: iso(open.startDate),
+      endDate: iso(open.endDate),
+      points: pace.points,
+    },
+  };
 }
 
 /**

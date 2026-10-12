@@ -7,8 +7,6 @@ import { toast } from 'sonner';
 import {
   ArrowUpCircle,
   ArrowDownCircle,
-  Wallet,
-  Clock,
   Calendar,
   Receipt,
   ChevronDown,
@@ -34,10 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { SummaryCard } from '@/components/ui/summary-card';
-import { SummaryCardsSlider } from '@/components/ui/summary-cards-slider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { getToday } from '@/lib/formatting';
 import type { TransactionWithCategory, TransactionSummary } from '../types';
 import type { AccountWithEntity } from '@/features/accounts/types';
 import type { Category } from '@/features/categories/types';
@@ -45,6 +42,7 @@ import type { Entity } from '@/features/entities/types';
 import { TransactionDialogContent } from './transaction-form';
 import { TransactionTable } from './transaction-table';
 import { TransactionChartsContent } from './transaction-charts';
+import { DailyPulseCard } from './daily-pulse-card';
 
 function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -121,6 +119,7 @@ export function TransactionList({
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [isChartsOpen, setIsChartsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selectedAccountIds, setSelectedAccountIds] = useState<Set<string>>(new Set());
   const [selectedBudgetIds, setSelectedBudgetIds] = useState<Set<string>>(new Set());
   const [isAccountDrawerOpen, setIsAccountDrawerOpen] = useState(false);
@@ -179,7 +178,7 @@ export function TransactionList({
   }, []);
 
   const pageActions = useMemo<PageAction[]>(() => [
-    { label: 'Nueva transacción', icon: Plus, onClick: handleOpenDialog },
+    { label: 'Nuevo movimiento', icon: Plus, onClick: handleOpenDialog },
     { label: 'Gráficos', icon: BarChart3, onClick: handleOpenCharts },
   ], [handleOpenDialog, handleOpenCharts]);
 
@@ -271,6 +270,10 @@ export function TransactionList({
   // Filtro client-side: búsqueda + cuenta + presupuesto
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
+      // Filtro por día (desde el pulso diario)
+      if (selectedDay && new Date(t.date).toISOString().slice(0, 10) !== selectedDay) {
+        return false;
+      }
       // Filtro por cuenta
       if (selectedAccountIds.size > 0 && (!t.accountId || !selectedAccountIds.has(t.accountId))) {
         return false;
@@ -293,7 +296,7 @@ export function TransactionList({
       }
       return true;
     });
-  }, [transactions, searchQuery, selectedAccountIds, selectedBudgetIds]);
+  }, [transactions, searchQuery, selectedAccountIds, selectedBudgetIds, selectedDay]);
 
   // Totales de transacciones filtradas
   const filteredTotals = useMemo(() => {
@@ -309,47 +312,22 @@ export function TransactionList({
     return { income, expense, balance: income - expense, reconciledCount };
   }, [filteredTransactions]);
 
-  const hasActiveFilters = searchQuery || selectedAccountIds.size > 0 || selectedBudgetIds.size > 0;
+  const hasActiveFilters = searchQuery || selectedAccountIds.size > 0 || selectedBudgetIds.size > 0 || selectedDay;
 
   return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <SummaryCardsSlider>
-        <SummaryCard
-          title="Ingresos"
-          value={formatCurrency(summary.totalIncome, defaultCurrency)}
-          subtitle={summary.pendingIncome > 0
-            ? `Pagado: ${formatCurrency(summary.paidIncome, defaultCurrency)} · Pend: ${formatCurrency(summary.pendingIncome, defaultCurrency)}`
-            : undefined
-          }
-          icon={<ArrowUpCircle className="h-4 w-4 sm:h-5 sm:w-5" />}
-          variant="success"
-        />
-        <SummaryCard
-          title="Gastos"
-          value={formatCurrency(summary.totalExpense, defaultCurrency)}
-          subtitle={summary.pendingExpense > 0
-            ? `Pagado: ${formatCurrency(summary.paidExpense, defaultCurrency)} · Pend: ${formatCurrency(summary.pendingExpense, defaultCurrency)}`
-            : undefined
-          }
-          icon={<ArrowDownCircle className="h-4 w-4 sm:h-5 sm:w-5" />}
-          variant="danger"
-        />
-        <SummaryCard
-          title="Saldo"
-          value={formatCurrency(summary.balance, defaultCurrency)}
-          subtitle="caja: después de pago TC y ahorro"
-          icon={<Wallet className="h-4 w-4 sm:h-5 sm:w-5" />}
-          variant={summary.balance >= 0 ? 'success' : 'danger'}
-        />
-        <SummaryCard
-          title="Pendientes"
-          value={`${summary.pendingCount} de ${summary.paidCount + summary.pendingCount}`}
-          subtitle="transacciones"
-          icon={<Clock className="h-4 w-4 sm:h-5 sm:w-5" />}
-          variant="neutral"
-        />
-      </SummaryCardsSlider>
+    <div className="space-y-4">
+      {/* Pulso diario del período */}
+      <DailyPulseCard
+        transactions={transactions}
+        summary={summary}
+        startDate={currentStartDate}
+        endDate={currentEndDate}
+        todayIso={getToday().toISOString().slice(0, 10)}
+        currency={defaultCurrency}
+        selectedDay={selectedDay}
+        onSelectDay={setSelectedDay}
+        reconciledCount={transactions.filter((t) => t.isReconciled).length}
+      />
 
       {/* ═══ TOOLBAR + FILTROS ═══ */}
       <PageToolbar label={`${filteredTransactions.length}${searchQuery ? ` de ${transactions.length}` : ''} ${filteredTransactions.length === 1 ? 'transacción' : 'transacciones'}`}>
@@ -364,7 +342,7 @@ export function TransactionList({
                 placeholder="Buscar..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-8 h-9 text-sm bg-background"
+                className="pl-9 pr-8 h-11 rounded-full text-sm bg-surface border-line"
               />
               {searchQuery && (
                 <button
@@ -377,10 +355,10 @@ export function TransactionList({
             </div>
             <button
               onClick={() => setShowMobileFilters(!showMobileFilters)}
-              className={`relative shrink-0 h-9 w-9 rounded-lg flex items-center justify-center transition-colors ${
+              className={`relative shrink-0 h-11 w-11 rounded-full flex items-center justify-center transition-colors ${
                 showMobileFilters
-                  ? 'bg-foreground/10 text-foreground'
-                  : 'bg-background text-muted-foreground'
+                  ? 'bg-cream text-cream-ink'
+                  : 'bg-surface text-muted-foreground border border-line'
               }`}
             >
               <SlidersHorizontal className="h-4 w-4" />
@@ -397,7 +375,7 @@ export function TransactionList({
               <button
                 type="button"
                 onClick={() => setShowPeriodControls(!showPeriodControls)}
-                className="flex items-center gap-2.5 w-full rounded-xl bg-background px-3 py-2.5"
+                className="flex items-center gap-2.5 w-full rounded-2xl bg-surface border border-line px-3 py-2.5"
               >
                 <div className="p-1.5 rounded-lg bg-muted/50 shrink-0">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -414,7 +392,7 @@ export function TransactionList({
 
               {/* Period expanded */}
               {showPeriodControls && (
-                <div className="rounded-xl bg-background border border-border/50 p-3 space-y-2.5">
+                <div className="rounded-2xl bg-surface border border-line p-3 space-y-2.5">
                   {hasCycles && (
                     <Select value={currentCycleId} onValueChange={handleCycleChange}>
                       <SelectTrigger className="h-9 text-sm">
@@ -463,10 +441,10 @@ export function TransactionList({
                   onClick={() =>
                     handleFilterChange('type', currentType === 'income' ? 'all' : 'income')
                   }
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3.5 min-h-9 text-xs font-bold transition-colors ${
                     currentType === 'income'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
-                      : 'bg-background/80 text-muted-foreground'
+                      ? 'bg-jade-soft text-jade-text'
+                      : 'bg-surface text-muted-foreground'
                   }`}
                 >
                   Ingresos
@@ -475,10 +453,10 @@ export function TransactionList({
                   onClick={() =>
                     handleFilterChange('type', currentType === 'expense' ? 'all' : 'expense')
                   }
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3.5 min-h-9 text-xs font-bold transition-colors ${
                     currentType === 'expense'
-                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300'
-                      : 'bg-background/80 text-muted-foreground'
+                      ? 'bg-coral-soft text-coral-text'
+                      : 'bg-surface text-muted-foreground'
                   }`}
                 >
                   Gastos
@@ -488,10 +466,10 @@ export function TransactionList({
                   onClick={() =>
                     handleFilterChange('paid', currentPaid === 'true' ? 'all' : 'true')
                   }
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3.5 min-h-9 text-xs font-bold transition-colors ${
                     currentPaid === 'true'
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
-                      : 'bg-background/80 text-muted-foreground'
+                      ? 'bg-sky-soft text-sky-text'
+                      : 'bg-surface text-muted-foreground'
                   }`}
                 >
                   Pagados
@@ -500,10 +478,10 @@ export function TransactionList({
                   onClick={() =>
                     handleFilterChange('paid', currentPaid === 'false' ? 'all' : 'false')
                   }
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3.5 min-h-9 text-xs font-bold transition-colors ${
                     currentPaid === 'false'
-                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
-                      : 'bg-background/80 text-muted-foreground'
+                      ? 'bg-amber-soft text-amber-text'
+                      : 'bg-surface text-muted-foreground'
                   }`}
                 >
                   Pendientes
@@ -513,10 +491,10 @@ export function TransactionList({
                   onClick={() =>
                     handleFilterChange('reconciled', currentReconciled === 'true' ? 'all' : 'true')
                   }
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3.5 min-h-9 text-xs font-bold transition-colors ${
                     currentReconciled === 'true'
-                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
-                      : 'bg-background/80 text-muted-foreground'
+                      ? 'bg-sky-soft text-sky-text'
+                      : 'bg-surface text-muted-foreground'
                   }`}
                 >
                   Conciliadas
@@ -525,10 +503,10 @@ export function TransactionList({
                   onClick={() =>
                     handleFilterChange('reconciled', currentReconciled === 'false' ? 'all' : 'false')
                   }
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3.5 min-h-9 text-xs font-bold transition-colors ${
                     currentReconciled === 'false'
-                      ? 'bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-300'
-                      : 'bg-background/80 text-muted-foreground'
+                      ? 'bg-surface-3 text-foreground'
+                      : 'bg-surface text-muted-foreground'
                   }`}
                 >
                   Sin conciliar
@@ -541,10 +519,10 @@ export function TransactionList({
                   <button
                     key={opt.value}
                     onClick={() => handleFilterChange('nature', opt.value)}
-                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`shrink-0 rounded-full px-3.5 min-h-9 text-xs font-bold transition-colors ${
                       currentNature === opt.value
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
-                        : 'bg-background/80 text-muted-foreground'
+                        ? 'bg-sky-soft text-sky-text'
+                        : 'bg-surface text-muted-foreground'
                     }`}
                   >
                     {opt.label}
@@ -557,16 +535,16 @@ export function TransactionList({
                 <button
                   onClick={() => setIsAccountDrawerOpen(true)}
                   className={cn(
-                    'rounded-full px-3 py-1.5 text-xs font-medium transition-colors inline-flex items-center gap-1.5',
+                    'rounded-full px-3.5 min-h-9 text-xs font-bold transition-colors inline-flex items-center gap-1.5',
                     selectedAccountIds.size > 0
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
-                      : 'bg-background/80 text-muted-foreground',
+                      ? 'bg-sky-soft text-sky-text'
+                      : 'bg-surface text-muted-foreground',
                   )}
                 >
                   <Building2 className="h-3 w-3" />
                   Cuentas
                   {selectedAccountIds.size > 0 && (
-                    <span className="rounded-full bg-blue-200 dark:bg-blue-800 px-1.5 text-[10px]">
+                    <span className="rounded-full bg-sky/30 px-1.5 text-[10px]">
                       {selectedAccountIds.size}
                     </span>
                   )}
@@ -575,16 +553,16 @@ export function TransactionList({
                 <button
                   onClick={() => setIsBudgetDrawerOpen(true)}
                   className={cn(
-                    'rounded-full px-3 py-1.5 text-xs font-medium transition-colors inline-flex items-center gap-1.5',
+                    'rounded-full px-3.5 min-h-9 text-xs font-bold transition-colors inline-flex items-center gap-1.5',
                     selectedBudgetIds.size > 0
-                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300'
-                      : 'bg-background/80 text-muted-foreground',
+                      ? 'bg-violet-soft text-violet-text'
+                      : 'bg-surface text-muted-foreground',
                   )}
                 >
                   <Target className="h-3 w-3" />
                   Presupuestos
                   {selectedBudgetIds.size > 0 && (
-                    <span className="rounded-full bg-purple-200 dark:bg-purple-800 px-1.5 text-[10px]">
+                    <span className="rounded-full bg-violet/30 px-1.5 text-[10px]">
                       {selectedBudgetIds.size}
                     </span>
                   )}
@@ -605,7 +583,7 @@ export function TransactionList({
                 placeholder="Buscar..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-7 h-8 text-xs bg-background/50"
+                className="pl-8 pr-7 h-9 rounded-full text-xs bg-surface border-line"
               />
               {searchQuery && (
                 <button
@@ -618,7 +596,7 @@ export function TransactionList({
             </div>
 
             {/* Type toggle */}
-            <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
+            <div className="inline-flex rounded-full border border-line bg-surface p-1">
               {([
                 { value: 'all', label: 'Todos' },
                 { value: 'income', label: 'Ingresos' },
@@ -627,9 +605,9 @@ export function TransactionList({
                 <button
                   key={opt.value}
                   onClick={() => handleFilterChange('type', opt.value)}
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
                     currentType === opt.value
-                      ? 'bg-background text-foreground shadow-sm'
+                      ? 'bg-cream text-cream-ink'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -639,7 +617,7 @@ export function TransactionList({
             </div>
 
             {/* Paid toggle */}
-            <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
+            <div className="inline-flex rounded-full border border-line bg-surface p-1">
               {([
                 { value: 'all', label: 'Todos' },
                 { value: 'true', label: 'Pagados' },
@@ -648,9 +626,9 @@ export function TransactionList({
                 <button
                   key={opt.value}
                   onClick={() => handleFilterChange('paid', opt.value)}
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
                     currentPaid === opt.value
-                      ? 'bg-background text-foreground shadow-sm'
+                      ? 'bg-cream text-cream-ink'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -660,7 +638,7 @@ export function TransactionList({
             </div>
 
             {/* Reconciled toggle */}
-            <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
+            <div className="inline-flex rounded-full border border-line bg-surface p-1">
               {([
                 { value: 'all', label: 'Todas' },
                 { value: 'true', label: 'Conciliadas' },
@@ -669,9 +647,9 @@ export function TransactionList({
                 <button
                   key={opt.value}
                   onClick={() => handleFilterChange('reconciled', opt.value)}
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
                     currentReconciled === opt.value
-                      ? 'bg-background text-foreground shadow-sm'
+                      ? 'bg-cream text-cream-ink'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -681,14 +659,14 @@ export function TransactionList({
             </div>
 
             {/* Nature filter */}
-            <div className="inline-flex rounded-lg border bg-background/50 p-0.5">
+            <div className="inline-flex rounded-full border border-line bg-surface p-1">
               {NATURE_FILTER_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => handleFilterChange('nature', opt.value)}
-                  className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
                     currentNature === opt.value
-                      ? 'bg-background text-foreground shadow-sm'
+                      ? 'bg-cream text-cream-ink'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -702,16 +680,16 @@ export function TransactionList({
               <PopoverTrigger asChild>
                 <button
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 h-8 text-xs font-medium transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-full border px-3 h-9 text-xs font-bold transition-colors',
                     selectedAccountIds.size > 0
-                      ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300'
-                      : 'bg-background/50 text-muted-foreground hover:text-foreground',
+                      ? 'bg-sky-soft border-sky/40 text-sky-text'
+                      : 'bg-surface border-line text-muted-foreground hover:text-foreground',
                   )}
                 >
                   <Building2 className="h-3.5 w-3.5" />
                   Cuentas
                   {selectedAccountIds.size > 0 && (
-                    <span className="rounded-full bg-blue-200 dark:bg-blue-800 px-1.5 text-[10px] leading-4">
+                    <span className="rounded-full bg-sky/30 px-1.5 text-[10px] leading-4">
                       {selectedAccountIds.size}
                     </span>
                   )}
@@ -756,16 +734,16 @@ export function TransactionList({
               <PopoverTrigger asChild>
                 <button
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 h-8 text-xs font-medium transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-full border px-3 h-9 text-xs font-bold transition-colors',
                     selectedBudgetIds.size > 0
-                      ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-300'
-                      : 'bg-background/50 text-muted-foreground hover:text-foreground',
+                      ? 'bg-violet-soft border-violet/40 text-violet-text'
+                      : 'bg-surface border-line text-muted-foreground hover:text-foreground',
                   )}
                 >
                   <Target className="h-3.5 w-3.5" />
                   Presupuestos
                   {selectedBudgetIds.size > 0 && (
-                    <span className="rounded-full bg-purple-200 dark:bg-purple-800 px-1.5 text-[10px] leading-4">
+                    <span className="rounded-full bg-violet/30 px-1.5 text-[10px] leading-4">
                       {selectedBudgetIds.size}
                     </span>
                   )}
@@ -956,26 +934,26 @@ export function TransactionList({
       </Drawer>
 
       {/* Totales filtrados */}
-      {filteredTransactions.length > 0 && (
-        <div className="flex items-center gap-4 px-3 py-2 rounded-lg bg-muted/40 border border-border/50 text-sm overflow-x-auto scrollbar-hide">
+      {filteredTransactions.length > 0 && hasActiveFilters && (
+        <div className="flex items-center gap-4 px-4 py-2.5 rounded-2xl bg-surface border border-line text-sm overflow-x-auto scrollbar-hide">
           <div className="flex items-center gap-1.5 shrink-0">
-            <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />
+            <ArrowUpCircle className="h-3.5 w-3.5 text-jade" />
             <span className="text-muted-foreground whitespace-nowrap">Ingresos:</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">
+            <span className="font-semibold text-jade tabular-nums whitespace-nowrap">
               {formatCurrency(filteredTotals.income, defaultCurrency)}
             </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <ArrowDownCircle className="h-3.5 w-3.5 text-red-500" />
+            <ArrowDownCircle className="h-3.5 w-3.5 text-coral" />
             <span className="text-muted-foreground whitespace-nowrap">Gastos:</span>
-            <span className="font-semibold text-red-600 dark:text-red-400 tabular-nums whitespace-nowrap">
+            <span className="font-semibold text-coral-text tabular-nums whitespace-nowrap">
               {formatCurrency(filteredTotals.expense, defaultCurrency)}
             </span>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
+            <ShieldCheck className="h-3.5 w-3.5 text-sky" />
             <span className="text-muted-foreground whitespace-nowrap">Conc:</span>
-            <span className="font-semibold text-indigo-600 dark:text-indigo-400 tabular-nums whitespace-nowrap">
+            <span className="font-semibold text-sky tabular-nums whitespace-nowrap">
               {filteredTotals.reconciledCount}/{filteredTransactions.length}
             </span>
           </div>
@@ -984,8 +962,8 @@ export function TransactionList({
             <span className={cn(
               'font-semibold tabular-nums whitespace-nowrap',
               filteredTotals.balance >= 0
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-red-600 dark:text-red-400',
+                ? 'text-jade'
+                : 'text-coral-text',
             )}>
               {formatCurrency(filteredTotals.balance, defaultCurrency)}
             </span>

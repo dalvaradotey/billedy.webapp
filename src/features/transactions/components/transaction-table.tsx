@@ -1,7 +1,7 @@
 'use client';
 
 import { NATURE_LABELS } from '../nature';
-import { useState, useTransition, useCallback, useMemo, useEffect } from 'react';
+import { useState, useTransition, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
   Pencil,
@@ -18,17 +18,10 @@ import {
   ArrowUpDown,
   ShieldCheck,
   ShieldX,
+  MoreHorizontal,
+  MoreVertical,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
@@ -49,7 +42,7 @@ import type { TransactionWithCategory } from '../types';
 import type { AccountWithEntity } from '@/features/accounts/types';
 import { formatCurrency, formatDate } from '@/lib/formatting';
 import { cn } from '@/lib/utils';
-import { cardStyles } from '@/components/card-styles';
+import { TONE_CLASSES, toneForName } from '@/lib/pulse-tone';
 import { BulkPayCreditCardDialog } from './bulk-pay-cc-dialog';
 
 type SortColumn = 'status' | 'date' | 'description' | 'category' | 'amount';
@@ -65,37 +58,26 @@ import {
 } from './confirmation-dialogs';
 
 export function TransactionTableSkeleton({ rowCount = 5 }: { rowCount?: number }) {
+  const tones = ['amber', 'sky', 'jade', 'rose', 'violet'] as const;
   return (
-    <div className={`${cardStyles.base} p-0 overflow-hidden`}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[50px]">Pagado</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Descripción</TableHead>
-            <TableHead>Categoría</TableHead>
-            <TableHead className="text-right">Monto</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: rowCount }).map((_, i) => (
-            <TableRow key={i}>
-              <TableCell><Skeleton className="h-4 w-4 rounded" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-2 w-2 rounded-full" />
-                  <Skeleton className="h-4 w-16" />
+    <div className="space-y-4" aria-busy="true" aria-label="Cargando movimientos">
+      {[Math.min(2, rowCount), Math.max(1, rowCount - 2)].map((count, g) => (
+        <div key={g}>
+          <Skeleton className="mb-2.5 ml-1 h-3 w-28 rounded-full" />
+          <div className="rounded-[22px] border border-line bg-surface px-3.5 py-0.5">
+            {Array.from({ length: count }).map((_, i) => (
+              <div key={i} className="flex min-h-[66px] items-center gap-3 border-b border-surface-3 last:border-0">
+                <Skeleton tone={tones[(g * 2 + i) % tones.length]} className="h-10 w-10 rounded-[13px]" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3 w-32 rounded-full" />
+                  <Skeleton tone="quiet" className="h-2.5 w-24 rounded-full" />
                 </div>
-              </TableCell>
-              <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
-              <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                <Skeleton className="h-3.5 w-16 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -133,7 +115,6 @@ export function TransactionTable({
   const [showBulkTogglePaidDialog, setShowBulkTogglePaidDialog] = useState(false);
   const [showBulkDateChangeDialog, setShowBulkDateChangeDialog] = useState(false);
   const [showBulkToggleReconciledDialog, setShowBulkToggleReconciledDialog] = useState(false);
-  const [revealedAction, setRevealedAction] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
@@ -417,397 +398,156 @@ export function TransactionTable({
   // Determinar si una transacción TC fue liquidada (pagada con transferencia o históricamente)
   const isSettled = (t: TransactionWithCategory) => t.paidByTransferId !== null || t.isHistoricallyPaid;
 
-  // Resetear reveal cuando cambia la selección
-  useEffect(() => {
-    setRevealedAction(null);
-  }, [selectedIds.size]);
-
-  // Acciones masivas para mobile (reveal-on-tap)
-  const mobileActions = useMemo(() => {
-    const actions: { id: string; label: string; icon: React.ComponentType<{ className?: string }>; variant: 'outline' | 'destructive'; onExecute: () => void }[] = [];
-    if (selectedUnpaid.length > 0) {
-      actions.push({ id: 'paid', label: `Pagado (${selectedUnpaid.length})`, icon: CheckCircle2, variant: 'outline', onExecute: () => setShowBulkTogglePaidDialog(true) });
+  // Agrupar por día cuando el orden es por fecha (el orden por defecto)
+  const groupByDay = sortColumn === null || sortColumn === 'date';
+  const dayGroups = useMemo(() => {
+    if (!groupByDay) return [{ key: 'all', label: '', rows: sortedTransactions, net: 0, spent: 0 }];
+    const groups: { key: string; label: string; rows: TransactionWithCategory[]; net: number; spent: number }[] = [];
+    for (const t of sortedTransactions) {
+      const key = new Date(t.date).toISOString().slice(0, 10);
+      let g = groups[groups.length - 1];
+      if (!g || g.key !== key) {
+        g = { key, label: dayLabel(key), rows: [], net: 0, spent: 0 };
+        groups.push(g);
+      }
+      const amount = parseFloat(t.baseAmount);
+      g.rows.push(t);
+      g.net += t.type === 'income' ? amount : -amount;
+      if (t.type === 'expense') g.spent += amount;
     }
-    actions.push({ id: 'date', label: 'Fecha', icon: Calendar, variant: 'outline', onExecute: () => setShowBulkDateChangeDialog(true) });
-    if (selectedCCTransactions.length > 0) {
-      actions.push({ id: 'cc', label: `Pagar TC (${selectedCCTransactions.length})`, icon: CreditCard, variant: 'outline', onExecute: () => setShowPayCCDialog(true) });
-    }
-    actions.push({ id: 'reconciled', label: 'Conciliar', icon: ShieldCheck, variant: 'outline', onExecute: () => setShowBulkToggleReconciledDialog(true) });
-    actions.push({ id: 'history', label: 'Histórico', icon: History, variant: 'outline', onExecute: () => setShowHistoricallyPaidDialog(true) });
-    actions.push({ id: 'delete', label: 'Eliminar', icon: Trash2, variant: 'destructive', onExecute: () => setShowBulkDeleteDialog(true) });
-    return actions;
-  }, [selectedUnpaid.length, selectedCCTransactions.length]);
-
-  // Si la acción revelada ya no existe (ej: se deseleccionaron las pendientes), resetear
-  useEffect(() => {
-    if (revealedAction && !mobileActions.find((a) => a.id === revealedAction)) {
-      setRevealedAction(null);
-    }
-  }, [revealedAction, mobileActions]);
+    return groups;
+  }, [sortedTransactions, groupByDay]);
+  const maxDaySpent = Math.max(1, ...dayGroups.map((g) => g.spent));
+  const allSelected = transactions.length > 0 && selectedIds.size === transactions.length;
 
   return (
     <div className="space-y-2">
-      {/* Sticky bottom bar de acciones masivas */}
+      {/* Barra de acciones masivas: pastilla crema sobre la navegación */}
       {selectedIds.size > 0 && (
         <div
-          className="fixed bottom-0 inset-x-0 z-[60] px-4 animate-in slide-in-from-bottom-2 duration-200"
-          style={{ paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom))` }}
+          className="fixed inset-x-0 bottom-[84px] z-[60] px-4 animate-in slide-in-from-bottom-2 duration-200 md:bottom-6 md:left-[248px] md:px-8"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
-          <div className="relative rounded-2xl overflow-hidden max-w-screen-lg mx-auto">
-            {/* Glass background */}
-            <div className="absolute inset-0 bg-background/85 dark:bg-background/75 backdrop-blur-2xl backdrop-saturate-150" />
-            <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/[0.06] dark:ring-white/[0.08]" />
-
-            {/* ── Mobile layout (reveal-on-tap) ── */}
-            <div className="relative sm:hidden px-4 py-3 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-medium">
-                    {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
-                  </span>
-                  <div className="flex items-center gap-2 text-xs">
-                    {selectionTotals.income > 0 && (
-                      <span className="text-emerald-600 dark:text-emerald-400">+{formatCurrency(selectionTotals.income, defaultCurrency)}</span>
-                    )}
-                    {selectionTotals.expense > 0 && (
-                      <span className="text-red-600 dark:text-red-400">-{formatCurrency(selectionTotals.expense, defaultCurrency)}</span>
-                    )}
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => { setSelectedIds(new Set()); setRevealedAction(null); }}>
-                  <X className="h-4 w-4 mr-1" />
-                  Cancelar
-                </Button>
-              </div>
-              <div className="flex items-center gap-2 justify-center min-h-[36px]">
-                {revealedAction === null ? (
-                  // Estado inicial: iconos
-                  mobileActions.map((action) => (
-                    <Button
-                      key={action.id}
-                      variant={action.variant}
-                      size="icon"
-                      onClick={() => setRevealedAction(action.id)}
-                      disabled={isPending}
-                    >
-                      <action.icon className="h-4 w-4" />
-                    </Button>
-                  ))
-                ) : (
-                  // Estado revelado: dots + botón expandido
-                  <>
-                    {mobileActions.map((action) => {
-                      if (action.id === revealedAction) {
-                        return (
-                          <Button
-                            key={action.id}
-                            variant={action.variant}
-                            size="sm"
-                            onClick={() => { action.onExecute(); setRevealedAction(null); }}
-                            disabled={isPending}
-                            className="animate-in fade-in zoom-in-95 duration-150"
-                          >
-                            <action.icon className="h-4 w-4 mr-2" />
-                            {action.label}
-                          </Button>
-                        );
-                      }
-                      return (
-                        <button
-                          key={action.id}
-                          onClick={() => setRevealedAction(action.id)}
-                          className="w-2 h-2 rounded-full bg-muted-foreground/30 hover:bg-muted-foreground/50 transition-colors"
-                        />
-                      );
-                    })}
-                  </>
-                )}
-              </div>
+          <div className="mx-auto flex max-w-[1136px] items-center gap-2 rounded-[22px] bg-cream p-1.5 pl-4 text-cream-ink shadow-[0_12px_32px_rgba(8,6,12,0.5)]">
+            <div className="flex min-w-0 shrink-0 flex-col">
+              <span className="text-[13px] font-extrabold">
+                {selectedIds.size} {selectedIds.size === 1 ? 'elegido' : 'elegidos'}
+              </span>
+              <span className="num text-[11px] font-semibold text-[#6B6172]">
+                {selectionTotals.income > 0 && `+${formatCurrency(selectionTotals.income, defaultCurrency)} `}
+                {selectionTotals.expense > 0 && `−${formatCurrency(selectionTotals.expense, defaultCurrency)}`}
+              </span>
             </div>
-
-            {/* ── Desktop layout ── */}
-            <div className="relative hidden sm:flex items-center gap-3 px-4 py-3">
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="text-sm font-medium whitespace-nowrap">
-                  {selectedIds.size} seleccionada{selectedIds.size > 1 ? 's' : ''}
-                </span>
-                <div className="flex items-center gap-2 text-xs">
-                  {selectionTotals.income > 0 && (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium whitespace-nowrap">+{formatCurrency(selectionTotals.income, defaultCurrency)}</span>
-                  )}
-                  {selectionTotals.expense > 0 && (
-                    <span className="text-red-600 dark:text-red-400 font-medium whitespace-nowrap">-{formatCurrency(selectionTotals.expense, defaultCurrency)}</span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                {selectedUnpaid.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => setShowBulkTogglePaidDialog(true)}
+            <div className="scrollbar-hide ml-auto flex items-center gap-1.5 overflow-x-auto">
+              {selectedUnpaid.length > 0 && (
+                <BulkButton tone="jade" icon={CheckCircle2} disabled={isPending} onClick={() => setShowBulkTogglePaidDialog(true)}>
+                  Pagado ({selectedUnpaid.length})
+                </BulkButton>
+              )}
+              <BulkButton tone="sky" icon={ShieldCheck} disabled={isPending} onClick={() => setShowBulkToggleReconciledDialog(true)}>
+                Conciliar
+              </BulkButton>
+              {selectedCCTransactions.length > 0 && (
+                <BulkButton tone="amber" icon={CreditCard} disabled={isPending} onClick={() => setShowPayCCDialog(true)}>
+                  Pagar TC ({selectedCCTransactions.length})
+                </BulkButton>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Más acciones"
                     disabled={isPending}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cream-ink text-cream"
                   >
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Pagado ({selectedUnpaid.length})
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => setShowBulkDateChangeDialog(true)}
-                  disabled={isPending}
-                >
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Fecha
-                </Button>
-                {selectedCCTransactions.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                    onClick={() => setShowPayCCDialog(true)}
-                    disabled={isPending}
-                  >
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Pagar TC ({selectedCCTransactions.length})
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => setShowBulkToggleReconciledDialog(true)}
-                  disabled={isPending}
-                >
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  Conciliar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => setShowHistoricallyPaidDialog(true)}
-                  disabled={isPending}
-                >
-                  <History className="mr-2 h-4 w-4" />
-                  Histórico
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="shrink-0"
-                  onClick={() => setShowBulkDeleteDialog(true)}
-                  disabled={isPending}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Eliminar
-                </Button>
-                <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setSelectedIds(new Set())}>
-                  Cancelar
-                </Button>
-              </div>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="top" className="rounded-2xl">
+                  <DropdownMenuItem onClick={() => setShowBulkDateChangeDialog(true)}>
+                    <Calendar className="h-4 w-4" />Cambiar fecha
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowHistoricallyPaidDialog(true)}>
+                    <History className="h-4 w-4" />Histórico
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSelectAll}>
+                    <CheckCircle2 className="h-4 w-4" />{allSelected ? 'Quitar todos' : 'Elegir todos'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowBulkDeleteDialog(true)} className="text-coral-text focus:text-coral-text">
+                    <Trash2 className="h-4 w-4" />Eliminar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedIds(new Set())}>
+                    <X className="h-4 w-4" />Cancelar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
       )}
 
-      <div className={`${cardStyles.base} p-0 overflow-hidden`}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[40px]">
-              <Checkbox
-                checked={transactions.length > 0 && selectedIds.size === transactions.length}
-                onCheckedChange={handleSelectAll}
-                disabled={isPending}
-              />
-            </TableHead>
-            <TableHead className="w-[70px]">
-              <SortableHeader column="status" label="Estado" current={sortColumn} direction={sortDirection} onSort={handleSort} />
-            </TableHead>
-            <TableHead>
-              <SortableHeader column="date" label="Fecha" current={sortColumn} direction={sortDirection} onSort={handleSort} />
-            </TableHead>
-            <TableHead>
-              <SortableHeader column="description" label="Descripción" current={sortColumn} direction={sortDirection} onSort={handleSort} />
-            </TableHead>
-            <TableHead>
-              <SortableHeader column="category" label="Categoría" current={sortColumn} direction={sortDirection} onSort={handleSort} />
-            </TableHead>
-            <TableHead className="text-right">
-              <SortableHeader column="amount" label="Monto" current={sortColumn} direction={sortDirection} onSort={handleSort} className="justify-end" />
-            </TableHead>
-            <TableHead className="w-[50px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedTransactions.map((transaction) => {
-            const isCC = isCreditCardTransaction(transaction);
-            const settled = isSettled(transaction);
-            return (
-            <TableRow key={transaction.id} className={`hover:bg-blue-50 dark:hover:bg-blue-950/30 ${(isCC ? settled : transaction.isPaid) ? 'opacity-60' : ''}`}>
-              <TableCell>
-                <Checkbox
-                  checked={selectedIds.has(transaction.id)}
-                  onCheckedChange={() => handleToggleSelect(transaction.id)}
-                  disabled={isPending}
-                />
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1 flex-wrap">
-                  {isCC ? (
-                    // Para transacciones de TC: mostrar badge de estado
-                    transaction.paidByTransferId ? (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        Liq.
-                      </span>
-                    ) : transaction.isHistoricallyPaid ? (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                        Hist.
-                      </span>
-                    ) : transaction.isPaid ? (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                        Cargado
-                      </span>
-                    ) : null
-                  ) : (
-                    // Para transacciones normales: mostrar estado pagado
-                    transaction.isPaid ? (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        Pagado
-                      </span>
-                    ) : null
-                  )}
-                </div>
-              </TableCell>
-              <TableCell className="font-medium">
-                {formatDate(transaction.date)}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <div className="relative shrink-0">
-                    {transaction.entityImageUrl ? (
-                      <img
-                        src={transaction.entityImageUrl}
-                        alt={transaction.entityName ?? ''}
-                        className="h-6 w-6 rounded object-contain bg-white"
-                      />
-                    ) : transaction.entityId ? (
-                      <div className="h-6 w-6 rounded bg-muted flex items-center justify-center">
-                        <Store className="h-3 w-3 text-muted-foreground" />
-                      </div>
-                    ) : (
-                      <div className="h-6 w-6" />
-                    )}
-                    {transaction.isReconciled && (
-                      <div title="Transacción conciliada" className="absolute -top-1.5 -left-1.5 h-3.5 w-3.5 rounded-full bg-indigo-500 flex items-center justify-center ring-2 ring-indigo-700 dark:ring-indigo-900">
-                        <ShieldCheck className="h-2 w-2 text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className={(isCC ? settled : transaction.isPaid) ? 'line-through' : ''}>
-                      {transaction.description}
-                    </div>
-                    {transaction.nature !== 'own' && (
-                      <span className="mt-0.5 inline-flex rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
-                        {NATURE_LABELS[transaction.nature]}
-                      </span>
-                    )}
-                    {(transaction.entityName || transaction.accountName) && (
-                      <div className="text-xs text-muted-foreground">
-                        {[transaction.entityName, transaction.accountName].filter(Boolean).join(' • ')}
-                      </div>
-                    )}
-                    {transaction.notes && (
-                      <div className="text-xs text-muted-foreground/70 truncate max-w-[200px]">
-                        {transaction.notes}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: transaction.categoryColor ?? undefined }}
-                  />
-                  <span className="text-sm">{transaction.categoryName}</span>
-                </div>
-              </TableCell>
-              <TableCell className="text-right">
-                <span
-                  className={`font-medium ${
-                    transaction.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {transaction.type === 'income' ? '+' : '-'}
-                  {formatCurrency(transaction.originalAmount, transaction.originalCurrency)}
-                </span>
-              </TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
-                      <span className="sr-only">Acciones</span>
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v.01M12 12v.01M12 18v.01" />
-                      </svg>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {/* Toggle pagado - para TC solo si no está liquidada */}
-                    {(!isCC || !settled) && (
-                      <DropdownMenuItem onClick={() => setTransactionToTogglePaid(transaction)}>
-                        {transaction.isPaid ? (
-                          <>
-                            <X className="mr-2 h-4 w-4" />
-                            Marcar como pendiente
-                          </>
-                        ) : (
-                          <>
-                            <Check className="mr-2 h-4 w-4" />
-                            Marcar como pagado
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onClick={() => handleToggleReconciled(transaction)}>
-                      {transaction.isReconciled ? (
-                        <>
-                          <ShieldX className="mr-2 h-4 w-4" />
-                          Desmarcar conciliada
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck className="mr-2 h-4 w-4" />
-                          Marcar como conciliada
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEdit(transaction)}>
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTransactionToDelete(transaction)} className="text-destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      {/* Orden */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} disabled={isPending} aria-label="Elegir todos" />
+          Elegir todos
+        </label>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-bold text-muted-foreground hover:bg-surface-2 hover:text-foreground">
+              <ArrowUpDown className="h-3.5 w-3.5" />
+              {sortColumn ? `${SORT_LABELS[sortColumn]} ${sortDirection === 'asc' ? '↑' : '↓'}` : 'Más recientes'}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="rounded-2xl">
+            {(Object.keys(SORT_LABELS) as SortColumn[]).map((col) => (
+              <DropdownMenuItem key={col} onClick={() => handleSort(col)}>
+                {SORT_LABELS[col]}
+                {sortColumn === col && (sortDirection === 'asc' ? <ArrowUp className="ml-auto h-3.5 w-3.5" /> : <ArrowDown className="ml-auto h-3.5 w-3.5" />)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Spacer para que las últimas filas no queden tapadas por la sticky bar */}
+      <div className="space-y-4">
+        {dayGroups.map((group) => (
+          <section key={group.key} aria-label={group.label || 'Movimientos'}>
+            {groupByDay && (
+              /* Encabezado del día: queda pegado arriba hasta que llega el siguiente */
+              <div className="sticky top-16 z-20 -mx-4 flex items-center gap-2.5 bg-background/95 px-5 py-2 backdrop-blur-sm md:top-0 md:-mx-2 md:px-3">
+                <span className="text-[13px] font-extrabold">{group.label}</span>
+                <span aria-hidden className="h-1 flex-1 overflow-hidden rounded-full bg-surface-2">
+                  <span className="block h-1 rounded-full bg-coral" style={{ width: `${Math.round((group.spent / maxDaySpent) * 100)}%` }} />
+                </span>
+                <span className={cn('num text-xs font-extrabold', group.net >= 0 ? 'text-jade' : 'text-foreground')}>
+                  {group.net >= 0 ? '+' : '−'}{formatCurrency(Math.abs(group.net), defaultCurrency)}
+                </span>
+              </div>
+            )}
+            <ul className="rounded-[22px] border border-line bg-surface px-3.5 py-0.5 md:px-4">
+              {group.rows.map((transaction) => (
+                <TransactionRow
+                  key={transaction.id}
+                  transaction={transaction}
+                  isCC={isCreditCardTransaction(transaction)}
+                  settled={isSettled(transaction)}
+                  selected={selectedIds.has(transaction.id)}
+                  showDate={!groupByDay}
+                  disabled={isPending}
+                  onToggleSelect={() => handleToggleSelect(transaction.id)}
+                  onEdit={() => onEdit(transaction)}
+                  onTogglePaid={() => setTransactionToTogglePaid(transaction)}
+                  onToggleReconciled={() => handleToggleReconciled(transaction)}
+                  onDelete={() => setTransactionToDelete(transaction)}
+                />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+
+      {/* Espacio para que las últimas filas no queden tapadas por la barra de selección */}
       {selectedIds.size > 0 && <div className="h-24" />}
 
       {/* Delete Confirmation Dialog */}
@@ -898,41 +638,173 @@ export function TransactionTable({
   );
 }
 
-function SortableHeader({
-  column,
-  label,
-  current,
-  direction,
-  onSort,
-  className,
-}: {
-  column: SortColumn;
-  label: string;
-  current: SortColumn | null;
-  direction: SortDirection;
-  onSort: (column: SortColumn) => void;
-  className?: string;
-}) {
-  const isActive = current === column;
+const SORT_LABELS: Record<SortColumn, string> = {
+  date: 'Fecha',
+  status: 'Estado',
+  description: 'Descripción',
+  category: 'Categoría',
+  amount: 'Monto',
+};
+
+const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/** "Domingo 11 oct" (fecha como día calendario, sin zona horaria) */
+function dayLabel(iso: string) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
+const BULK_TONES = {
+  jade: 'bg-jade text-jade-ink',
+  sky: 'bg-sky text-sky-ink',
+  amber: 'bg-amber text-amber-ink',
+} as const;
+
+function BulkButton({
+  tone,
+  icon: Icon,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { tone: keyof typeof BULK_TONES; icon: React.ComponentType<{ className?: string }> }) {
   return (
     <button
-      onClick={() => onSort(column)}
-      className={cn(
-        'inline-flex items-center gap-1 hover:text-foreground transition-colors -ml-1 px-1 py-0.5 rounded',
-        isActive ? 'text-foreground' : 'text-muted-foreground',
-        className,
-      )}
+      type="button"
+      className={cn('flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold disabled:opacity-50', BULK_TONES[tone])}
+      {...props}
     >
-      {label}
-      {isActive ? (
-        direction === 'asc' ? (
-          <ArrowUp className="h-3.5 w-3.5" />
-        ) : (
-          <ArrowDown className="h-3.5 w-3.5" />
-        )
-      ) : (
-        <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-      )}
+      <Icon className="h-3.5 w-3.5" />
+      {children}
     </button>
   );
 }
+
+function TransactionRow({
+  transaction: t,
+  isCC,
+  settled,
+  selected,
+  showDate,
+  disabled,
+  onToggleSelect,
+  onEdit,
+  onTogglePaid,
+  onToggleReconciled,
+  onDelete,
+}: {
+  transaction: TransactionWithCategory;
+  isCC: boolean;
+  settled: boolean;
+  selected: boolean;
+  showDate: boolean;
+  disabled: boolean;
+  onToggleSelect: () => void;
+  onEdit: () => void;
+  onTogglePaid: () => void;
+  onToggleReconciled: () => void;
+  onDelete: () => void;
+}) {
+  const income = t.type === 'income';
+  const tone = TONE_CLASSES[income ? 'jade' : toneForName(t.categoryName)];
+  const state = isCC
+    ? t.paidByTransferId
+      ? { label: 'liquidada', className: 'text-faint' }
+      : t.isHistoricallyPaid
+        ? { label: 'histórico', className: 'text-faint' }
+        : t.isPaid
+          ? { label: 'cargada', className: 'text-faint' }
+          : { label: 'pendiente', className: 'text-amber-text' }
+    : t.isPaid
+      ? null
+      : { label: 'pendiente', className: 'text-amber-text' };
+  const meta = [showDate ? formatDate(t.date) : null, t.categoryName, t.accountName].filter(Boolean).join(' · ');
+  const nature = t.nature !== 'own' ? NATURE_TAGS[t.nature] : null;
+
+  return (
+    <li className={cn('flex min-h-[66px] items-center gap-3 border-b border-surface-3 last:border-0', settled && 'opacity-60')}>
+      {/* El ícono también sirve para elegir el movimiento */}
+      <button
+        type="button"
+        onClick={onToggleSelect}
+        disabled={disabled}
+        aria-pressed={selected}
+        aria-label={selected ? `Quitar ${t.description} de la selección` : `Elegir ${t.description}`}
+        className={cn(
+          'relative flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] text-sm font-extrabold transition-colors',
+          selected ? 'bg-cream text-cream-ink' : cn(tone.soft, tone.text)
+        )}
+      >
+        {selected ? (
+          <Check className="h-5 w-5" strokeWidth={3} />
+        ) : t.entityImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={t.entityImageUrl} alt="" className="h-7 w-7 rounded-lg bg-white object-contain p-0.5" />
+        ) : t.entityId ? (
+          <Store className="h-[18px] w-[18px]" />
+        ) : (
+          (t.categoryName ?? t.description).charAt(0).toUpperCase()
+        )}
+        {t.isReconciled && !selected && (
+          <span title="Conciliada" className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-surface bg-sky">
+            <Check className="h-2 w-2 text-sky-ink" strokeWidth={4} />
+          </span>
+        )}
+      </button>
+
+      <button type="button" onClick={onEdit} className="min-w-0 flex-1 py-2 text-left">
+        <span className={cn('block truncate text-sm font-bold', settled && 'line-through')}>{t.description}</span>
+        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="truncate">{meta}</span>
+          {nature && (
+            <span className={cn('shrink-0 rounded-full px-2 py-px text-[11px] font-bold', nature.className)}>{nature.label}</span>
+          )}
+        </span>
+        {t.notes && <span className="mt-0.5 hidden truncate text-xs text-faint md:block">{t.notes}</span>}
+      </button>
+
+      <span className="shrink-0 text-right">
+        <span className={cn('num block text-[15px] font-extrabold', income ? 'text-jade' : 'text-foreground')}>
+          {income ? '+' : '−'}
+          {formatCurrency(t.originalAmount, t.originalCurrency)}
+        </span>
+        {state && <span className={cn('block text-[11px] font-bold', state.className)}>{state.label}</span>}
+      </span>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={disabled}
+            aria-label={`Acciones de ${t.description}`}
+            className="-mr-1.5 flex h-11 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="rounded-2xl">
+          {(!isCC || !settled) && (
+            <DropdownMenuItem onClick={onTogglePaid}>
+              {t.isPaid ? <><X className="h-4 w-4" />Marcar como pendiente</> : <><Check className="h-4 w-4" />Marcar como pagado</>}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onClick={onToggleReconciled}>
+            {t.isReconciled ? <><ShieldX className="h-4 w-4" />Desmarcar conciliada</> : <><ShieldCheck className="h-4 w-4" />Marcar como conciliada</>}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onEdit}>
+            <Pencil className="h-4 w-4" />Editar
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDelete} className="text-coral-text focus:text-coral-text">
+            <Trash2 className="h-4 w-4" />Eliminar
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </li>
+  );
+}
+
+const NATURE_TAGS: Record<string, { label: string; className: string }> = {
+  external: { label: NATURE_LABELS.external.toLowerCase(), className: 'bg-sky-soft text-sky-text' },
+  reimbursable: { label: NATURE_LABELS.reimbursable.toLowerCase(), className: 'bg-amber-soft text-amber-text' },
+  fund: { label: NATURE_LABELS.fund.toLowerCase(), className: 'bg-violet-soft text-violet-text' },
+  reimbursement: { label: NATURE_LABELS.reimbursement.toLowerCase(), className: 'bg-jade-soft text-jade-text' },
+};

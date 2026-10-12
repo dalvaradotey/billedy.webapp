@@ -132,12 +132,10 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const defaultCurrency = project?.currency ?? 'CLP';
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Transacciones</h1>
-        <p className="text-muted-foreground">
-          Administra tus ingresos y gastos del período.
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Movimientos</h1>
+        {selectedCycle && <span className="text-[13px] font-bold text-muted-foreground">{selectedCycle.name}</span>}
       </div>
 
       <TransactionList
