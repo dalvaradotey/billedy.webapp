@@ -99,7 +99,6 @@ export function EntitySelector({
           className={cn(
             'w-full justify-between font-normal',
             label ? 'h-14 py-1' : 'h-12',
-            valid && 'ring-1 ring-jade',
             invalid && 'ring-1 ring-destructive'
           )}
           disabled={disabled}
@@ -111,11 +110,10 @@ export function EntitySelector({
                 className={cn(
                   'transition-all flex items-center gap-1',
                   selectedEntity ? 'text-xs' : 'text-base',
-                  valid ? 'text-jade' : invalid ? 'text-destructive' : 'text-muted-foreground'
+                  invalid ? 'text-destructive' : 'text-muted-foreground'
                 )}
               >
                 {label}
-                {valid && <CheckCircle2 className="h-3.5 w-3.5" />}
                 {invalid && <XCircle className="h-3.5 w-3.5" />}
               </span>
               {selectedEntity && (

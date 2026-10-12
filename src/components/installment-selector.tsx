@@ -87,7 +87,7 @@ export function InstallmentSelector({
         <div
           className={cn(
             'flex items-center gap-1 text-xs md:text-sm',
-            valid ? 'text-jade' : invalid ? 'text-destructive' : 'text-muted-foreground'
+            invalid ? 'text-destructive' : 'text-muted-foreground'
           )}
         >
           {label}
@@ -118,7 +118,6 @@ export function InstallmentSelector({
             onKeyDown={handleInputKeyDown}
             className={cn(
               "h-10 w-16 text-center font-medium",
-              valid && "ring-1 ring-jade",
               invalid && "ring-1 ring-destructive"
             )}
             autoFocus
@@ -128,8 +127,7 @@ export function InstallmentSelector({
             type="button"
             onClick={handleStartEditing}
             className={cn(
-              "h-10 w-16 rounded-md border border-input bg-background dark:bg-background text-center font-medium text-lg hover:bg-accent dark:hover:bg-surface-2 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation",
-              valid && "ring-1 ring-jade",
+              "h-10 w-16 rounded-md border border-input bg-background text-center font-medium text-lg hover:bg-accent dark:hover:bg-surface-2 hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch-manipulation",
               invalid && "ring-1 ring-destructive"
             )}
           >

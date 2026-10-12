@@ -55,14 +55,14 @@ export function SwitchCard({
         }
       }}
       className={cn(
-        'flex flex-row items-center justify-between rounded-lg border p-3 transition-colors',
-        showActiveState && checked && 'ring-1 ring-jade',
-        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent/50',
+        'flex min-h-14 flex-row items-center justify-between gap-3 rounded-2xl border border-line p-3.5 transition-colors',
+        showActiveState && checked && 'border-transparent bg-jade-soft',
+        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-surface-2',
         className
       )}
     >
       <div className="space-y-0.5">
-        <span className="text-sm font-medium leading-none">
+        <span className="text-sm font-bold leading-none">
           {title}
         </span>
         {description && (

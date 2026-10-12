@@ -417,7 +417,7 @@ export function CreditDialogContent({
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Intereses:</span>
                       <span
-                        className={`font-medium ${calculatedInterest > 0 ? 'text-coral dark:text-coral' : 'text-jade dark:text-jade'}`}
+                        className={`font-medium ${calculatedInterest > 0 ? 'text-coral' : 'text-jade'}`}
                       >
                         {formatCurrency(calculatedInterest)}
                       </span>

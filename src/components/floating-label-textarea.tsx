@@ -39,18 +39,16 @@ export const FloatingLabelTextarea = forwardRef<HTMLTextAreaElement, FloatingLab
           className={cn(
             'absolute left-3 transition-all flex items-center gap-1 pointer-events-none',
             isActive ? 'top-1.5 text-xs' : 'top-3 text-base',
-            valid ? 'text-jade' : hasError ? 'text-destructive' : 'text-muted-foreground'
+            hasError ? 'text-destructive' : 'text-muted-foreground'
           )}
         >
           {label}
-          {valid && <CheckCircle2 className="h-3.5 w-3.5" />}
           {hasError && !value && <XCircle className="h-3.5 w-3.5" />}
         </span>
         <Textarea
           ref={ref}
           className={cn(
             'pt-6 pb-2 resize-none',
-            valid && 'ring-1 ring-jade',
             hasError && 'ring-1 ring-destructive',
             className
           )}

@@ -118,8 +118,8 @@ export function SavingsGoalTransactions({
               className={cn(
                 'text-sm font-semibold tabular-nums shrink-0',
                 t.type === 'income'
-                  ? 'text-jade dark:text-jade'
-                  : 'text-coral dark:text-coral'
+                  ? 'text-jade'
+                  : 'text-coral'
               )}
             >
               {t.type === 'income' ? '+' : '-'}

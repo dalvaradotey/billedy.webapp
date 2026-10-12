@@ -159,7 +159,7 @@ export function CreditCard({
         <div className="flex items-start gap-3">
           {/* Icon */}
           {credit.entityImageUrl ? (
-            <div className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-border">
+            <div className="w-11 h-11 sm:w-10 sm:h-10 rounded-[13px] overflow-hidden flex-shrink-0 bg-white p-0.5">
               <img
                 src={credit.entityImageUrl}
                 alt={credit.entityName ?? ''}
@@ -167,7 +167,7 @@ export function CreditCard({
               />
             </div>
           ) : (
-            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-sky-soft text-sky dark:bg-sky-soft dark:text-sky">
+            <div className="flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-[13px] flex-shrink-0 bg-sky-soft text-sky dark:bg-sky-soft dark:text-sky">
               <CreditCardIcon className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
           )}
@@ -178,7 +178,7 @@ export function CreditCard({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-base truncate">{credit.name}</p>
+                  <p className="font-bold text-[15px] truncate">{credit.name}</p>
                   {credit.categoryColor && (
                     <span
                       className="inline-block h-2 w-2 rounded-full shrink-0"
@@ -192,7 +192,7 @@ export function CreditCard({
               </div>
 
               {/* Desktop: Amount */}
-              <p className="hidden sm:block text-2xl font-bold tabular-nums text-foreground shrink-0">
+              <p className="hidden sm:block num text-[22px] font-extrabold text-foreground shrink-0">
                 {formatCurrency(credit.installmentAmount)}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
                   /cuota
@@ -224,7 +224,7 @@ export function CreditCard({
             </div>
 
             {/* Mobile: Amount below description */}
-            <p className="text-2xl font-bold tabular-nums text-foreground mt-1 sm:hidden">
+            <p className="num text-[22px] font-extrabold text-foreground mt-1 sm:hidden">
               {formatCurrency(credit.installmentAmount)}
               <span className="text-xs font-normal text-muted-foreground ml-1">
                 /cuota
@@ -246,23 +246,23 @@ export function CreditCard({
                         disabled={isPending}
                         className={cn(
                           cardStyles.drawerAction,
-                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-muted'
+                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-surface-3'
                         )}
                       >
                         <div className={cn(
                           cardStyles.drawerActionIconBox,
-                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-muted'
+                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-surface-3'
                         )}>
                           <span className={cn(
                             '[&>svg]:h-5 [&>svg]:w-5',
-                            action.variant === 'destructive' ? 'text-coral dark:text-coral' : 'text-muted-foreground'
+                            action.variant === 'destructive' ? 'text-coral-text' : 'text-muted-foreground'
                           )}>
                             {action.icon}
                           </span>
                         </div>
                         <span className={cn(
                           'text-base font-medium',
-                          action.variant === 'destructive' && 'text-coral dark:text-coral'
+                          action.variant === 'destructive' && 'text-coral-text'
                         )}>
                           {action.label}
                         </span>
@@ -270,7 +270,7 @@ export function CreditCard({
                     </DrawerClose>
                   ))}
                 </div>
-                <div className="px-4 pb-4 pt-2 border-t">
+                <div className="px-4 pb-4 pt-2 border-t border-line">
                   <DrawerClose asChild>
                     <button className={cardStyles.drawerCancelButton}>
                       Cancelar
@@ -305,7 +305,7 @@ export function CreditCard({
               </div>
               <div className="flex items-center gap-2.5">
                 <Progress value={progressPercentage} className={cardStyles.progressBar} indicatorClassName={isCompleted ? cardStyles.progressIndicatorCompleted : cardStyles.progressIndicator} />
-                <span className={cn('text-lg', isCompleted ? cardStyles.progressPercentageCompleted : cardStyles.progressPercentage)}>
+                <span className={cn('text-sm', isCompleted ? cardStyles.progressPercentageCompleted : cardStyles.progressPercentage)}>
                   {Math.round(progressPercentage)}%
                 </span>
               </div>
@@ -336,9 +336,9 @@ export function CreditCard({
                     <div>
                       <p className={cardStyles.detailsLabel}>Intereses</p>
                       {hasInterest ? (
-                        <p className={cn(cardStyles.detailsValue, 'text-coral dark:text-coral')}>{formatCurrency(interestAmount)}</p>
+                        <p className={cn(cardStyles.detailsValue, 'text-coral-text')}>{formatCurrency(interestAmount)}</p>
                       ) : (
-                        <p className="text-sm font-semibold text-jade dark:text-jade">Sin interés</p>
+                        <p className="text-sm font-semibold text-jade">Sin interés</p>
                       )}
                     </div>
                   </div>
@@ -392,7 +392,7 @@ export function CreditCard({
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-coral dark:text-coral'
+                      ? 'text-coral-text'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}
@@ -452,9 +452,9 @@ export function CreditCard({
                   <div>
                     <p className={cardStyles.detailsLabel}>Intereses</p>
                     {hasInterest ? (
-                      <p className={cn(cardStyles.detailsValue, 'text-coral dark:text-coral')}>{formatCurrency(interestAmount)}</p>
+                      <p className={cn(cardStyles.detailsValue, 'text-coral-text')}>{formatCurrency(interestAmount)}</p>
                     ) : (
-                      <p className="text-sm font-semibold text-jade dark:text-jade">Sin interés</p>
+                      <p className="text-sm font-semibold text-jade">Sin interés</p>
                     )}
                   </div>
                 </div>

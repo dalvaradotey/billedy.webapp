@@ -109,23 +109,23 @@ export function EmptyState({
   description,
   action,
   className,
-  showParticles = true,
+  showParticles = false,
 }: EmptyStateProps) {
   return (
     <div
       className={cn(
         'relative flex flex-col items-center justify-center py-12 text-center',
-        'border border-dashed rounded-lg bg-muted/30',
+        'rounded-[26px] border border-line bg-surface px-6',
         className
       )}
     >
       {showParticles && <FloatingParticles />}
       {Icon && (
-        <div className="relative mb-4 rounded-xl bg-muted p-4">
-          <Icon className="h-8 w-8 text-muted-foreground" />
+        <div className="relative mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-jade-soft">
+          <Icon className="h-7 w-7 text-jade" />
         </div>
       )}
-      <h3 className="text-lg font-medium text-foreground">{title}</h3>
+      <h3 className="text-lg font-extrabold text-foreground">{title}</h3>
       {description && (
         <p className="mt-1 max-w-sm text-sm text-muted-foreground">
           {description}

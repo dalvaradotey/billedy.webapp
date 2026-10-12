@@ -112,39 +112,18 @@ export function SummaryCardsSlider({
 
   return (
     <div className={className}>
-      {/* Mobile: Horizontal scroll slider */}
+      {/* Móvil: fila con scroll libre, una tarjeta asoma para invitar a deslizar */}
       <div className={classes.mobile}>
         <div
           ref={scrollRef}
-          className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          className="scrollbar-hide -mx-4 flex snap-x gap-2.5 overflow-x-auto px-4"
         >
-          {pages.map((pageItems, pageIndex) => (
-            <div key={pageIndex} className="flex-shrink-0 w-full snap-center">
-              <div className={cn('grid gap-3', gridCols(itemsPerPage))}>
-                {pageItems}
-              </div>
+          {children.map((child, i) => (
+            <div key={i} className="w-[46%] min-w-[150px] max-w-[190px] flex-none snap-start">
+              {child}
             </div>
           ))}
         </div>
-
-        {/* Dots indicator */}
-        {totalPages > 1 && (
-          <div className="flex justify-center gap-1.5 mt-3">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => scrollToPage(i)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === currentPage
-                    ? 'bg-primary w-4'
-                    : 'bg-muted-foreground/30 w-1.5'
-                }`}
-                aria-label={`Ir a página ${i + 1}`}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Desktop: Grid with slider if more than desktopMaxCols */}

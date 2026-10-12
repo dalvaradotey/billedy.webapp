@@ -555,7 +555,7 @@ export function CreatePurchaseDialog({
                       className={`rounded-lg px-3 py-2 text-xs ${
                         cardAvailable - installmentAmount >= 0
                           ? 'bg-background/60 text-muted-foreground'
-                          : 'bg-coral-soft text-coral dark:text-coral'
+                          : 'bg-coral-soft text-coral'
                       }`}
                     >
                       Suma {formatCurrency(installmentAmount)} a tu gasto propio en TC de cada ciclo durante{' '}

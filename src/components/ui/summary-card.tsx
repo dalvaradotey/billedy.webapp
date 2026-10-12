@@ -38,25 +38,17 @@ export function SummaryCard({
   const valueStyles = valueClassName || styles.value;
 
   return (
-    <div className={cn(`rounded-2xl border p-3 sm:p-4 ${styles.bg} ${styles.border}`, className)}>
-      <div className="flex items-start gap-2 sm:gap-3">
+    <div className={cn('rounded-[22px] border border-line bg-surface p-3.5 sm:p-4', className)}>
+      <div className="flex items-center gap-2">
         {icon && (
-          <div className={`p-1.5 sm:p-2 rounded-lg ${styles.icon} flex-shrink-0`}>
+          <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] [&_svg]:h-3.5 [&_svg]:w-3.5', styles.icon)}>
             {icon}
-          </div>
+          </span>
         )}
-        <div className="min-w-0 flex-1">
-          <div className="text-[11px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wide truncate">
-            {title}
-          </div>
-          <div className={cn('text-lg sm:text-xl font-bold tabular-nums truncate mt-0.5', valueStyles)}>
-            {value}
-          </div>
-          <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate min-h-[14px] sm:min-h-[16px]">
-            {subtitle || '\u00A0'}
-          </div>
-        </div>
+        <span className="truncate text-xs text-muted-foreground">{title}</span>
       </div>
+      <div className={cn('num mt-2 truncate text-xl font-extrabold sm:text-[22px]', valueStyles)}>{value}</div>
+      {subtitle && <div className="mt-0.5 truncate text-[11px] text-faint">{subtitle}</div>}
     </div>
   );
 }

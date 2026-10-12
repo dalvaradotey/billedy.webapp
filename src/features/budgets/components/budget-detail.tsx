@@ -249,7 +249,7 @@ export function BudgetDetail({
                   className={cardStyles.progressBar}
                   indicatorClassName={isOverBudget ? cardStyles.progressIndicatorDanger : cardStyles.progressIndicator}
                 />
-                <span className={cn('text-lg', isOverBudget ? cardStyles.progressPercentageDanger : cardStyles.progressPercentage)}>
+                <span className={cn('text-sm', isOverBudget ? cardStyles.progressPercentageDanger : cardStyles.progressPercentage)}>
                   {data.progressPercentage}%
                 </span>
               </div>
@@ -333,7 +333,7 @@ export function BudgetDetail({
               {filteredTransactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className="flex items-center gap-2.5 py-2 -mx-1.5 px-1.5 rounded-md transition-colors hover:bg-sky-soft dark:hover:bg-sky-soft"
+                  className="flex items-center gap-2.5 py-2 -mx-1.5 px-1.5 rounded-md transition-colors hover:bg-sky-soft"
                 >
                   {/* Fecha */}
                   <span className="text-xs text-muted-foreground whitespace-nowrap w-12 shrink-0">
@@ -363,7 +363,7 @@ export function BudgetDetail({
                     )}
                   </div>
                   {/* Monto */}
-                  <span className="text-sm font-semibold tabular-nums text-coral dark:text-coral shrink-0">
+                  <span className="text-sm font-semibold tabular-nums text-coral-text shrink-0">
                     -{formatCurrency(parseFloat(tx.baseAmount), currency)}
                   </span>
                 </div>

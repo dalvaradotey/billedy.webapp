@@ -69,7 +69,7 @@ export function ProjectSelector({
   return (
     <div className={cn('flex items-center', className)}>
       <Select value={currentProjectId} onValueChange={onProjectChange}>
-        <SelectTrigger className="w-full h-full border-0 bg-transparent dark:bg-transparent shadow-none px-0 py-0 focus:ring-0 [&>svg]:ml-1 [&>svg]:opacity-60">
+        <SelectTrigger className="w-full h-full border-0 bg-transparent shadow-none px-0 py-0 focus:ring-0 [&>svg]:ml-1 [&>svg]:opacity-60">
           <SelectValue placeholder="Seleccionar proyecto">
             <span className="truncate font-medium text-sm">{currentProject?.name ?? 'Seleccionar'}</span>
           </SelectValue>
@@ -124,7 +124,7 @@ export function ProjectSelector({
                 {isOwner && (
                   <ResponsiveDrawer open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                     <DrawerTrigger asChild>
-                      <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm text-jade dark:text-jade">
+                      <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm text-jade">
                         <UserPlus className="h-4 w-4" />
                         Invitar miembro
                       </button>
@@ -575,7 +575,7 @@ function MembersDialogContent({
                 {roleInfo.label}
               </span>
               {isPending && (
-                <span className="flex items-center gap-1 text-amber dark:text-amber">
+                <span className="flex items-center gap-1 text-amber">
                   <Clock className="h-3 w-3" />
                   Pendiente
                 </span>

@@ -150,7 +150,7 @@ export function CardActions({
           >
             <span className={cn(
               action.variant === 'destructive'
-                ? 'text-coral dark:text-coral'
+                ? 'text-coral'
                 : 'text-muted-foreground',
               '[&>svg]:h-4 [&>svg]:w-4'
             )}>
@@ -158,7 +158,7 @@ export function CardActions({
             </span>
             <span className={cn(
               'text-sm font-medium',
-              action.variant === 'destructive' && 'text-coral dark:text-coral'
+              action.variant === 'destructive' && 'text-coral'
             )}>
               {action.label}
             </span>
@@ -219,7 +219,7 @@ export function CardActions({
                   )}>
                     <span className={cn(
                       action.variant === 'destructive'
-                        ? 'text-coral dark:text-coral'
+                        ? 'text-coral'
                         : 'text-muted-foreground',
                       '[&>svg]:h-5 [&>svg]:w-5'
                     )}>
@@ -228,7 +228,7 @@ export function CardActions({
                   </div>
                   <span className={cn(
                     'text-base font-medium',
-                    action.variant === 'destructive' && 'text-coral dark:text-coral'
+                    action.variant === 'destructive' && 'text-coral'
                   )}>
                     {action.label}
                   </span>

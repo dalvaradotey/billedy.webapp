@@ -40,7 +40,7 @@ export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: Template
   };
 
   return (
-    <div className="flex items-start gap-3 py-2.5 px-3 rounded-xl hover:bg-sky-soft dark:hover:bg-sky-soft transition-colors">
+    <div className="flex items-start gap-3 py-2.5 px-3 rounded-xl hover:bg-sky-soft transition-colors">
       {/* Entity image */}
       {item.entityImageUrl ? (
         <img
@@ -65,8 +65,8 @@ export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: Template
             <span
               className={`text-sm font-semibold tabular-nums ${
                 item.type === 'income'
-                  ? 'text-jade dark:text-jade'
-                  : 'text-coral dark:text-coral'
+                  ? 'text-jade'
+                  : 'text-coral'
               }`}
             >
               {item.type === 'income' ? '+' : '-'}
