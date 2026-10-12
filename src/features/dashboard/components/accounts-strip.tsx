@@ -21,7 +21,7 @@ export function DashboardAccountsStrip() {
     <section aria-label="Tus cuentas">
       <div className="flex items-baseline justify-between">
         <h2 className="text-lg font-extrabold tracking-[-0.02em]">Tus cuentas</h2>
-        <Link href="/dashboard/accounts" className="text-xs font-bold text-jade">Ver todas</Link>
+        <Link href="/dashboard/accounts" className="-my-2 inline-flex min-h-10 items-center px-1 text-xs font-bold text-jade">Ver todas</Link>
       </div>
       <div className="scrollbar-hide -mx-4 mt-2.5 flex snap-x gap-2.5 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-4 md:px-0">
         {cards.map((c) => (

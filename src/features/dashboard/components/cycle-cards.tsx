@@ -38,7 +38,7 @@ export function CycleFlowCard() {
         <h2 className="text-[15px] font-extrabold">
           De <span className="num">{formatCurrency(entered)}</span> que entraron
         </h2>
-        <Link href="/dashboard/cycles" className="text-xs font-bold text-jade">Ver ciclo</Link>
+        <Link href="/dashboard/cycles" className="-my-2 inline-flex min-h-10 items-center px-1 text-xs font-bold text-jade">Ver ciclo</Link>
       </div>
       <div aria-hidden className="mt-3 flex h-3.5 gap-[3px]">
         {parts.filter((p) => p.value > 0).map((p) => (

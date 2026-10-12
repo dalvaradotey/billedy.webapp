@@ -39,7 +39,7 @@ export const cardStyles = {
   actionsButton: 'flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 disabled:opacity-50 shrink-0 bg-background hover:bg-surface-3',
 
   // Toggle button (ver detalle)
-  toggleButton: 'flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors',
+  toggleButton: 'flex min-h-10 -ml-1 items-center gap-1.5 rounded-full px-1 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors',
 
   // Entity/account chip
   chipBase: 'flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-background',

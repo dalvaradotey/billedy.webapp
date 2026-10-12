@@ -228,7 +228,7 @@ export function AccountsList({
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start md:gap-5">
           {/* Patrimonio */}
           <section className="md:col-start-1">
-            <div className="flex items-baseline justify-between gap-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <span className="text-[13px] text-muted-foreground">Patrimonio</span>
               <span className="text-xs text-faint">
                 {totalExternalDebt > 0 ? 'sin deuda de otros, previsión ni terceros' : 'sin previsión ni terceros'}

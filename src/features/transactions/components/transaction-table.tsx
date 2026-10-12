@@ -488,7 +488,7 @@ export function TransactionTable({
 
       {/* Orden */}
       <div className="flex items-center justify-between gap-2 px-1">
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <label className="flex min-h-10 items-center gap-2 text-xs text-muted-foreground">
           <Checkbox checked={allSelected} onCheckedChange={handleSelectAll} disabled={isPending} aria-label="Elegir todos" />
           Elegir todos
         </label>
