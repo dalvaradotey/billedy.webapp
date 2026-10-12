@@ -13,7 +13,7 @@ import { formatCurrency } from '@/lib/formatting';
 import { cn } from '@/lib/utils';
 import { liquidateFund } from '@/features/billing-cycles/actions';
 import { warningText } from '@/features/billing-cycles/components/cycle-cascade';
-import type { CyclePlanStatus, CardPaceSeries } from '@/features/billing-cycles/lib/cycle-plan';
+import type { CyclePlanStatus, CardPaceSeries, CycleDailyPoint } from '@/features/billing-cycles/lib/cycle-plan';
 import { PlanSettingsDrawerContent } from './plan-settings-drawer';
 import { SettlementsDrawerContent } from './settlements-drawer';
 import { useDashboard } from '../hooks';
@@ -24,6 +24,7 @@ type SavingsAccount = { id: string; name: string };
 interface PulseHomeProps {
   plan: CyclePlanStatus;
   cardPace: CardPaceSeries | null;
+  dailySeries: CycleDailyPoint[] | null;
   projectId: string;
   userId: string;
   isOwner: boolean;
@@ -59,12 +60,42 @@ const SIGNAL_KICKER = {
   amber: 'text-amber',
 } as const;
 
+const VIEWS = [
+  { key: 'card' as const, label: 'Tarjeta', dot: 'bg-amber' },
+  { key: 'cash' as const, label: 'Caja', dot: 'bg-jade' },
+  { key: 'savings' as const, label: 'Ahorro', dot: 'bg-violet' },
+];
+
+type LegendItem = readonly [string, 'line' | 'dotted' | 'dashed', string];
+
+function Legend({ items }: { items: readonly LegendItem[] }) {
+  return (
+    <div className="mt-2.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-muted-foreground">
+      {items.map(([label, kind, color]) => (
+        <span key={label} className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className={cn(
+              'w-3.5',
+              kind === 'line' && cn('h-[3px] rounded-sm', color),
+              kind === 'dotted' && cn('border-t-[2.5px] border-dotted', color),
+              kind === 'dashed' && cn('border-t-2 border-dashed', color)
+            )}
+          />
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 /**
  * Inicio de Pulso: libre del ciclo, ritmo de la tarjeta contra el techo y señales.
  */
 export function PulseHome({
   plan,
   cardPace,
+  dailySeries,
   projectId,
   userId,
   isOwner,
@@ -78,6 +109,7 @@ export function PulseHome({
   const [showSettings, setShowSettings] = useState(false);
   const [showSettlements, setShowSettlements] = useState(false);
   const [showLiquidate, setShowLiquidate] = useState(false);
+  const [view, setView] = useState<'card' | 'cash' | 'savings'>('card');
 
   if (!cycle) return null;
 
@@ -171,6 +203,7 @@ export function PulseHome({
   };
 
   const savingsPct = savings.target ? Math.min(100, Math.round((savings.done / savings.target) * 100)) : null;
+  const cashNow = dailySeries?.length ? dailySeries[dailySeries.length - 1].cash : cycle.balance.finalBalance.real;
 
   return (
     <>
@@ -218,66 +251,147 @@ export function PulseHome({
           </dl>
         </section>
 
-        {/* Ritmo de la tarjeta */}
-        <section className="rounded-[28px] border border-line bg-surface px-4 pb-4 pt-[18px] md:px-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-[15px] font-extrabold">Ritmo de la tarjeta</h2>
-              <p className="text-xs text-muted-foreground">tus gastos propios contra el techo</p>
+        {/* Ritmo: tarjeta, caja o ahorro */}
+        <section className="rounded-[28px] border border-line bg-surface px-4 pb-4 pt-3.5 md:px-5">
+          <div className="flex items-center justify-between gap-3">
+            <div role="tablist" aria-label="Qué mirar" className="grid flex-1 grid-cols-3 gap-1 rounded-full bg-background p-1 md:max-w-[340px]">
+              {VIEWS.map((v) => (
+                <button
+                  key={v.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === v.key}
+                  onClick={() => setView(v.key)}
+                  className={cn(
+                    'flex min-h-[38px] items-center justify-center gap-1.5 rounded-full text-[13px] font-extrabold transition-colors',
+                    view === v.key ? 'bg-surface-3 text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <span aria-hidden className={cn('h-2 w-2 rounded-full', v.dot)} />
+                  {v.label}
+                </button>
+              ))}
             </div>
             {isOwner && (
-              <button
-                type="button"
-                onClick={() => setShowSettings(true)}
-                className="min-h-9 text-xs font-bold text-amber"
-              >
-                Ajustar techo
+              <button type="button" onClick={() => setShowSettings(true)} className="min-h-9 shrink-0 text-xs font-bold text-muted-foreground hover:text-foreground">
+                Ajustar plan
               </button>
             )}
           </div>
-          <div className="mt-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <div>
-              <span className="block text-xs text-muted-foreground">Disponible en el techo</span>
-              <span className={cn('num text-[28px] font-extrabold', card.available >= 0 ? 'text-amber' : 'text-coral')}>
-                {formatCurrency(card.available)}
-              </span>
-            </div>
-            <span className="text-[13px] text-muted-foreground">
-              {card.available > 0 ? (
-                <>
-                  ritmo sano <span className="num font-extrabold text-foreground">{formatCurrency(card.dailyAllowance)}</span>/día
-                </>
-              ) : (
-                'te pasaste del techo'
-              )}
-            </span>
-          </div>
 
-          <div className="mt-3">
-            <PulseChart
-              points={cardPace?.points ?? [{ day: Math.max(1, cycle.daysElapsed), total: card.spent }]}
-              daysTotal={cycle.daysTotal}
-              cap={card.cap}
-              baseline={card.committedFixed}
-              projection={card.projection}
-              startLabel={shortDate(start)}
-              midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
-              endLabel={shortDate(end)}
-              todayLabel={shortDate(today)}
-              height={200}
-              ariaLabel={`Gasto propio con tarjeta: ${formatCurrency(card.spent)} a hoy; proyección ${formatCurrency(card.projection)}; techo ${formatCurrency(card.cap)}`}
-            />
-          </div>
-          <div className="mt-2.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span aria-hidden className="h-[3px] w-3.5 rounded-sm bg-amber" />real</span>
-            <span className="flex items-center gap-1.5"><span aria-hidden className="w-3.5 border-t-[2.5px] border-dotted border-amber" />proyección</span>
-            <span className="flex items-center gap-1.5"><span aria-hidden className="w-3.5 border-t-2 border-dotted border-faint" />ritmo ideal</span>
-            <span className="flex items-center gap-1.5"><span aria-hidden className="w-3.5 border-t-2 border-dashed border-coral" />techo</span>
-          </div>
-          <p className="mt-2 text-[11px] text-faint">
-            Lo fijo del ciclo (cuotas y plantilla, {formatCurrency(card.committedFixed)}) cuenta desde el día 1.
-            {!card.isCustomCap && ' El techo es el máximo calculado.'}
-          </p>
+          {view === 'card' && (
+            <>
+              <div className="mt-3.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <div>
+                  <span className="block text-xs text-muted-foreground">Disponible en el techo · gastos propios</span>
+                  <span className={cn('num text-[28px] font-extrabold', card.available >= 0 ? 'text-amber' : 'text-coral')}>
+                    {formatCurrency(card.available)}
+                  </span>
+                </div>
+                <span className="text-[13px] text-muted-foreground">
+                  {card.available > 0 ? (
+                    <>ritmo sano <span className="num font-extrabold text-foreground">{formatCurrency(card.dailyAllowance)}</span>/día</>
+                  ) : (
+                    'te pasaste del techo'
+                  )}
+                </span>
+              </div>
+              <div className="mt-3">
+                <PulseChart
+                  variant="cap"
+                  points={cardPace?.points ?? [{ day: Math.max(1, cycle.daysElapsed), total: card.spent }]}
+                  daysTotal={cycle.daysTotal}
+                  cap={card.cap}
+                  baseline={card.committedFixed}
+                  projection={card.projection}
+                  startLabel={shortDate(start)}
+                  midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
+                  endLabel={shortDate(end)}
+                  todayLabel={shortDate(today)}
+                  height={200}
+                  ariaLabel={`Gasto propio con tarjeta: ${formatCurrency(card.spent)} a hoy; proyección ${formatCurrency(card.projection)}; techo ${formatCurrency(card.cap)}`}
+                />
+              </div>
+              <Legend items={[['real', 'line', 'bg-amber'], ['proyección', 'dotted', 'border-amber'], ['ritmo ideal', 'dotted', 'border-faint'], ['techo', 'dashed', 'border-coral']]} />
+              <p className="mt-2 text-[11px] text-faint">
+                Lo fijo del ciclo (cuotas y plantilla, {formatCurrency(card.committedFixed)}) cuenta desde el día 1.
+                {!card.isCustomCap && ' El techo es el máximo calculado.'}
+              </p>
+            </>
+          )}
+
+          {view === 'cash' && (
+            <>
+              <div className="mt-3.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <div>
+                  <span className="block text-xs text-muted-foreground">Saldo de caja del ciclo · a hoy</span>
+                  <span className={cn('num text-[28px] font-extrabold', cashNow >= 0 ? 'text-jade' : 'text-coral')}>
+                    {formatCurrency(cashNow)}
+                  </span>
+                </div>
+                <span className="text-[13px] text-muted-foreground">
+                  cierra en <span className={cn('num font-extrabold', cycle.balance.finalBalance.projected >= 0 ? 'text-foreground' : 'text-coral-text')}>{formatCurrency(cycle.balance.finalBalance.projected)}</span>
+                </span>
+              </div>
+              <div className="mt-3">
+                <PulseChart
+                  variant="balance"
+                  points={(dailySeries ?? []).map((p) => ({ day: p.day, total: p.cash }))}
+                  daysTotal={cycle.daysTotal}
+                  projection={cycle.balance.finalBalance.projected}
+                  startLabel={shortDate(start)}
+                  midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
+                  endLabel={shortDate(end)}
+                  todayLabel={shortDate(today)}
+                  height={200}
+                  ariaLabel={`Saldo de caja del ciclo: ${formatCurrency(cashNow)} a hoy; cierre proyectado ${formatCurrency(cycle.balance.finalBalance.projected)}`}
+                />
+              </div>
+              <Legend items={[['saldo real', 'line', 'bg-jade'], ['hacia el cierre (con pendientes y pago TC)', 'dotted', 'border-jade']]} />
+              <p className="mt-2 text-[11px] text-faint">
+                Ingresos y abonos menos débito, pago de tarjeta y aportes a ahorro, en tus cuentas corrientes.
+              </p>
+            </>
+          )}
+
+          {view === 'savings' && (
+            <>
+              <div className="mt-3.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <div>
+                  <span className="block text-xs text-muted-foreground">Ahorrado en el ciclo</span>
+                  <span className="num text-[28px] font-extrabold text-violet">{formatCurrency(savings.done)}</span>
+                </div>
+                <span className="text-[13px] text-muted-foreground">
+                  {savings.target != null ? (
+                    savings.remaining > 0 ? (
+                      <>faltan <span className="num font-extrabold text-foreground">{formatCurrency(savings.remaining)}</span> para la meta</>
+                    ) : (
+                      'meta cumplida'
+                    )
+                  ) : (
+                    'sin meta definida'
+                  )}
+                </span>
+              </div>
+              <div className="mt-3">
+                <PulseChart
+                  variant="target"
+                  points={(dailySeries ?? []).map((p) => ({ day: p.day, total: p.savings }))}
+                  daysTotal={cycle.daysTotal}
+                  cap={savings.target ?? undefined}
+                  projection={cycle.balance.savingsIn.projected - cycle.balance.savingsOut.projected}
+                  startLabel={shortDate(start)}
+                  midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
+                  endLabel={shortDate(end)}
+                  todayLabel={shortDate(today)}
+                  height={200}
+                  ariaLabel={`Ahorro del ciclo: ${formatCurrency(savings.done)}${savings.target != null ? ` de ${formatCurrency(savings.target)}` : ''}`}
+                />
+              </div>
+              <Legend items={[['ahorrado', 'line', 'bg-violet'], ['con aportes pendientes', 'dotted', 'border-violet'], ...(savings.target != null ? ([['ritmo ideal', 'dotted', 'border-faint'], ['meta', 'dashed', 'border-violet']] as const) : [])]} />
+              <p className="mt-2 text-[11px] text-faint">Aportes menos retiros: cuentas de ahorro, previsión y fondos apartados.</p>
+            </>
+          )}
         </section>
       </div>
 

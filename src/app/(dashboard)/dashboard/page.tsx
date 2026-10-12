@@ -56,6 +56,7 @@ export default async function DashboardPage() {
     totalExternalDebt,
     cycleHistory,
     cardPace,
+    dailySeries,
   } = data;
 
   return (
@@ -96,6 +97,7 @@ export default async function DashboardPage() {
           <PulseHome
             plan={planStatus}
             cardPace={cardPace}
+            dailySeries={dailySeries}
             projectId={projectId}
             userId={session.user.id}
             isOwner={isOwner}

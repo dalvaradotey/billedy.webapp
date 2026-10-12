@@ -241,3 +241,96 @@ export async function getCardPaceSeries(
   }
   return { baseline, points };
 }
+
+export type CycleDailyPoint = { day: number; cash: number; savings: number };
+
+/**
+ * Caja y ahorro acumulados día a día (solo lo real, hasta hoy), con las mismas
+ * reglas de la cascada: caja = ingresos + abonos − débito − pago TC − aportes + retiros;
+ * ahorro = aportes − retiros (incluye apartar/liberar en fondos y gastos pagados con fondos).
+ */
+export async function getCycleDailySeries(
+  cycle: Pick<CycleInput, 'projectId' | 'startDate' | 'endDate' | 'daysElapsed'>
+): Promise<CycleDailyPoint[]> {
+  const start = toDate(cycle.startDate);
+  const end = toDate(cycle.endDate);
+  const today = toDate(getToday());
+  const until = today < end ? today : end;
+  const projectId = cycle.projectId;
+
+  const daily = await rows<Record<string, string>>(sql`
+    with tx as (
+      select
+        t.date,
+        t.type,
+        t.base_amount,
+        t.nature::text as nature,
+        t.linked_transaction_id,
+        a.type::text as acc,
+        xa.type::text as contra
+      from n1n4_transactions t
+      join n1n4_accounts a on a.id = t.account_id
+      left join n1n4_transactions x on x.id = t.linked_transaction_id
+      left join n1n4_accounts xa on xa.id = x.account_id
+      where t.project_id = ${projectId}
+        and t.date between ${start}::date and ${until}::date
+        and t.is_paid
+        and not coalesce(t.is_historically_paid, false)
+        and a.type in ('checking', 'cash')
+    ),
+    moves as (
+      select date,
+        case
+          when type = 'income' and linked_transaction_id is null then base_amount
+          when type = 'expense' and linked_transaction_id is null then -base_amount
+          when type = 'expense' and contra = 'credit_card' then -base_amount
+          when type = 'expense' and contra in ('savings', 'pension', 'unemployment') then -base_amount
+          when type = 'income' and contra in ('savings', 'pension', 'unemployment') then base_amount
+          else 0
+        end as cash,
+        case
+          when type = 'expense' and contra in ('savings', 'pension', 'unemployment') then base_amount
+          when type = 'income' and contra in ('savings', 'pension', 'unemployment') then -base_amount
+          else 0
+        end as savings
+      from tx
+      union all
+      select m.date,
+        case when m.kind = 'allocate' then -m.amount else m.amount end as cash,
+        case when m.kind = 'allocate' then m.amount else -m.amount end as savings
+      from n1n4_fund_movements m
+      join n1n4_account_funds f on f.id = m.fund_id
+      join n1n4_accounts a on a.id = f.account_id
+      where f.project_id = ${projectId}
+        and not f.is_third_party
+        and a.type in ('checking', 'cash')
+        and m.kind in ('allocate', 'release')
+        and m.date between ${start}::date and ${until}::date
+      union all
+      select t.date, t.base_amount as cash, -t.base_amount as savings
+      from n1n4_transactions t
+      join n1n4_accounts a on a.id = t.account_id
+      where t.project_id = ${projectId}
+        and t.account_fund_id is not null
+        and t.type = 'expense'
+        and t.is_paid
+        and a.type in ('checking', 'cash')
+        and t.date between ${start}::date and ${until}::date
+    )
+    select (date - ${start}::date + 1)::int as day, sum(cash) as cash, sum(savings) as savings
+    from moves
+    group by 1
+    order by 1`);
+
+  const byDay = new Map(daily.map((r) => [num(r.day), { cash: num(r.cash), savings: num(r.savings) }]));
+  const points: CycleDailyPoint[] = [];
+  let cash = 0;
+  let savings = 0;
+  for (let day = 1; day <= Math.max(1, cycle.daysElapsed); day++) {
+    const d = byDay.get(day);
+    cash += d?.cash ?? 0;
+    savings += d?.savings ?? 0;
+    points.push({ day, cash, savings });
+  }
+  return points;
+}

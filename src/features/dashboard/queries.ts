@@ -1,7 +1,7 @@
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
 import { getCurrentCycle, getCycleHistory } from '@/features/billing-cycles/queries';
-import { getCyclePlanStatus, getCardPaceSeries } from '@/features/billing-cycles/lib/cycle-plan';
+import { getCyclePlanStatus, getCardPaceSeries, getCycleDailySeries } from '@/features/billing-cycles/lib/cycle-plan';
 import { getAccountsSummaryWithAccounts, getAccountDebtBreakdown } from '@/features/accounts/queries';
 import { getBudgetsProgress, getActiveBudgets } from '@/features/budgets';
 import { getActiveCategories } from '@/features/categories/queries';
@@ -50,7 +50,9 @@ export async function getDashboardData(userId: string) {
     : [[], null];
 
   // Serie del gráfico de ritmo (gasto propio en TC acumulado por día)
-  const cardPace = currentCycle && planStatus ? await getCardPaceSeries(currentCycle, planStatus.card.spent) : null;
+  const [cardPace, dailySeries] = currentCycle && planStatus
+    ? await Promise.all([getCardPaceSeries(currentCycle, planStatus.card.spent), getCycleDailySeries(currentCycle)])
+    : [null, null];
 
   return {
     hasProject: true as const,
@@ -69,5 +71,6 @@ export async function getDashboardData(userId: string) {
     totalExternalDebt,
     cycleHistory,
     cardPace,
+    dailySeries,
   };
 }

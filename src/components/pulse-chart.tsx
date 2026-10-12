@@ -5,12 +5,20 @@ import { formatCurrency } from '@/lib/formatting';
 
 export type PulsePoint = { day: number; total: number };
 
+/**
+ * - `cap`: gasto acumulado contra un techo (ámbar, techo coral, ritmo ideal).
+ * - `target`: ahorro acumulado contra una meta (violeta, ritmo ideal hacia la meta).
+ * - `balance`: saldo del ciclo que sube y baja (jade, línea de cero, proyección al cierre).
+ */
+export type PulseVariant = 'cap' | 'target' | 'balance';
+
 interface PulseChartProps {
   /** Acumulado real por día (1 = primer día del ciclo) */
   points: PulsePoint[];
   daysTotal: number;
-  /** Techo (línea coral punteada) */
-  cap: number;
+  /** Techo o meta (no aplica en `balance`) */
+  cap?: number;
+  variant?: PulseVariant;
   /** Donde arranca el ritmo ideal (lo fijo del ciclo) */
   baseline?: number;
   /** Monto proyectado al cierre */
@@ -26,6 +34,12 @@ interface PulseChartProps {
   ariaLabel: string;
 }
 
+const STYLES: Record<PulseVariant, { line: string; area: string; dot: string; capLine: string; capText: string; capLabel: string }> = {
+  cap: { line: 'stroke-amber', area: 'fill-amber', dot: 'fill-amber', capLine: 'stroke-coral', capText: 'fill-coral-text', capLabel: 'techo' },
+  target: { line: 'stroke-violet', area: 'fill-violet', dot: 'fill-violet', capLine: 'stroke-violet', capText: 'fill-violet-text', capLabel: 'meta' },
+  balance: { line: 'stroke-jade', area: 'fill-jade', dot: 'fill-jade', capLine: 'stroke-line-strong', capText: 'fill-faint', capLabel: '' },
+};
+
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(0);
@@ -39,17 +53,21 @@ function useWidth<T extends HTMLElement>() {
   return [ref, width] as const;
 }
 
-const compact = (n: number) =>
-  n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(2).replace('.', ',')}M` : `$${Math.round(n / 1000)}k`;
+const compact = (n: number) => {
+  const sign = n < 0 ? '−' : '';
+  const a = Math.abs(n);
+  return a >= 1_000_000 ? `${sign}$${(a / 1_000_000).toFixed(2).replace('.', ',')}M` : `${sign}$${Math.round(a / 1000)}k`;
+};
 
 /**
- * Gráfico de ritmo de Pulso: acumulado real, proyección al cierre, ritmo ideal y techo.
- * Se dibuja al ancho real del contenedor para que textos y puntos no se deformen.
+ * Gráfico de ritmo de Pulso. Se dibuja al ancho real del contenedor para que
+ * textos y puntos no se deformen.
  */
 export function PulseChart({
   points,
   daysTotal,
   cap,
+  variant = 'cap',
   baseline = 0,
   projection,
   pendingAmount,
@@ -62,28 +80,48 @@ export function PulseChart({
   ariaLabel,
 }: PulseChartProps) {
   const [ref, W] = useWidth<HTMLDivElement>();
+  const st = STYLES[variant];
   const top = 6;
   const base = height - 22;
+  const hasCap = variant !== 'balance' && cap != null;
 
   const last = points[points.length - 1] ?? { day: 1, total: baseline };
   const afterPending = pendingAmount ? last.total + pendingAmount : 0;
-  const vmax = Math.max(cap, projection ?? 0, last.total, afterPending, 1) * 1.1;
-  const span = Math.max(1, daysTotal - 1);
-  const X = (day: number) => ((day - 1) / span) * W;
-  const Y = (v: number) => base - (v / vmax) * (base - top);
+  const values = [last.total, afterPending, projection ?? 0, hasCap ? cap! : 0, ...points.map((p) => p.total)];
+  const vmaxRaw = Math.max(...values, 1);
+  const vminRaw = Math.min(0, ...values);
+  const span = vmaxRaw - vminRaw || 1;
+  const vmax = vmaxRaw + span * 0.1;
+  const vmin = vminRaw < 0 ? vminRaw - span * 0.08 : 0;
+  const dspan = Math.max(1, daysTotal - 1);
+  const X = (day: number) => ((day - 1) / dspan) * W;
+  const Y = (v: number) => base - ((v - vmin) / (vmax - vmin)) * (base - top);
 
+  const zeroY = Y(0);
   const line = points.map((p) => `${X(p.day).toFixed(1)},${Y(p.total).toFixed(1)}`).join(' ');
   const area = points.length
-    ? `M${X(points[0].day).toFixed(1)},${base} L${line.split(' ').join(' L')} L${X(last.day).toFixed(1)},${base} Z`
+    ? `M${X(points[0].day).toFixed(1)},${zeroY} L${line.split(' ').join(' L')} L${X(last.day).toFixed(1)},${zeroY} Z`
     : '';
   const tX = X(last.day);
   const tY = Y(last.total);
-  const capY = Y(cap);
-  const idealAtToday = baseline + ((cap - baseline) * (last.day - 1)) / span;
-  const over = (projection ?? 0) > cap;
+  const capY = hasCap ? Y(cap!) : 0;
+  const idealAtToday = hasCap ? baseline + ((cap! - baseline) * (last.day - 1)) / dspan : 0;
+  const over = variant === 'cap' && (projection ?? 0) > (cap ?? Infinity);
+  const endTone =
+    variant === 'cap'
+      ? over ? 'coral' : 'amber'
+      : variant === 'target'
+        ? (projection ?? 0) >= (cap ?? 0) ? 'violet' : 'amber'
+        : (projection ?? 0) >= 0 ? 'jade' : 'coral';
+  const END_CLASSES = {
+    coral: { stroke: 'stroke-coral', text: 'fill-coral-text' },
+    amber: { stroke: 'stroke-amber', text: 'fill-amber-text' },
+    violet: { stroke: 'stroke-violet', text: 'fill-violet-text' },
+    jade: { stroke: 'stroke-jade', text: 'fill-jade-text' },
+  } as const;
   const pY = pendingAmount ? Y(afterPending) : 0;
 
-  const grid = [vmax * 0.36, vmax * 0.72].map((v) => ({ y: Y(v), label: compact(v) }));
+  const gridValues = [vmin + (vmax - vmin) * 0.36, vmin + (vmax - vmin) * 0.72];
   const tipW = 118;
   const tipX = tX - tipW - 10 < 0 ? tX + 10 : tX - tipW - 10;
   const tipY = Math.max(0, tY - 52);
@@ -92,35 +130,46 @@ export function PulseChart({
     <div ref={ref} className="w-full" style={{ height }}>
       {W > 0 && (
         <svg width={W} height={height} viewBox={`0 0 ${W} ${height}`} role="img" aria-label={ariaLabel} className="overflow-visible">
-          {grid.map((g) => (
-            <g key={g.y}>
-              <line x1="0" x2={W} y1={g.y} y2={g.y} className="stroke-surface-3" />
-              <text x={W} y={g.y - 4} textAnchor="end" className="fill-faint text-[10px]">{g.label}</text>
+          {gridValues.map((v) => (
+            <g key={v}>
+              <line x1="0" x2={W} y1={Y(v)} y2={Y(v)} className="stroke-surface-3" />
+              <text x={W} y={Y(v) - 4} textAnchor="end" className="fill-faint text-[10px]">{compact(v)}</text>
             </g>
           ))}
-          <rect x="0" y="0" width={W} height={Math.max(0, capY)} className="fill-coral" fillOpacity={0.06} />
-          <line x1="0" x2={W} y1={capY} y2={capY} className="stroke-coral" strokeWidth={1.5} strokeDasharray="5 5" />
-          <text x="4" y={capY - 6} className="fill-coral-text text-[11px] font-extrabold">techo {formatCurrency(cap)}</text>
-          <line x1="0" y1={Y(baseline)} x2={W} y2={capY} stroke="#5E5568" strokeWidth={1.5} strokeDasharray="1 4" strokeLinecap="round" />
 
-          <path d={area} className="fill-amber" fillOpacity={0.14} />
-          <polyline points={line} fill="none" className="stroke-amber" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
+          {variant === 'balance' && vmin < 0 && (
+            <line x1="0" x2={W} y1={zeroY} y2={zeroY} className="stroke-line-strong" strokeDasharray="3 4" />
+          )}
+
+          {hasCap && (
+            <>
+              {variant === 'cap' && <rect x="0" y="0" width={W} height={Math.max(0, capY)} className="fill-coral" fillOpacity={0.06} />}
+              <line x1="0" x2={W} y1={capY} y2={capY} className={st.capLine} strokeWidth={1.5} strokeDasharray="5 5" />
+              <text x="4" y={capY - 6} className={`${st.capText} text-[11px] font-extrabold`}>
+                {st.capLabel} {formatCurrency(cap!)}
+              </text>
+              <line x1="0" y1={Y(baseline)} x2={W} y2={capY} stroke="#5E5568" strokeWidth={1.5} strokeDasharray="1 4" strokeLinecap="round" />
+            </>
+          )}
+
+          <path d={area} className={st.area} fillOpacity={0.14} />
+          <polyline points={line} fill="none" className={st.line} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
 
           {projection != null && last.day < daysTotal && !pendingAmount && (
             <>
-              <line x1={tX} y1={tY} x2={W} y2={Y(projection)} className="stroke-amber" strokeWidth={2.5} strokeDasharray="2 6" strokeLinecap="round" />
-              <circle cx={W} cy={Y(projection)} r={5} className={over ? 'fill-surface stroke-coral' : 'fill-surface stroke-amber'} strokeWidth={2.5} />
-              <text x={W - 2} y={Y(projection) - 11} textAnchor="end" className={over ? 'fill-coral-text text-[11px] font-extrabold' : 'fill-amber-text text-[11px] font-extrabold'}>
+              <line x1={tX} y1={tY} x2={W} y2={Y(projection)} className={st.line} strokeWidth={2.5} strokeDasharray="2 6" strokeLinecap="round" />
+              <circle cx={W} cy={Y(projection)} r={5} className={`fill-surface ${END_CLASSES[endTone].stroke}`} strokeWidth={2.5} />
+              <text x={W - 2} y={Y(projection) - 11} textAnchor="end" className={`${END_CLASSES[endTone].text} text-[11px] font-extrabold`}>
                 cierre {compact(projection)}
               </text>
             </>
           )}
 
           <line x1={tX} x2={tX} y1={tY} y2={base} stroke="#F4EFE8" strokeOpacity={0.3} />
-          {!pendingAmount && (
+          {hasCap && !pendingAmount && (
             <circle cx={tX} cy={Y(idealAtToday)} r={4} className="fill-background" stroke="#A79DB0" strokeWidth={2} />
           )}
-          <circle cx={tX} cy={tY} r={6} className="fill-amber stroke-surface" strokeWidth={3} />
+          <circle cx={tX} cy={tY} r={6} className={`${st.dot} stroke-surface`} strokeWidth={3} />
 
           {pendingAmount ? (
             <>
