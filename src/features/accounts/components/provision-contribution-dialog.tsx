@@ -116,7 +116,7 @@ export function ProvisionContributionDialogContent({
     >
       <FormDrawerBody as="form" onSubmit={handleSubmit}>
         {missingCategories && (
-          <div className="rounded-lg bg-amber-soft border border-amber/30 p-3 text-sm text-amber-text">
+          <div className="rounded-2xl bg-amber-soft border border-amber/30 p-3 text-sm text-amber-text">
             No se encontraron las categorías automáticas para esta cuenta.
             Verifica que existan las categorías &quot;Aporte {account.name}&quot; y &quot;Rentabilidad {account.name}&quot;.
           </div>
@@ -163,7 +163,7 @@ export function ProvisionContributionDialogContent({
 
         {/* Preview de rentabilidad */}
         {preview && (
-          <div className={`rounded-lg p-3 flex items-center gap-3 ${
+          <div className={`rounded-2xl p-3 flex items-center gap-3 ${
             preview.isGain
               ? 'bg-jade-soft border border-jade/30'
               : 'bg-coral-soft border border-coral/30'

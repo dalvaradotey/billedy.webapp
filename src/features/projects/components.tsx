@@ -85,7 +85,7 @@ export function ProjectSelector({
               <>
                 <ResponsiveDrawer open={isEditOpen} onOpenChange={setIsEditOpen}>
                   <DrawerTrigger asChild>
-                    <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm">
+                    <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-lg">
                       <Settings className="h-4 w-4" />
                       Editar proyecto
                     </button>
@@ -103,7 +103,7 @@ export function ProjectSelector({
                 {/* Ver miembros del proyecto */}
                 <ResponsiveDrawer open={isMembersOpen} onOpenChange={setIsMembersOpen}>
                   <DrawerTrigger asChild>
-                    <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm">
+                    <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-lg">
                       <Users className="h-4 w-4" />
                       Ver miembros
                     </button>
@@ -124,7 +124,7 @@ export function ProjectSelector({
                 {isOwner && (
                   <ResponsiveDrawer open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                     <DrawerTrigger asChild>
-                      <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm text-jade">
+                      <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-lg text-jade">
                         <UserPlus className="h-4 w-4" />
                         Invitar miembro
                       </button>
@@ -143,7 +143,7 @@ export function ProjectSelector({
             )}
             <ResponsiveDrawer open={isNewOpen} onOpenChange={setIsNewOpen}>
               <DrawerTrigger asChild>
-                <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm">
+                <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-lg">
                   <Plus className="h-4 w-4" />
                   Nuevo proyecto
                 </button>
@@ -556,7 +556,7 @@ function MembersDialogContent({
     return (
       <div
         key={member.id}
-        className={`flex items-center justify-between p-3 rounded-lg border bg-card ${
+        className={`flex items-center justify-between p-3 rounded-2xl border bg-card ${
           isPending ? 'opacity-70 border-dashed' : ''
         }`}
       >

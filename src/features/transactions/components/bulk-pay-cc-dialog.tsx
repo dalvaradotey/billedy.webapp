@@ -224,7 +224,7 @@ export function BulkPayCreditCardDialog({
 
           {/* Groups by card */}
           {groupedByCard.map((group) => (
-            <div key={group.accountId} className="rounded-lg border p-4 space-y-3">
+            <div key={group.accountId} className="rounded-2xl border p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {group.accountImageUrl ? (
@@ -283,7 +283,7 @@ export function BulkPayCreditCardDialog({
           ))}
 
           {/* Grand total */}
-          <div className="rounded-lg border p-4 bg-muted/50 space-y-2">
+          <div className="rounded-2xl border p-4 bg-muted/50 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Total compras/cuotas</span>
               <span>{formatCurrency(totals.transactionsTotal, defaultCurrency)}</span>

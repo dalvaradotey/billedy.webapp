@@ -377,7 +377,7 @@ export function TransactionList({
                 onClick={() => setShowPeriodControls(!showPeriodControls)}
                 className="flex items-center gap-2.5 w-full rounded-2xl bg-surface border border-line px-3 py-2.5"
               >
-                <div className="p-1.5 rounded-lg bg-muted/50 shrink-0">
+                <div className="p-1.5 rounded-2xl bg-muted/50 shrink-0">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <span className="text-sm font-medium truncate">
@@ -712,7 +712,7 @@ export function TransactionList({
                     <button
                       key={acc.id}
                       onClick={() => toggleAccountFilter(acc.id)}
-                      className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm hover:bg-muted/50 transition-colors"
+                      className="flex items-center gap-2 w-full px-2 py-1.5 rounded-xl text-sm hover:bg-muted/50 transition-colors"
                     >
                       <div className={cn(
                         'h-4 w-4 rounded border flex items-center justify-center shrink-0',
@@ -766,7 +766,7 @@ export function TransactionList({
                     <button
                       key={b.id}
                       onClick={() => toggleBudgetFilter(b.id)}
-                      className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm hover:bg-muted/50 transition-colors"
+                      className="flex items-center gap-2 w-full px-2 py-1.5 rounded-xl text-sm hover:bg-muted/50 transition-colors"
                     >
                       <div className={cn(
                         'h-4 w-4 rounded border flex items-center justify-center shrink-0',

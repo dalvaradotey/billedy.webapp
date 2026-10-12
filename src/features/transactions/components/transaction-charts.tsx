@@ -195,7 +195,7 @@ export function TransactionChartsContent({
                   {pieData.map((d) => (
                     <div key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <div
-                        className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                        className="h-2.5 w-2.5 shrink-0 rounded-lg"
                         style={{ backgroundColor: d.color }}
                       />
                       <span>{d.name} {d.percentage.toFixed(0)}%</span>
@@ -261,7 +261,7 @@ export function TransactionChartsContent({
                             if (!active || !payload?.length) return null;
                             const d = payload[0].payload as CategoryDatum;
                             return (
-                              <div className="rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+                              <div className="rounded-2xl border bg-background px-2.5 py-1.5 text-xs">
                                 <p className="font-medium text-foreground">{d.name}</p>
                                 <p className="text-muted-foreground">
                                   {formatCurrency(d.value, defaultCurrency)} · {d.percentage.toFixed(1)}%
@@ -296,7 +296,7 @@ export function TransactionChartsContent({
                       <div key={d.name} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2 min-w-0">
                           <div
-                            className="h-3 w-3 shrink-0 rounded-sm"
+                            className="h-3 w-3 shrink-0 rounded-lg"
                             style={{ backgroundColor: d.color }}
                           />
                           <span className="truncate">{d.name}</span>

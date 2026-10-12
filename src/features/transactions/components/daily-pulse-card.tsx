@@ -179,8 +179,8 @@ export function DailyPulseCard({
           {reconciledCount} de {transactions.length} conciliados
         </span>
         <span className="ml-auto hidden items-center gap-3 text-[11px] text-muted-foreground sm:flex">
-          <span className="flex items-center gap-1.5"><span aria-hidden className="h-2 w-2 rounded-sm bg-coral" />gasto del día</span>
-          <span className="flex items-center gap-1.5"><span aria-hidden className="h-2 w-2 rounded-sm bg-jade" />día con ingreso</span>
+          <span className="flex items-center gap-1.5"><span aria-hidden className="h-2 w-2 rounded-lg bg-coral" />gasto del día</span>
+          <span className="flex items-center gap-1.5"><span aria-hidden className="h-2 w-2 rounded-lg bg-jade" />día con ingreso</span>
           <span className="flex items-center gap-1.5"><span aria-hidden className="h-0.5 w-3.5 bg-[#CFC6D6]" />acumulado</span>
         </span>
       </div>

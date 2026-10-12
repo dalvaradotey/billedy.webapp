@@ -59,7 +59,7 @@ function TransactionSelector({
         </Button>
       </div>
 
-      <div className="rounded-lg border max-h-[300px] overflow-y-auto">
+      <div className="rounded-2xl border max-h-[300px] overflow-y-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -258,7 +258,7 @@ export function PayCreditCardDialog({
           />
 
           {/* Total */}
-          <div className="rounded-lg border p-4 bg-muted/50">
+          <div className="rounded-2xl border p-4 bg-muted/50">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 Total a pagar ({selectedIds.size} transacciones)
@@ -451,7 +451,7 @@ export function PayCreditCardButton({
             />
 
             {/* Total */}
-            <div className="rounded-lg border p-4 bg-muted/50">
+            <div className="rounded-2xl border p-4 bg-muted/50">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
                   Total a pagar ({selectedIds.size} transacciones)

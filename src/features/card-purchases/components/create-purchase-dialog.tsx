@@ -552,7 +552,7 @@ export function CreatePurchaseDialog({
                   </div>
                   {(watchNature ?? 'own') === 'own' && cardAvailable != null && (
                     <p
-                      className={`rounded-lg px-3 py-2 text-xs ${
+                      className={`rounded-2xl px-3 py-2 text-xs ${
                         cardAvailable - installmentAmount >= 0
                           ? 'bg-background/60 text-muted-foreground'
                           : 'bg-coral-soft text-coral'
@@ -569,7 +569,7 @@ export function CreatePurchaseDialog({
 
             {/* Charged Installments Notice */}
             {calculatedChargedInstallments > 0 && (
-              <div className="rounded-lg border p-3 bg-muted/50">
+              <div className="rounded-2xl border p-3 bg-muted/50">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">
                     Cuotas vencidas (se marcarán como pagadas)

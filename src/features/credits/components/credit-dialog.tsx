@@ -408,7 +408,7 @@ export function CreditDialogContent({
 
               {/* Calculated totals */}
               {watchedPrincipal && watchedInstallmentAmount && watchedInstallments && (
-                <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
+                <div className="rounded-2xl border bg-muted/50 p-3 space-y-2">
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total a pagar:</span>
@@ -454,7 +454,7 @@ export function CreditDialogContent({
 
               {/* Paid Installments - Calculated */}
               {watchedStartDate && watchedFrequency && watchedInstallments && (
-                <div className="rounded-lg border bg-muted/50 p-3 space-y-1">
+                <div className="rounded-2xl border bg-muted/50 p-3 space-y-1">
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-medium">Cuotas ya pagadas</span>
                     <span className="text-lg font-bold">{calculatedPaidInstallments}</span>

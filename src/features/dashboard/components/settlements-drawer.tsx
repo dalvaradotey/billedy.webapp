@@ -120,7 +120,7 @@ export function SettlementsDrawerContent({ projectId, userId, onChanged }: Settl
                             disabled={isPending}
                             onClick={() => settle(expense.id, abono.id)}
                             className={cn(
-                              'flex w-full min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50'
+                              'flex w-full min-h-11 items-center justify-between gap-3 rounded-2xl bg-muted/40 px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50'
                             )}
                           >
                             <span className="min-w-0">

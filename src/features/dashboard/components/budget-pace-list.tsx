@@ -52,7 +52,7 @@ export function BudgetPaceList({ budgets, pace, onAddTransaction }: BudgetPaceLi
                 </div>
                 <div className="relative mt-[7px] h-1.5 rounded-full bg-surface-3" aria-hidden>
                   <div className={cn('h-1.5 rounded-full', tone.bar)} style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }} />
-                  <span className="absolute -top-[3px] h-3 w-0.5 rounded-sm bg-cream" style={{ left: `${Math.round(pace * 100)}%` }} />
+                  <span className="absolute -top-[3px] h-3 w-0.5 rounded-lg bg-cream" style={{ left: `${Math.round(pace * 100)}%` }} />
                 </div>
                 <span className="num mt-1 block text-[11px] text-muted-foreground">
                   {formatCurrency(b.spentAmount)} de {formatCurrency(b.budgetedAmount)} · quedan {formatCurrency(Math.max(0, b.remainingAmount))}

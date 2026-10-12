@@ -77,7 +77,7 @@ function Legend({ items }: { items: readonly LegendItem[] }) {
             aria-hidden
             className={cn(
               'w-3.5',
-              kind === 'line' && cn('h-[3px] rounded-sm', color),
+              kind === 'line' && cn('h-[3px] rounded-lg', color),
               kind === 'dotted' && cn('border-t-[2.5px] border-dotted', color),
               kind === 'dashed' && cn('border-t-2 border-dashed', color)
             )}

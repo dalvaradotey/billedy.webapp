@@ -184,7 +184,7 @@ function CategoryCard({ category, userId, onEdit }: CategoryCardProps) {
 
   return (
     <div
-      className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-accent/50"
+      className="flex items-center justify-between rounded-2xl border p-3 transition-colors hover:bg-accent/50"
       style={{ borderLeftColor: pulseColor(category.color), borderLeftWidth: '4px' }}
     >
       <div className="flex items-center gap-3 min-w-0">

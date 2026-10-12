@@ -404,7 +404,7 @@ function SortableBudgetCard({ budget, userId, onEdit, isReorderMode, cycles }: S
         className={cn(
           cardStyles.base,
           'flex items-center gap-3 cursor-grab active:cursor-grabbing select-none',
-          isDragging && 'opacity-50 shadow-lg ring-2 ring-primary/20 z-10'
+          isDragging && 'opacity-50 ring-2 ring-primary/20 z-10'
         )}
         {...listeners}
       >

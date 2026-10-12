@@ -738,7 +738,7 @@ function TransactionRow({
           <Check className="h-5 w-5" strokeWidth={3} />
         ) : t.entityImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={t.entityImageUrl} alt="" className="h-7 w-7 rounded-lg bg-white object-contain p-0.5" />
+          <img src={t.entityImageUrl} alt="" className="h-7 w-7 rounded-2xl bg-white object-contain p-0.5" />
         ) : t.entityId ? (
           <Store className="h-[18px] w-[18px]" />
         ) : (

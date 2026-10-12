@@ -95,7 +95,7 @@ export function SavingsGoalTransactions({
         {transactions.map((t) => (
           <div
             key={t.id}
-            className="flex items-center gap-3 py-2 px-1 rounded-lg group"
+            className="flex items-center gap-3 py-2 px-1 rounded-2xl group"
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2">
@@ -131,7 +131,7 @@ export function SavingsGoalTransactions({
                 handleUnlink(t.id, t.description);
               }}
               disabled={isPending}
-              className="shrink-0 p-1.5 rounded-md text-muted-foreground/50 hover:text-coral hover:bg-coral-soft transition-colors disabled:opacity-50"
+              className="shrink-0 p-1.5 rounded-xl text-muted-foreground/50 hover:text-coral hover:bg-coral-soft transition-colors disabled:opacity-50"
               title="Desvincular de esta meta"
             >
               <Unlink className="h-3.5 w-3.5" />

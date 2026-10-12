@@ -77,7 +77,7 @@ export function PlanSettingsDrawerContent({
 
           <div className="space-y-2">
             <CurrencyInput value={cardCap} onChange={setCardCap} label="Techo de gasto propio en TC" placeholder={String(maxCap)} />
-            <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+            <div className="rounded-2xl bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
               <p>
                 Máximo calculado: <span className="font-semibold text-foreground">{formatCurrency(maxCap)}</span>
               </p>

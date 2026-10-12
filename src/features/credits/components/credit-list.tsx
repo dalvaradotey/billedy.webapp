@@ -145,12 +145,12 @@ export function CreditList({
 
       {/* Toolbar con filtros */}
       <PageToolbar label={`${credits.length} créditos`}>
-        <div className="inline-flex rounded-lg border bg-muted/50 p-0.5">
+        <div className="inline-flex rounded-full border border-line bg-background p-1">
           <button
             onClick={() => handleFilterChange(false)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-9 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors ${
               !showArchived
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'bg-cream text-cream-ink'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -159,9 +159,9 @@ export function CreditList({
           </button>
           <button
             onClick={() => handleFilterChange(true)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-9 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors ${
               showArchived
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'bg-cream text-cream-ink'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >

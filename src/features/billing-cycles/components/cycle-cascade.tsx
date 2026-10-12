@@ -129,7 +129,7 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
         )}
       </dl>
 
-      <div className={cn('flex items-start gap-2 rounded-lg p-2.5 text-xs', t.info)}>
+      <div className={cn('flex items-start gap-2 rounded-2xl p-2.5 text-xs', t.info)}>
         <CreditCard className={cn('h-4 w-4 shrink-0', t.label)} />
         <p className={t.label}>
           Gastado con TC este ciclo:{' '}
@@ -189,7 +189,7 @@ export function CycleWarnings({ warnings, tone = 'light' }: { warnings: CycleWar
   return (
     <ul className="space-y-1.5">
       {warnings.map((warning, index) => (
-        <li key={index} className={cn('flex items-start gap-2 rounded-lg p-2.5 text-xs', t.warning)}>
+        <li key={index} className={cn('flex items-start gap-2 rounded-2xl p-2.5 text-xs', t.warning)}>
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>{warningText(warning)}</span>
         </li>
