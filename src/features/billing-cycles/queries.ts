@@ -123,6 +123,29 @@ export const getCurrentCycle = cachedQuery(
   { tags: [CACHE_TAGS.billingCycles, CACHE_TAGS.transactions, CACHE_TAGS.savings] }
 );
 
+export type CycleHistoryPoint = { id: string; name: string; finalBalance: number; isOpen: boolean };
+
+/**
+ * Saldo final de los últimos ciclos (el más antiguo primero), para el historial del inicio.
+ * Cacheada igual que el ciclo actual.
+ */
+export const getCycleHistory = cachedQuery(
+  async (projectId: string, userId: string, limit: number = 8): Promise<CycleHistoryPoint[]> => {
+    const cycles = await getBillingCycles(projectId, userId);
+    return cycles
+      .slice(0, limit)
+      .reverse()
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        finalBalance: c.status === 'open' ? c.balance.finalBalance.projected : c.balance.finalBalance.real,
+        isOpen: c.status === 'open',
+      }));
+  },
+  ['billing-cycles', 'history'],
+  { tags: [CACHE_TAGS.billingCycles, CACHE_TAGS.transactions, CACHE_TAGS.savings] }
+);
+
 /**
  * Resume una lista de ciclos ya cargada (evita volver a consultar)
  */

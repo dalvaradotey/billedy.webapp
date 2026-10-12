@@ -1,15 +1,15 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth } from '@/lib/auth';
-import { ArrowRight, CalendarDays, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowRight, CalendarDays, FolderPlus } from 'lucide-react';
 import {
   getDashboardData,
   DashboardClientWrapper,
-  DashboardAccountsBanner,
-  DashboardCycleBanner,
   DashboardBudgetsSection,
-  DashboardPlanCard,
+  PulseHome,
+  CycleFlowCard,
+  CycleHistoryCard,
+  DashboardAccountsStrip,
 } from '@/features/dashboard';
 
 export default async function DashboardPage() {
@@ -20,33 +20,21 @@ export default async function DashboardPage() {
   }
 
   const data = await getDashboardData(session.user.id);
+  const firstName = session.user.name?.split(' ')[0];
 
   if (!data.hasProject) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Hola, {session.user.name?.split(' ')[0]}
-          </h1>
-          <p className="text-muted-foreground">Bienvenido a Billedy.</p>
-        </div>
-
-        <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-emerald-950/40 dark:via-teal-950/40 dark:to-cyan-950/40 p-6 md:p-8">
-          <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 blur-2xl" />
-          <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-32 w-32 rounded-full bg-gradient-to-tr from-teal-400/20 to-emerald-400/20 blur-2xl" />
-
-          <div className="relative text-center space-y-4 py-4">
-            <div className="mx-auto rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 p-4 text-white shadow-lg shadow-emerald-500/25 w-fit">
-              <Sparkles className="h-8 w-8" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="font-semibold text-xl">Crea tu primer proyecto</h3>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Un proyecto agrupa tus finanzas por contexto: personal, familia, negocio.
-                Usa el selector en la barra superior para comenzar.
-              </p>
-            </div>
-          </div>
+        <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Hola, {firstName}</h1>
+        <div className="rounded-[28px] border border-line bg-surface p-6 text-center md:p-8">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-jade-soft text-jade">
+            <FolderPlus className="h-7 w-7" />
+          </span>
+          <h2 className="mt-4 text-xl font-extrabold">Crea tu primer proyecto</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            Un proyecto agrupa tus finanzas por contexto: personal, familia, negocio.
+            Usa el selector de proyecto para comenzar.
+          </p>
         </div>
       </div>
     );
@@ -66,72 +54,48 @@ export default async function DashboardPage() {
     planStatus,
     projectId,
     totalExternalDebt,
+    cycleHistory,
+    cardPace,
   } = data;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Hola, {session.user.name?.split(' ')[0]}
-        </h1>
-        <p className="text-muted-foreground">
-          {currentCycle
-            ? `Resumen de ${currentCycle.name}`
-            : 'Aquí está el resumen de tus finanzas.'}
-        </p>
-      </div>
-
-      {/* Contenido dinámico con actualizaciones optimistas */}
+    <div className="space-y-6 md:space-y-4">
+      <h1 className="sr-only">Inicio</h1>
       <DashboardClientWrapper
         budgetsProgress={budgetsProgress}
         cycle={currentCycle}
         accountsSummary={accountsSummary}
         totalExternalDebt={totalExternalDebt}
       >
-        {/* Banner de resumen de cuentas - Solo para el dueño del proyecto */}
-        {isOwner && accountsSummary.totalAccounts > 0 && <DashboardAccountsBanner />}
-
-        {/* Banner si no hay ciclo activo */}
         {!currentCycle && (
-          <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 dark:from-blue-950/40 dark:via-indigo-950/40 dark:to-violet-950/40 p-6 md:p-8">
-            {/* Decorative elements */}
-            <div className="absolute top-0 right-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-gradient-to-br from-blue-400/20 to-violet-400/20 blur-2xl" />
-            <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-32 w-32 rounded-full bg-gradient-to-tr from-indigo-400/20 to-blue-400/20 blur-2xl" />
-
-            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <section className="rounded-[28px] border border-line bg-surface p-5 md:p-7">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="flex items-start gap-4">
-                <div className="rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-3 text-white shadow-lg shadow-blue-500/25">
+                <span className="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-sky-soft text-sky">
                   <CalendarDays className="h-6 w-6" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-lg">Comienza tu primer ciclo</h3>
-                    <Sparkles className="h-4 w-4 text-amber-500" />
-                  </div>
-                  <p className="text-sm text-muted-foreground max-w-md">
-                    Los ciclos te permiten organizar tus finanzas por períodos.
-                    Define cuándo empieza y termina cada período de facturación.
+                </span>
+                <div>
+                  <h2 className="text-lg font-extrabold">Hola {firstName}, comienza tu primer ciclo</h2>
+                  <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                    Los ciclos ordenan tus finanzas por período de facturación: desde que te pagan hasta el siguiente pago.
                   </p>
                 </div>
               </div>
-
-              <Button asChild size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/25 w-full md:w-auto">
-                <Link href="/dashboard/cycles">
-                  Crear mi primer ciclo
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
+              <Link
+                href="/dashboard/cycles"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-jade px-5 text-sm font-extrabold text-jade-ink"
+              >
+                Crear mi primer ciclo
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Banner de resumen del ciclo */}
-        {currentCycle && <DashboardCycleBanner />}
-
-        {/* Plan del ciclo: libre, techo TC, ahorro y pendientes */}
-        {planStatus && (
-          <DashboardPlanCard
+        {currentCycle && planStatus && (
+          <PulseHome
             plan={planStatus}
+            cardPace={cardPace}
             projectId={projectId}
             userId={session.user.id}
             isOwner={isOwner}
@@ -143,19 +107,26 @@ export default async function DashboardPage() {
           />
         )}
 
-        {/* Slider de presupuestos con drawer de transacciones */}
         {currentCycle && (
-          <DashboardBudgetsSection
-            categories={categories}
-            accounts={accounts}
-            budgets={budgets}
-            savingsGoals={savingsGoals}
-            entities={allEntities}
-            projectId={projectId}
-            userId={session.user.id}
-            defaultCurrency={project?.currency ?? 'USD'}
-          />
+          <div className="grid gap-6 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] md:gap-4">
+            <DashboardBudgetsSection
+              categories={categories}
+              accounts={accounts}
+              budgets={budgets}
+              savingsGoals={savingsGoals}
+              entities={allEntities}
+              projectId={projectId}
+              userId={session.user.id}
+              defaultCurrency={project?.currency ?? 'USD'}
+            />
+            <div className="flex flex-col gap-4">
+              <CycleFlowCard />
+              <CycleHistoryCard history={cycleHistory} />
+            </div>
+          </div>
         )}
+
+        {isOwner && accountsSummary.totalAccounts > 0 && <DashboardAccountsStrip />}
       </DashboardClientWrapper>
     </div>
   );

@@ -190,3 +190,54 @@ export async function getCyclePlanStatus(cycle: CycleInput): Promise<CyclePlanSt
         : null,
   };
 }
+
+export type CardPacePoint = { day: number; total: number };
+
+export type CardPaceSeries = {
+  /** Lo que ya cuenta desde el día 1: cuotas y cargos de plantilla aún no confirmados */
+  baseline: number;
+  /** Acumulado por día del ciclo (1 = primer día) hasta hoy */
+  points: CardPacePoint[];
+};
+
+/**
+ * Serie para el gráfico de ritmo: gasto propio en TC acumulado día a día.
+ * Arranca en lo fijo (cuotas + plantilla pendiente) y suma las compras propias
+ * ya cargadas, de modo que el último punto calza con `card.spent` del plan.
+ */
+export async function getCardPaceSeries(
+  cycle: Pick<CycleInput, 'projectId' | 'startDate' | 'endDate' | 'daysElapsed'>,
+  spent: number
+): Promise<CardPaceSeries> {
+  const start = toDate(cycle.startDate);
+  const end = toDate(cycle.endDate);
+  const today = toDate(getToday());
+  const until = today < end ? today : end;
+
+  const daily = await rows<Record<string, string>>(sql`
+    select (t.date - ${start}::date + 1)::int as day, sum(t.base_amount) as total
+    from n1n4_transactions t
+    join n1n4_accounts a on a.id = t.account_id
+    where t.project_id = ${cycle.projectId}
+      and a.type = 'credit_card'
+      and t.type = 'expense'
+      and t.card_purchase_id is null
+      and t.nature in ('own', 'reimbursement')
+      and t.is_paid
+      and not coalesce(t.is_historically_paid, false)
+      and t.date between ${start}::date and ${until}::date
+    group by 1
+    order by 1`);
+
+  const byDay = new Map(daily.map((r) => [num(r.day), num(r.total)]));
+  const variableTotal = [...byDay.values()].reduce((a, b) => a + b, 0);
+  const baseline = Math.max(0, spent - variableTotal);
+
+  const points: CardPacePoint[] = [];
+  let acc = baseline;
+  for (let day = 1; day <= Math.max(1, cycle.daysElapsed); day++) {
+    acc += byDay.get(day) ?? 0;
+    points.push({ day, total: acc });
+  }
+  return { baseline, points };
+}

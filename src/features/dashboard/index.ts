@@ -1,10 +1,11 @@
 // Components
 export {
   DashboardClientWrapper,
-  DashboardCycleBanner,
-  DashboardAccountsBanner,
   DashboardBudgetsSection,
-  DashboardPlanCard,
+  PulseHome,
+  CycleFlowCard,
+  CycleHistoryCard,
+  DashboardAccountsStrip,
 } from './components';
 
 // Hooks

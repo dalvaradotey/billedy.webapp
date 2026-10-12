@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import { ResponsiveDrawer } from '@/components/ui/drawer';
-import { BudgetProgressSlider } from '@/features/budgets/components/budget-progress-slider';
+import { BudgetPaceList } from './budget-pace-list';
 import { TransactionDialogContent } from '@/features/transactions';
 import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
 import { useDashboard } from '../hooks';
@@ -48,7 +48,8 @@ export function DashboardBudgetsSection({
   userId,
   defaultCurrency,
 }: DashboardBudgetsSectionProps) {
-  const { budgetsProgress, applyOptimisticTransaction } = useDashboard();
+  const { budgetsProgress, applyOptimisticTransaction, cycle } = useDashboard();
+  const pace = cycle ? Math.min(1, Math.max(0, (cycle.daysElapsed - 1) / Math.max(1, cycle.daysTotal - 1))) : 0;
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [initialValues, setInitialValues] = useState<TransactionInitialValues | undefined>();
   // Key para forzar remontaje del componente al abrir el drawer (resetea estados internos como isPending)
@@ -124,7 +125,7 @@ export function DashboardBudgetsSection({
 
   // Registrar acción en el bottom nav móvil
   const pageActions = useMemo<PageAction[]>(() => [
-    { label: 'Nueva transacción', icon: Plus, onClick: handleOpenNewTransaction },
+    { label: 'Nuevo movimiento', icon: Plus, onClick: handleOpenNewTransaction },
   ], [handleOpenNewTransaction]);
 
   useRegisterPageActions(pageActions);
@@ -136,10 +137,7 @@ export function DashboardBudgetsSection({
 
   return (
     <>
-      <BudgetProgressSlider
-        budgets={budgetsProgress}
-        onAddTransaction={handleAddTransaction}
-      />
+      <BudgetPaceList budgets={budgetsProgress} pace={pace} onAddTransaction={handleAddTransaction} />
 
       <ResponsiveDrawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <TransactionDialogContent

@@ -149,7 +149,7 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
   );
 }
 
-function warningText(warning: CycleWarning): string {
+export function warningText(warning: CycleWarning): string {
   switch (warning.kind) {
     case 'overdue_pending':
       return warning.count === 1

@@ -1,7 +1,7 @@
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
-import { getCurrentCycle } from '@/features/billing-cycles/queries';
-import { getCyclePlanStatus } from '@/features/billing-cycles/lib/cycle-plan';
+import { getCurrentCycle, getCycleHistory } from '@/features/billing-cycles/queries';
+import { getCyclePlanStatus, getCardPaceSeries } from '@/features/billing-cycles/lib/cycle-plan';
 import { getAccountsSummaryWithAccounts, getAccountDebtBreakdown } from '@/features/accounts/queries';
 import { getBudgetsProgress, getActiveBudgets } from '@/features/budgets';
 import { getActiveCategories } from '@/features/categories/queries';
@@ -20,7 +20,7 @@ export async function getDashboardData(userId: string) {
   }
 
   // Obtener datos principales en paralelo
-  const [currentCycle, accountsData, project, categories, budgets, savingsGoals, allEntities, debtBreakdown] = await Promise.all([
+  const [currentCycle, accountsData, project, categories, budgets, savingsGoals, allEntities, debtBreakdown, cycleHistory] = await Promise.all([
     getCurrentCycle(projectId, userId),
     getAccountsSummaryWithAccounts(projectId, userId),
     getProjectById(projectId, userId),
@@ -29,6 +29,7 @@ export async function getDashboardData(userId: string) {
     getActiveSavingsGoals(userId, projectId),
     getEntities(),
     getAccountDebtBreakdown(projectId, userId),
+    getCycleHistory(projectId, userId),
   ]);
 
   const { summary: accountsSummary, accounts } = accountsData;
@@ -48,6 +49,9 @@ export async function getDashboardData(userId: string) {
       ])
     : [[], null];
 
+  // Serie del gráfico de ritmo (gasto propio en TC acumulado por día)
+  const cardPace = currentCycle && planStatus ? await getCardPaceSeries(currentCycle, planStatus.card.spent) : null;
+
   return {
     hasProject: true as const,
     projectId,
@@ -63,5 +67,7 @@ export async function getDashboardData(userId: string) {
     budgetsProgress,
     planStatus,
     totalExternalDebt,
+    cycleHistory,
+    cardPace,
   };
 }
