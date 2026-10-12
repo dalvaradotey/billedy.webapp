@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { savingsGoals, transactions, projectMembers, categories, accounts, budgets, entities } from '@/lib/db/schema';
 import { eq, and, isNotNull, desc } from 'drizzle-orm';
@@ -49,6 +50,10 @@ export async function createSavingsGoal(
   currencyId: string,
   input: CreateSavingsGoalInput
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createSavingsGoalSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -88,6 +93,10 @@ export async function updateSavingsGoal(
   userId: string,
   input: UpdateSavingsGoalInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = updateSavingsGoalSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -131,6 +140,10 @@ export async function completeSavingsGoal(
   userId: string,
   isCompleted: boolean
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const existing = await db
     .select({ id: savingsGoals.id })
     .from(savingsGoals)
@@ -162,6 +175,10 @@ export async function archiveSavingsGoal(
   userId: string,
   isArchived: boolean
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const existing = await db
     .select({ id: savingsGoals.id })
     .from(savingsGoals)
@@ -190,6 +207,10 @@ export async function archiveSavingsGoal(
  * Las transacciones vinculadas quedan con savingsGoalId = NULL (ON DELETE SET NULL)
  */
 export async function deleteSavingsGoal(goalId: string, userId: string): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const existing = await db
     .select({ id: savingsGoals.id })
     .from(savingsGoals)
@@ -218,6 +239,10 @@ export async function fetchGoalTransactions(
   goalId: string,
   userId: string
 ): Promise<ActionResult<TransactionWithCategory[]>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const existing = await db
     .select({ id: savingsGoals.id })
     .from(savingsGoals)
@@ -287,6 +312,10 @@ export async function unlinkTransactionFromGoal(
   transactionId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const existing = await db
     .select({ id: transactions.id })
     .from(transactions)

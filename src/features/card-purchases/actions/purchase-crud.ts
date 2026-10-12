@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { db } from '@/lib/db';
 import {
@@ -13,7 +14,7 @@ import {
 import { eq, and, isNotNull, sql } from 'drizzle-orm';
 import { createCardPurchaseSchema, updateCardPurchaseSchema } from '../schemas';
 import type { CardPurchase } from '../types';
-import { updateAccountBalance } from '@/features/accounts/actions';
+import { updateAccountBalance } from '@/features/accounts/lib/balance';
 
 /**
  * Crea una nueva compra en cuotas
@@ -35,6 +36,10 @@ export async function createCardPurchase(data: {
   isExternalDebt?: boolean;
   notes?: string | null;
 }): Promise<{ success: boolean; data?: CardPurchase; error?: string }> {
+  if (!(await isSessionUser(data.userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Validar datos
     const validated = createCardPurchaseSchema.parse(data);
@@ -205,6 +210,10 @@ export async function updateCardPurchase(
     notes?: string | null;
   }
 ): Promise<{ success: boolean; data?: CardPurchase; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     const validated = updateCardPurchaseSchema.parse(data);
 
@@ -257,6 +266,10 @@ export async function archiveCardPurchase(
   purchaseId: string,
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Verificar acceso
     const existing = await db
@@ -303,6 +316,10 @@ export async function deleteCardPurchase(
   purchaseId: string,
   userId: string
 ): Promise<{ success: boolean; deletedTransactions?: number; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Verificar acceso
     const existing = await db
@@ -351,6 +368,10 @@ export async function regenerateInstallments(
   purchaseId: string,
   userId: string
 ): Promise<{ success: boolean; regenerated?: number; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Obtener la compra con verificación de acceso
     const [purchase] = await db

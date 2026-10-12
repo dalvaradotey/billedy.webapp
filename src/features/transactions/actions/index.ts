@@ -1,6 +1,5 @@
 // Transaction CRUD operations
 export {
-  verifyProjectAccess,
   createTransaction,
   updateTransaction,
   toggleTransactionPaid,

@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { credits, transactions, projects, projectMembers } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
@@ -62,6 +63,10 @@ export async function createCredit(
   userId: string,
   input: CreateCreditInput
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createCreditSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -167,6 +172,10 @@ export async function updateCredit(
   userId: string,
   input: UpdateCreditInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = updateCreditSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -212,6 +221,10 @@ export async function archiveCredit(
   userId: string,
   isArchived: boolean
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso
   const existing = await db
     .select({ projectId: credits.projectId })
@@ -250,6 +263,10 @@ export async function deleteCredit(
   creditId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso
   const existing = await db
     .select({ projectId: credits.projectId })
@@ -287,6 +304,10 @@ export async function generateCreditInstallment(
   creditId: string,
   userId: string
 ): Promise<ActionResult<{ transactionId: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Obtener crédito con verificación de acceso
   const creditResult = await db
     .select({
@@ -381,6 +402,10 @@ export async function generateAllCreditInstallments(
   creditId: string,
   userId: string
 ): Promise<ActionResult<{ count: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Obtener crédito con verificación de acceso
   const creditResult = await db
     .select({

@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { invalidateCache, CACHE_TAGS } from '@/lib/cache';
 import { db } from '@/lib/db';
 import {
@@ -27,6 +28,10 @@ export async function createTemplate(data: {
   name: string;
   description?: string | null;
 }): Promise<{ success: boolean; data?: Template; error?: string }> {
+  if (!(await isSessionUser(data.userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     const validated = createTemplateSchema.parse(data);
 
@@ -81,6 +86,10 @@ export async function updateTemplate(
     isActive?: boolean;
   }
 ): Promise<{ success: boolean; data?: Template; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     const validated = updateTemplateSchema.parse(data);
 
@@ -130,6 +139,10 @@ export async function archiveTemplate(
   templateId: string,
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     const existing = await db
       .select({ id: templates.id })
@@ -176,6 +189,10 @@ export async function deleteTemplate(
   templateId: string,
   userId: string
 ): Promise<{ success: boolean; deletedItems?: number; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     const existing = await db
       .select({ id: templates.id })
@@ -227,6 +244,10 @@ export async function createTemplateItem(data: {
   baseCurrency: string;
   notes?: string | null;
 }): Promise<{ success: boolean; data?: TemplateItem; error?: string }> {
+  if (!(await isSessionUser(data.userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     const validated = createTemplateItemSchema.parse(data);
 
@@ -297,6 +318,10 @@ export async function updateTemplateItem(
     notes?: string | null;
   }
 ): Promise<{ success: boolean; data?: TemplateItem; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     const validated = updateTemplateItemSchema.parse(data);
 
@@ -356,6 +381,10 @@ export async function deleteTemplateItem(
   itemId: string,
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     const existing = await db
       .select({ id: templateItems.id })
@@ -395,6 +424,10 @@ export async function toggleTemplateActive(
   templateId: string,
   userId: string
 ): Promise<{ success: boolean; isActive?: boolean; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Verificar acceso y obtener estado actual
     const [existing] = await db

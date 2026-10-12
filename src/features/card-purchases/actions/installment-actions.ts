@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { db } from '@/lib/db';
 import {
@@ -19,6 +20,10 @@ export async function chargeInstallment(
   userId: string,
   date: Date = new Date()
 ): Promise<{ success: boolean; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Obtener la compra con info del proyecto
     const [result] = await db
@@ -110,6 +115,10 @@ export async function chargeAllPendingInstallments(
   projectId: string,
   userId: string
 ): Promise<{ success: boolean; charged: number; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, charged: 0, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Verificar acceso y obtener info del proyecto
     const [projectInfo] = await db

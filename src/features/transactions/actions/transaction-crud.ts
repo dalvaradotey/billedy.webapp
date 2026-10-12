@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { transactions, projects, projectMembers, accounts } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
@@ -24,26 +25,8 @@ import type {
   BulkUpdateDateInput,
 } from '../schemas';
 import type { ActionResult } from '../types';
-import { updateAccountBalance } from '@/features/accounts/actions';
-
-/**
- * Verifica que el usuario tenga acceso al proyecto
- */
-export async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
-  const member = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  return member.length > 0;
-}
+import { updateAccountBalance } from '@/features/accounts/lib/balance';
+import { verifyProjectAccess } from '../lib/access';
 
 /**
  * Crea una nueva transacción
@@ -52,6 +35,10 @@ export async function createTransaction(
   userId: string,
   input: CreateTransactionInput
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createTransactionSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -183,6 +170,10 @@ export async function updateTransaction(
   userId: string,
   input: UpdateTransactionInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = updateTransactionSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -272,6 +263,10 @@ export async function toggleTransactionPaid(
   userId: string,
   input: TogglePaidInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = togglePaidSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -345,6 +340,10 @@ export async function toggleTransactionReconciled(
   userId: string,
   input: ToggleReconciledInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = toggleReconciledSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -395,6 +394,10 @@ export async function bulkToggleTransactionsReconciled(
   userId: string,
   input: BulkToggleReconciledInput
 ): Promise<ActionResult<{ updatedCount: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = bulkToggleReconciledSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -448,6 +451,10 @@ export async function deleteTransaction(
   transactionId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso y obtener datos para revertir el balance
   const existing = await db
     .select({
@@ -526,6 +533,10 @@ export async function bulkToggleTransactionsPaid(
   userId: string,
   input: BulkTogglePaidInput
 ): Promise<ActionResult<{ updatedCount: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = bulkTogglePaidSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -612,6 +623,10 @@ export async function bulkUpdateTransactionDates(
   userId: string,
   input: BulkUpdateDateInput
 ): Promise<ActionResult<{ updatedCount: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = bulkUpdateDateSchema.safeParse(input);
 
   if (!parsed.success) {
