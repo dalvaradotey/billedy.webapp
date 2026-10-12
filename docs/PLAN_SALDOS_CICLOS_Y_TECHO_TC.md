@@ -1,6 +1,6 @@
 # Plan: Saldos correctos de ciclos + Techo de gasto TC
 
-> Estado: **v10 (+ revisión de seguridad, integridad y despliegue)** · Fecha: 2026-10-10
+> Estado: **v10 — Fases 1, 2 y 3 implementadas** · Fecha: 2026-10-10
 > Reemplaza a: `docs/PROBLEMA_CUOTAS_CICLOS.md` (la vista estado de cuenta de §3.3 lo resuelve; el re-fechado queda opcional en la Fase 4)
 
 ## Resumen
@@ -249,6 +249,14 @@ Además, **meta de ahorro del ciclo**: "Ahorrado $220.000 de $400.000". El tramo
 | 3.5 | Tabla `settlements`: vinculación parcial de abonos y devoluciones, cierre de diferencias (`waived`), "Por cobrar" y "Fondo por liquidar" |
 
 **Listo cuando:** el gasto propio de Septiembre coincide con el análisis manual (§9), después de aplicar el backfill.
+
+### Estado de las Fases 2 y 3 (2026-10-12): implementadas
+Rama `feat/fase2-3-naturaleza-techo`, un commit por paso. Migración 0015 y limpieza de datos aplicadas en producción con aprobación del usuario, con respaldo previo. Diferencias respecto a lo planeado:
+- **Seguridad (2.0):** en vez de quitar `userId` de las 77 actions, cada una verifica que coincida con la sesión (`isSessionUser`). El efecto de seguridad es el mismo y no hubo que tocar los componentes. `updateAccountBalance` y `verifyProjectAccess` dejaron de ser endpoints, y el saldo se ajusta en una sola sentencia SQL.
+- **Migraciones (2.1):** en vez de un baseline de drizzle, SQL manual versionado en `src/lib/db/manual-migrations/` con `scripts/db-migrate.ts`, que registra lo aplicado en `n1n4_schema_migrations`.
+- **Historial:** los gastos no propios anteriores al ciclo actual (25-09-2026) se dieron por compensados (`waived`), para que "Por cobrar" y "Fondo por liquidar" partan desde cero.
+- **Liquidación del fondo (3.4):** se hace desde la tarjeta "Plan del ciclo" ("Fondo por liquidar"), no dentro del diálogo de pago de TC. Liquida los gastos del fondo cuya plata ya salió (débito, o TC ya pagada); los de TC sin pagar se muestran como "cuando pagues la TC".
+- **Ingreso esperado:** se toma de los ítems de ingreso de la plantilla, usando el último monto real registrado con la misma descripción.
 
 ### Fase 4 — Posterior
 - **Re-fechar las cuotas** (opcional, para que se vean en el ciclo de su estado de cuenta):
