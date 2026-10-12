@@ -1,37 +1,44 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Google Sans - Local Fonts */
-@font-face {
-  font-family: 'Google Sans';
-  src: url('/fonts/GoogleSans-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Google Sans';
-  src: url('/fonts/GoogleSans-Medium.ttf') format('truetype');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Google Sans';
-  src: url('/fonts/GoogleSans-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
+  /* Pulso: acentos con su tono suave y su tinta (texto sobre el color pleno) */
+  --color-jade: var(--jade);
+  --color-jade-soft: var(--jade-soft);
+  --color-jade-ink: var(--jade-ink);
+  --color-jade-text: var(--jade-text);
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
+  --color-coral-ink: var(--coral-ink);
+  --color-coral-text: var(--coral-text);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-amber-ink: var(--amber-ink);
+  --color-amber-text: var(--amber-text);
+  --color-sky: var(--sky);
+  --color-sky-soft: var(--sky-soft);
+  --color-sky-ink: var(--sky-ink);
+  --color-sky-text: var(--sky-text);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-violet-ink: var(--violet-ink);
+  --color-violet-text: var(--violet-text);
+  --color-rose: var(--rose);
+  --color-rose-soft: var(--rose-soft);
+  --color-rose-ink: var(--rose-ink);
+  --color-cream: var(--cream);
+  --color-cream-ink: var(--cream-ink);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-faint: var(--faint);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-manrope);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -71,74 +78,76 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
-:root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
+:root,
 .dark {
-  /* Paleta azul oscuro */
-  --background: oklch(0.14 0.02 250);
-  --foreground: oklch(0.95 0.01 250);
-  --card: oklch(0.18 0.025 250);
-  --card-foreground: oklch(0.95 0.01 250);
-  --popover: oklch(0.18 0.025 250);
-  --popover-foreground: oklch(0.95 0.01 250);
-  --primary: oklch(0.6 0.15 250);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.22 0.03 250);
-  --secondary-foreground: oklch(0.95 0.01 250);
-  --muted: oklch(0.22 0.03 250);
-  --muted-foreground: oklch(0.65 0.02 250);
-  --accent: oklch(0.25 0.04 250);
-  --accent-foreground: oklch(0.95 0.01 250);
-  --destructive: oklch(0.65 0.2 25);
-  --border: oklch(0.28 0.03 250);
-  --input: oklch(0.25 0.03 250);
-  --ring: oklch(0.55 0.12 250);
-  --chart-1: oklch(0.6 0.2 250);
-  --chart-2: oklch(0.65 0.15 180);
-  --chart-3: oklch(0.7 0.18 80);
-  --chart-4: oklch(0.6 0.2 300);
-  --chart-5: oklch(0.65 0.2 20);
-  --sidebar: oklch(0.16 0.025 250);
-  --sidebar-foreground: oklch(0.95 0.01 250);
-  --sidebar-primary: oklch(0.6 0.15 250);
-  --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.22 0.03 250);
-  --sidebar-accent-foreground: oklch(0.95 0.01 250);
-  --sidebar-border: oklch(0.28 0.03 250);
-  --sidebar-ring: oklch(0.55 0.12 250);
+  /* Billedy · Pulso — solo modo oscuro, fondo ciruela tinta */
+  color-scheme: dark;
+  --radius: 1rem;
+
+  --background: #15121A;
+  --foreground: #F4EFE8;
+  --surface: #1E1A24;
+  --surface-2: #241F2B;
+  --surface-3: #2A2431;
+  --line: #2E2836;
+  --line-strong: #342D3C;
+  --faint: #8A8095;
+
+  --jade: #5CC3A4;
+  --jade-soft: #1B3330;
+  --jade-ink: #0E2A22;
+  --jade-text: #9FE3CC;
+  --coral: #F08A74;
+  --coral-soft: #3A2124;
+  --coral-ink: #3A1510;
+  --coral-text: #F7B9AA;
+  --amber: #F0B45C;
+  --amber-soft: #362A1C;
+  --amber-ink: #33240C;
+  --amber-text: #F6CF8E;
+  --sky: #7CB7EE;
+  --sky-soft: #1D2A3B;
+  --sky-ink: #0F2235;
+  --sky-text: #A9CDF2;
+  --violet: #A897FF;
+  --violet-soft: #2D2543;
+  --violet-ink: #1C1530;
+  --violet-text: #C9BEFF;
+  --rose: #EE8FB2;
+  --rose-soft: #3A1F30;
+  --rose-ink: #3A1028;
+  --cream: #F4EFE8;
+  --cream-ink: #1B1620;
+
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--foreground);
+  --primary: var(--jade);
+  --primary-foreground: var(--jade-ink);
+  --secondary: var(--surface-3);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --muted-foreground: #A79DB0;
+  --accent: var(--surface-3);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--coral);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--jade);
+  --chart-1: var(--amber);
+  --chart-2: var(--jade);
+  --chart-3: var(--sky);
+  --chart-4: var(--violet);
+  --chart-5: var(--coral);
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--jade);
+  --sidebar-primary-foreground: var(--jade-ink);
+  --sidebar-accent: var(--jade-soft);
+  --sidebar-accent-foreground: var(--jade-text);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--jade);
 }
 
 @layer base {
@@ -147,6 +156,11 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Cifras siempre tabulares para que los montos se alineen */
+  .num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
   }
 }
 
@@ -810,7 +824,7 @@
 }
 
 .dark .glass-island {
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(36, 31, 43, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.35),
@@ -905,3 +919,21 @@
   }
 }
 
+/* ============================================
+   ESQUELETOS CON COLOR (Pulso)
+   Respiración lenta; se apaga con "reducir movimiento".
+   ============================================ */
+@keyframes skeleton-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.animate-skeleton {
+  animation: skeleton-breathe 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-skeleton {
+    animation: none;
+  }
+}
