@@ -45,3 +45,52 @@ export function toneForName(name: string | null | undefined): PulseTone {
   for (const ch of name.toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return NAME_TONES[h % NAME_TONES.length];
 }
+
+/** Paleta para elegir colores de categoría: tonos plenos de Pulso. */
+export const PULSE_PALETTE = [
+  '#5CC3A4', // jade
+  '#8FD08A', // verde
+  '#6FD0EE', // cian
+  '#7CB7EE', // celeste
+  '#A897FF', // violeta
+  '#E191E8', // lila
+  '#EE8FB2', // rosa
+  '#F08A74', // coral
+  '#F2A35E', // naranja
+  '#F0B45C', // ámbar
+  '#D9C4A0', // arena
+  '#BEB5C7', // gris ciruela
+];
+
+function hueOf(hex: string): { h: number; sat: number } | null {
+  const m = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i);
+  if (!m) return null;
+  const [r, g, b] = m.slice(1).map((x) => parseInt(x, 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return { h: 0, sat: 0 };
+  let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  return { h, sat: d / (1 - Math.abs(max + min - 1) || 1) };
+}
+
+/** Color guardado (p. ej. de una categoría) → el tono más cercano de la paleta Pulso. */
+export function pulseColor(hex: string | null | undefined): string {
+  if (!hex) return '#BEB5C7';
+  if (PULSE_PALETTE.includes(hex.toUpperCase())) return hex.toUpperCase();
+  const src = hueOf(hex);
+  if (!src || src.sat < 0.15) return '#BEB5C7';
+  let best = PULSE_PALETTE[0];
+  let bestDist = Infinity;
+  for (const p of PULSE_PALETTE) {
+    const t = hueOf(p);
+    if (!t || t.sat < 0.15) continue;
+    const dh = Math.min(Math.abs(t.h - src.h), 360 - Math.abs(t.h - src.h));
+    if (dh < bestDist) {
+      bestDist = dh;
+      best = p;
+    }
+  }
+  return best;
+}

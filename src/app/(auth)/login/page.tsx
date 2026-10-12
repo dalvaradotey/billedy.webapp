@@ -1,14 +1,7 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { BrandMark } from '@/components/layout/brand-mark';
 
 export default function LoginPage() {
   const handleGoogleSignIn = () => {
@@ -16,29 +9,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Billedy</CardTitle>
-          <CardDescription>
-            Gestión financiera personal simplificada
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="w-full max-w-sm">
+        <BrandMark className="justify-center" />
+        <div className="mt-8 rounded-[28px] border border-line bg-surface p-6">
+          <h1 className="text-center text-[26px] font-extrabold leading-tight tracking-[-0.035em]">
+            Tu plata, a buen ritmo
+          </h1>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
+            Cuánto te queda libre, a qué ritmo gastas con la tarjeta y lo que viene en el ciclo.
+          </p>
+          <button
+            type="button"
             onClick={handleGoogleSignIn}
-            variant="outline"
-            className="w-full flex items-center justify-center gap-2"
+            className="mt-6 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full bg-cream text-sm font-extrabold text-cream-ink transition-opacity hover:opacity-90"
           >
             <GoogleIcon />
             Continuar con Google
-          </Button>
-          <p className="text-xs text-center text-muted-foreground">
-            Al continuar, aceptas nuestros términos de servicio y política de
-            privacidad.
-          </p>
-        </CardContent>
-      </Card>
+          </button>
+        </div>
+        <p className="mt-4 text-center text-xs text-faint">
+          Al continuar, aceptas nuestros términos de servicio y política de privacidad.
+        </p>
+      </div>
     </div>
   );
 }

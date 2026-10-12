@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect, useCallback } from 'react';
+import { PULSE_PALETTE, pulseColor } from '@/lib/pulse-tone';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -55,24 +56,7 @@ import { NATURE_LABELS, TRANSACTION_NATURES } from '@/features/transactions/natu
 import type { Category } from './types';
 
 // Colores predefinidos para categorías
-const PRESET_COLORS = [
-  '#ef4444', // red
-  '#f97316', // orange
-  '#f59e0b', // amber
-  '#eab308', // yellow
-  '#84cc16', // lime
-  '#22c55e', // green
-  '#10b981', // emerald
-  '#14b8a6', // teal
-  '#06b6d4', // cyan
-  '#0ea5e9', // sky
-  '#3b82f6', // blue
-  '#6366f1', // indigo
-  '#8b5cf6', // violet
-  '#a855f7', // purple
-  '#d946ef', // fuchsia
-  '#ec4899', // pink
-];
+const PRESET_COLORS = PULSE_PALETTE;
 
 interface CategoryListProps {
   categories: Category[];
@@ -201,12 +185,12 @@ function CategoryCard({ category, userId, onEdit }: CategoryCardProps) {
   return (
     <div
       className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-accent/50"
-      style={{ borderLeftColor: category.color, borderLeftWidth: '4px' }}
+      style={{ borderLeftColor: pulseColor(category.color), borderLeftWidth: '4px' }}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div
           className="h-3 w-3 rounded-full shrink-0"
-          style={{ backgroundColor: category.color }}
+          style={{ backgroundColor: pulseColor(category.color) }}
         />
         <p className="font-medium truncate">{category.name}</p>
       </div>
@@ -462,7 +446,7 @@ export function CategorySelect({
             <div className="flex items-center gap-2">
               <div
                 className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: cat.color }}
+                style={{ backgroundColor: pulseColor(cat.color) }}
               />
               {cat.name}
             </div>

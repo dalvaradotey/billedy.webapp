@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { toast } from 'sonner';
 import { CreditCard, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,7 @@ function TransactionSelector({
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
                     <div
                       className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: t.categoryColor ?? undefined }}
+                      style={{ backgroundColor: pulseColor(t.categoryColor) }}
                     />
                     {t.categoryName}
                   </div>

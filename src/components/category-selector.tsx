@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { Plus, Check, CheckCircle2, XCircle, ChevronsUpDown, Tag, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PULSE_PALETTE, pulseColor } from '@/lib/pulse-tone';
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-drawer';
 import { SubmitButton } from '@/components/submit-button';
@@ -38,24 +39,7 @@ import {
 import { createCategory } from '@/features/categories/actions';
 
 // Colores predefinidos para categorías
-const PRESET_COLORS = [
-  '#ef4444', // red
-  '#f97316', // orange
-  '#f59e0b', // amber
-  '#eab308', // yellow
-  '#84cc16', // lime
-  '#22c55e', // green
-  '#10b981', // emerald
-  '#14b8a6', // teal
-  '#06b6d4', // cyan
-  '#0ea5e9', // sky
-  '#3b82f6', // blue
-  '#6366f1', // indigo
-  '#8b5cf6', // violet
-  '#a855f7', // purple
-  '#d946ef', // fuchsia
-  '#ec4899', // pink
-];
+const PRESET_COLORS = PULSE_PALETTE;
 
 const createCategorySchema = z.object({
   name: z.string().min(1, 'El nombre es requerido').max(100),
@@ -161,7 +145,7 @@ export function CategorySelector({
                   <div className="flex items-center gap-2 truncate">
                     <span
                       className="h-3 w-3 rounded shrink-0"
-                      style={{ backgroundColor: selectedCategory.color }}
+                      style={{ backgroundColor: pulseColor(selectedCategory.color) }}
                     />
                     <span className="truncate text-sm">{selectedCategory.name}</span>
                   </div>
@@ -173,7 +157,7 @@ export function CategorySelector({
                 <div className="flex items-center gap-2 truncate">
                   <span
                     className="h-3 w-3 rounded shrink-0"
-                    style={{ backgroundColor: selectedCategory.color }}
+                    style={{ backgroundColor: pulseColor(selectedCategory.color) }}
                   />
                   <span className="truncate">{selectedCategory.name}</span>
                 </div>
@@ -227,7 +211,7 @@ export function CategorySelector({
                     />
                     <span
                       className="mr-2 h-3 w-3 rounded shrink-0"
-                      style={{ backgroundColor: category.color }}
+                      style={{ backgroundColor: pulseColor(category.color) }}
                     />
                     <span className="truncate">{category.name}</span>
                   </CommandItem>

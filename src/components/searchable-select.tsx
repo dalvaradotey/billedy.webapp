@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { Check, CheckCircle2, ChevronsUpDown, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -61,7 +62,7 @@ function OptionIndicator({
     return (
       <span
         className={cn(colorSizeClasses, 'rounded shrink-0', className)}
-        style={{ backgroundColor: color }}
+        style={{ backgroundColor: pulseColor(color) }}
       />
     );
   }

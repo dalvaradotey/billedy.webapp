@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -416,7 +417,7 @@ function SortableBudgetCard({ budget, userId, onEdit, isReorderMode, cycles }: S
         {budget.categoryColor && (
           <div
             className="w-3 h-3 rounded-full shrink-0"
-            style={{ backgroundColor: budget.categoryColor }}
+            style={{ backgroundColor: pulseColor(budget.categoryColor) }}
           />
         )}
 
@@ -540,11 +541,11 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
           ) : budget.categoryColor ? (
             <div
               className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
-              style={{ backgroundColor: budget.categoryColor + '30' }}
+              style={{ backgroundColor: pulseColor(budget.categoryColor) + '30' }}
             >
               <div
                 className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: budget.categoryColor }}
+                style={{ backgroundColor: pulseColor(budget.categoryColor) }}
               />
             </div>
           ) : (

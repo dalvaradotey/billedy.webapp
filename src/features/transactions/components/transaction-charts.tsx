@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, type TooltipProps } from 'recharts';
 import { ChevronDown } from 'lucide-react';
 import {
@@ -27,7 +28,7 @@ interface CategoryDatum {
   percentage: number;
 }
 
-const FALLBACK_COLOR = '#94a3b8';
+const FALLBACK_COLOR = '#BEB5C7';
 const OTROS_COLOR = '#64748b';
 const MIN_PERCENTAGE = 3; // Categorías < 3% se agrupan en "Otros"
 const BAR_WIDTH_PER_CATEGORY = 56; // px por barra
@@ -47,7 +48,7 @@ export function TransactionChartsContent({
     for (const t of transactions) {
       const key = t.categoryName ?? 'Sin categoría';
       const existing = map.get(key);
-      const entry = existing ?? { name: key, color: t.categoryColor ?? FALLBACK_COLOR, income: 0, expense: 0 };
+      const entry = existing ?? { name: key, color: t.categoryColor ? pulseColor(t.categoryColor) : FALLBACK_COLOR, income: 0, expense: 0 };
       const amount = Math.abs(parseFloat(t.originalAmount));
       if (t.type === 'income') entry.income += amount;
       else entry.expense += amount;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { Pencil, Trash2, MoreVertical } from 'lucide-react';
 import { toastActions } from '@/lib/toast-messages';
 
@@ -96,7 +97,7 @@ export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: Template
           {item.entityName && <span>{item.entityName}</span>}
           <span
             className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-            style={{ backgroundColor: item.categoryColor }}
+            style={{ backgroundColor: pulseColor(item.categoryColor) }}
           />
           <span>{item.categoryName}</span>
           {item.accountName && (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { useIsMobile } from '@/hooks';
 import { toast } from 'sonner';
 import {
@@ -181,7 +182,7 @@ export function CreditCard({
                   {credit.categoryColor && (
                     <span
                       className="inline-block h-2 w-2 rounded-full shrink-0"
-                      style={{ backgroundColor: credit.categoryColor }}
+                      style={{ backgroundColor: pulseColor(credit.categoryColor) }}
                     />
                   )}
                 </div>

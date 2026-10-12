@@ -47,12 +47,10 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
   const baseCurrency = project?.currency ?? 'CLP';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Plantillas</h1>
-        <p className="text-muted-foreground">
-          Configura los items recurrentes que se cargarán automáticamente en cada ciclo.
-        </p>
+        <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Plantillas</h1>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">Configura los items recurrentes que se cargarán automáticamente en cada ciclo.</p>
       </div>
 
       <TemplateList

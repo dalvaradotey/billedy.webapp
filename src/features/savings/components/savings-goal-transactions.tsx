@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition, useCallback } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { toast } from 'sonner';
 import { Unlink, Receipt } from 'lucide-react';
 
@@ -107,7 +108,7 @@ export function SavingsGoalTransactions({
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <div
                     className="h-1.5 w-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: t.categoryColor ?? undefined }}
+                    style={{ backgroundColor: pulseColor(t.categoryColor) }}
                   />
                   <span className="text-xs text-muted-foreground truncate">{t.categoryName}</span>
                 </div>
