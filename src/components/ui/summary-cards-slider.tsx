@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { ScrollRow } from '@/components/ui/scroll-row';
 
 /**
  * Clases de columnas escritas literalmente: Tailwind solo genera las clases que
@@ -114,16 +115,13 @@ export function SummaryCardsSlider({
     <div className={className}>
       {/* Móvil: fila con scroll libre, una tarjeta asoma para invitar a deslizar */}
       <div className={classes.mobile}>
-        <div
-          ref={scrollRef}
-          className="scrollbar-hide -mx-4 flex snap-x gap-2.5 overflow-x-auto px-4"
-        >
+        <ScrollRow scrollRef={scrollRef} className="-mx-4 flex snap-x gap-2.5 px-4">
           {children.map((child, i) => (
             <div key={i} className="w-[46%] min-w-[150px] max-w-[190px] flex-none snap-start">
               {child}
             </div>
           ))}
-        </div>
+        </ScrollRow>
       </div>
 
       {/* Desktop: Grid with slider if more than desktopMaxCols */}

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollRow } from '@/components/ui/scroll-row';
 import { AccountPickCard } from '@/features/accounts/components/wallet-card';
 import type { AccountWithEntity } from '@/features/accounts/types';
 
@@ -12,41 +13,52 @@ interface AccountCardPickerProps {
   invalid?: boolean;
 }
 
-/** "¿Con qué pagas?": las cuentas como mini tarjetas en una fila deslizable. */
+/**
+ * "¿Con qué pagas?": las cuentas como mini tarjetas en una fila deslizable.
+ * La elegida va primero; si cambia desde afuera (presupuesto, sugerencia) pasa
+ * al frente. Si la toca el usuario se queda en su lugar para que nada salte.
+ */
 export function AccountCardPicker({ label, accounts, value, onChange, invalid }: AccountCardPickerProps) {
   const rowRef = useRef<HTMLDivElement>(null);
+  const [frontId, setFrontId] = useState(value);
+  const [tappedId, setTappedId] = useState<string | null>(null);
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    if (value !== tappedId) setFrontId(value);
+  }
 
-  // La cuenta elegida siempre a la vista (p. ej. al completar desde una sugerencia)
   useEffect(() => {
-    const row = rowRef.current;
-    const selected = row?.querySelector<HTMLElement>('[aria-checked="true"]');
-    if (!row || !selected) return;
-    const r = row.getBoundingClientRect();
-    const c = selected.getBoundingClientRect();
-    if (c.left < r.left + 16 || c.right > r.right - 16) {
-      row.scrollBy({ left: c.left - r.left - 16, behavior: 'smooth' });
-    }
-  }, [value]);
+    rowRef.current?.scrollTo({ left: 0, behavior: 'smooth' });
+  }, [frontId]);
+
+  const ordered = useMemo(() => {
+    const front = accounts.find((a) => a.id === frontId);
+    return front ? [front, ...accounts.filter((a) => a.id !== frontId)] : accounts;
+  }, [accounts, frontId]);
 
   return (
     <fieldset className="min-w-0">
       <legend className={invalid ? 'mb-2 text-[13px] font-extrabold text-coral-text' : 'mb-2 text-[13px] font-extrabold'}>{label}</legend>
-      <div
-        ref={rowRef}
+      <ScrollRow
+        scrollRef={rowRef}
         role="radiogroup"
         aria-label={label}
         data-vaul-no-drag
-        className="scrollbar-hide -mx-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-1"
+        className="-mx-4 flex snap-x scroll-px-4 gap-2 px-4 py-1"
       >
-        {accounts.map((account) => (
+        {ordered.map((account) => (
           <AccountPickCard
             key={account.id}
             account={account}
             selected={account.id === value}
-            onSelect={() => onChange(account.id)}
+            onSelect={() => {
+              setTappedId(account.id);
+              onChange(account.id);
+            }}
           />
         ))}
-      </div>
+      </ScrollRow>
     </fieldset>
   );
 }
