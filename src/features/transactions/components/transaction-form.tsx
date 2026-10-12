@@ -154,7 +154,7 @@ export function TransactionDialogContent({
   }, [categories]);
 
   const handleCategoryCreated = (newCategory: { id: string; name: string; color: string }) => {
-    setLocalCategories((prev) => [...prev, { ...newCategory, projectId, isArchived: false, createdAt: new Date(), updatedAt: new Date() }]);
+    setLocalCategories((prev) => [...prev, { ...newCategory, projectId, isArchived: false, defaultNature: null, createdAt: new Date(), updatedAt: new Date() }]);
   };
 
   // Find default account

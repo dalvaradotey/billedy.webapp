@@ -25,6 +25,19 @@ export const accountTypeEnum = pgEnum('account_type', [
   'unemployment',
 ]);
 export const projectRoleEnum = pgEnum('project_role', ['owner', 'editor', 'viewer']);
+
+/**
+ * Naturaleza de una transacción: separa lo propio de lo que se compensa.
+ * - expense: own | external (lo paga otra persona) | reimbursable | fund (sale del fondo de imprevistos)
+ * - income:  own | reimbursement (abono / devolución)
+ */
+export const transactionNatureEnum = pgEnum('transaction_nature', [
+  'own',
+  'external',
+  'reimbursable',
+  'fund',
+  'reimbursement',
+]);
 export const entityTypeEnum = pgEnum('entity_type', [
   'bank',
   'credit_card',
@@ -100,6 +113,10 @@ export const projects = pgTable('n1n4_projects', {
     precision: 15,
     scale: 2,
   }),
+  // Plan del ciclo: ahorro objetivo, techo de gasto propio en TC y cuenta del fondo de imprevistos
+  savingsTarget: decimal('savings_target', { precision: 15, scale: 2 }),
+  cardSpendingCap: decimal('card_spending_cap', { precision: 15, scale: 2 }),
+  contingencyAccountId: uuid('contingency_account_id'),
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
@@ -144,6 +161,7 @@ export const categories = pgTable('n1n4_categories', {
     .references(() => projects.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 100 }).notNull(),
   color: varchar('color', { length: 7 }).notNull(),
+  defaultNature: transactionNatureEnum('default_nature'),
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),

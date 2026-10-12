@@ -280,6 +280,7 @@ export async function fetchGoalTransactions(
       paidByTransferId: transactions.paidByTransferId,
       isHistoricallyPaid: transactions.isHistoricallyPaid,
       isReconciled: transactions.isReconciled,
+      nature: transactions.nature,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,

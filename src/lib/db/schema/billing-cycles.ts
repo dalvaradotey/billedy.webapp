@@ -7,6 +7,7 @@ import {
   date,
   text,
   pgEnum,
+  jsonb,
   unique,
 } from 'drizzle-orm/pg-core';
 import { projects } from './core';
@@ -40,6 +41,8 @@ export const billingCycles = pgTable('n1n4_billing_cycles', {
   snapshotExpenses: decimal('snapshot_expenses', { precision: 15, scale: 2 }),
   snapshotSavings: decimal('snapshot_savings', { precision: 15, scale: 2 }),
   snapshotBalance: decimal('snapshot_balance', { precision: 15, scale: 2 }),
+  // Cascada completa al momento del cierre (referencia para avisar cambios posteriores)
+  closingSnapshot: jsonb('closing_snapshot'),
 
   notes: text('notes'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),

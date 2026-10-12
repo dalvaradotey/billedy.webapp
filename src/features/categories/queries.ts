@@ -86,6 +86,7 @@ export async function getCategoryById(
       name: categories.name,
       color: categories.color,
       isArchived: categories.isArchived,
+      defaultNature: categories.defaultNature,
       createdAt: categories.createdAt,
       updatedAt: categories.updatedAt,
     })
