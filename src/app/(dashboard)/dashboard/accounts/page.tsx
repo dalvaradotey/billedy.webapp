@@ -35,13 +35,8 @@ export default async function AccountsPage() {
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Cuentas</h1>
-        <p className="text-muted-foreground">
-          Administra tus cuentas bancarias, efectivo y tarjetas de crédito.
-        </p>
-      </div>
+    <div className="space-y-4">
+      <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Cuentas</h1>
 
       <AccountsList
         accounts={accounts}

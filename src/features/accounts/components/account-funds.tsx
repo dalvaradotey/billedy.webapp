@@ -7,7 +7,6 @@ import { Plus, ArrowDownToLine, ArrowUpFromLine, Pencil, MoveRight, Archive, Use
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import { SwitchCard } from '@/components/switch-card';
 import { CurrencyInput } from '@/components/currency-input';
 import {
@@ -42,6 +41,15 @@ interface AccountFundsSectionProps {
   /** Cuentas a las que se puede mover un fondo */
   moveTargets: Array<{ id: string; name: string }>;
 }
+
+/** Cada fondo toma un color de la paleta, en orden (el jade queda para lo libre). */
+const FUND_TONES = [
+  { bar: 'bg-violet', soft: 'bg-violet-soft', text: 'text-violet' },
+  { bar: 'bg-rose', soft: 'bg-rose-soft', text: 'text-rose' },
+  { bar: 'bg-amber', soft: 'bg-amber-soft', text: 'text-amber' },
+  { bar: 'bg-sky', soft: 'bg-sky-soft', text: 'text-sky' },
+  { bar: 'bg-coral', soft: 'bg-coral-soft', text: 'text-coral' },
+];
 
 type Mode =
   | { kind: 'create' }
@@ -147,64 +155,84 @@ export function AccountFundsSection({
   };
 
   return (
-    <div className="mt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
-      {funds.length > 0 && (
-        <div className="rounded-xl bg-muted/40 dark:bg-muted/20 p-3 space-y-2.5">
-          <div className="flex items-baseline justify-between gap-2 text-sm">
-            <span className="font-medium">Libre</span>
-            <span className={cn('font-bold tabular-nums', free >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
-              {formatCurrency(free)}
-            </span>
-          </div>
-          {funds.map((fund) => {
-            const percent = fund.targetAmount ? Math.min(100, Math.round((fund.balance / fund.targetAmount) * 100)) : null;
-            return (
-              <button
-                key={fund.id}
-                type="button"
-                onClick={() => setActionsFund(fund)}
-                className="block w-full min-h-11 rounded-lg px-2 py-1.5 text-left hover:bg-muted active:bg-muted"
-              >
-                <span className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    {fund.isThirdParty ? (
-                      <Users className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-                    ) : (
-                      <PiggyBank className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    )}
-                    <span className="truncate">{fund.name}</span>
-                    {fund.isThirdParty && (
-                      <span className="shrink-0 rounded-full bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
-                        De terceros
-                      </span>
-                    )}
-                  </span>
-                  <span className="shrink-0 font-semibold tabular-nums">{formatCurrency(fund.balance)}</span>
-                </span>
-                {percent != null && (
-                  <span className="mt-1 flex items-center gap-2">
-                    <Progress value={percent} className="h-1.5 flex-1" />
-                    <span className="text-[11px] text-muted-foreground tabular-nums">
-                      {percent}% de {formatCurrency(fund.targetAmount!)}
-                    </span>
-                  </span>
-                )}
-              </button>
-            );
-          })}
+    <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+      <div className="rounded-[18px] bg-background p-3.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[13px] font-bold text-jade-text">Libre para gastar</span>
+          <span className={cn('num text-2xl font-extrabold', free >= 0 ? 'text-jade' : 'text-coral')}>
+            {formatCurrency(free)}
+          </span>
         </div>
-      )}
+        {funds.length > 0 && (
+          <>
+            <div aria-hidden className="mt-2.5 flex h-2.5 gap-[3px]">
+              {free > 0 && <span className="rounded-[3px] bg-jade" style={{ flex: free }} />}
+              {funds.map((fund, i) => (
+                <span key={fund.id} className={cn('rounded-[3px]', FUND_TONES[i % FUND_TONES.length].bar)} style={{ flex: Math.max(0, fund.balance) }} />
+              ))}
+            </div>
+            <ul className="mt-3 space-y-1.5">
+              {funds.map((fund, i) => {
+                const tone = FUND_TONES[i % FUND_TONES.length];
+                const percent = fund.targetAmount ? Math.min(100, Math.round((fund.balance / fund.targetAmount) * 100)) : null;
+                return (
+                  <li key={fund.id}>
+                    <button
+                      type="button"
+                      onClick={() => setActionsFund(fund)}
+                      className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-surface px-3 text-left transition-colors hover:bg-surface-2"
+                    >
+                      <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', tone.soft, tone.text)}>
+                        {fund.isThirdParty ? <Users className="h-[18px] w-[18px]" /> : <PiggyBank className="h-[18px] w-[18px]" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold">{fund.name}</span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          {fund.isThirdParty
+                            ? 'de terceros · no cuenta como tuyo'
+                            : percent != null
+                              ? `${percent}% de ${formatCurrency(fund.targetAmount!)}`
+                              : 'sin meta'}
+                        </span>
+                        {percent != null && (
+                          <span aria-hidden className="mt-1 block h-1 rounded-full bg-surface-3">
+                            <span className={cn('block h-1 rounded-full', tone.bar)} style={{ width: `${percent}%` }} />
+                          </span>
+                        )}
+                      </span>
+                      <span className="num shrink-0 text-[15px] font-extrabold">{formatCurrency(fund.balance)}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </div>
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-9 gap-1.5 px-2 text-muted-foreground"
-        onClick={() => open({ kind: 'create' })}
-      >
-        <Plus className="h-4 w-4" />
-        {funds.length > 0 ? 'Nuevo fondo' : 'Dividir en fondos'}
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        {funds.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setActionsFund(funds[0])}
+            className="flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-jade text-[13px] font-extrabold text-jade-ink"
+          >
+            <ArrowDownToLine className="h-4 w-4" />
+            Apartar o liberar
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => open({ kind: 'create' })}
+          className={cn(
+            'flex min-h-11 items-center justify-center gap-1.5 rounded-full text-[13px] font-extrabold',
+            funds.length > 0 ? 'border border-line-strong text-foreground' : 'col-span-2 bg-surface-3 text-foreground'
+          )}
+        >
+          <Plus className="h-4 w-4" />
+          {funds.length > 0 ? 'Nuevo fondo' : 'Dividir en fondos'}
+        </button>
+      </div>
 
       {/* Acciones de un fondo */}
       <Drawer open={!!actionsFund} onOpenChange={(o) => !o && setActionsFund(null)}>
@@ -236,9 +264,9 @@ export function AccountFundsSection({
                     type="button"
                     disabled={isPending}
                     onClick={action.onClick}
-                    className={cn(cardStyles.drawerAction, 'active:bg-muted')}
+                    className={cn(cardStyles.drawerAction, 'active:bg-surface-3')}
                   >
-                    <div className={cn(cardStyles.drawerActionIconBox, 'bg-muted')}>
+                    <div className={cn(cardStyles.drawerActionIconBox, 'bg-surface-3')}>
                       <span className="text-muted-foreground [&>svg]:h-5 [&>svg]:w-5">{action.icon}</span>
                     </div>
                     <span className="text-base font-medium">{action.label}</span>
