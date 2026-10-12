@@ -412,6 +412,8 @@ export function TransactionTable({
       }
       const amount = parseFloat(t.baseAmount);
       g.rows.push(t);
+      // Pagos de tarjeta y traspasos entre tus cuentas no son ni ingreso ni gasto
+      if (t.linkedTransactionId) continue;
       if (t.type === 'income') g.income += amount;
       if (t.type === 'expense') g.spent += amount;
     }

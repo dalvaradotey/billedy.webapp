@@ -68,6 +68,8 @@ export function DailyPulseCard({
     const count = Math.max(1, Math.min(62, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1));
     const byDay = new Map<string, { spent: number; income: number }>();
     for (const t of transactions) {
+      // Pagos de tarjeta y traspasos entre tus cuentas no son ni ingreso ni gasto
+      if (t.linkedTransactionId) continue;
       const key = new Date(t.date).toISOString().slice(0, 10);
       const cur = byDay.get(key) ?? { spent: 0, income: 0 };
       if (t.type === 'expense') cur.spent += parseFloat(t.baseAmount);
