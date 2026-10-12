@@ -61,14 +61,14 @@ type ConfirmDialogProps = ConfirmDialogWithTrigger | ConfirmDialogControlled;
 
 const iconVariantStyles = {
   default: 'bg-muted text-muted-foreground',
-  destructive: 'bg-red-500/10 text-red-500 dark:text-red-400',
-  warning: 'bg-amber-500/10 text-amber-500 dark:text-amber-400',
+  destructive: 'bg-coral-soft text-coral dark:text-coral',
+  warning: 'bg-amber-soft text-amber dark:text-amber',
   info: 'bg-sky-soft text-sky',
 };
 
 const buttonVariantStyles = {
   default: '',
-  destructive: '!bg-red-500/10 !text-red-500 dark:!text-red-400 hover:!bg-red-500/20',
+  destructive: '!bg-coral-soft !text-coral dark:!text-coral hover:!bg-coral-soft',
 };
 
 /**

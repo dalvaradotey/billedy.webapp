@@ -218,7 +218,7 @@ export function CardPurchaseCard({
               />
             </div>
           ) : (
-            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400">
+            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-amber-soft text-amber dark:bg-amber-soft dark:text-amber">
               <Store className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
           )}
@@ -231,7 +231,7 @@ export function CardPurchaseCard({
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-base truncate">{purchase.description}</p>
                   {purchase.nature !== 'own' && (
-                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0">
+                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-sky-soft text-sky dark:text-sky shrink-0">
                       <Users className="h-3 w-3" />
                       {NATURE_LABELS[purchase.nature]}
                     </span>
@@ -303,23 +303,23 @@ export function CardPurchaseCard({
                         disabled={isPending}
                         className={cn(
                           cardStyles.drawerAction,
-                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-muted'
                         )}
                       >
                         <div className={cn(
                           cardStyles.drawerActionIconBox,
-                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-muted'
                         )}>
                           <span className={cn(
                             '[&>svg]:h-5 [&>svg]:w-5',
-                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                            action.variant === 'destructive' ? 'text-coral dark:text-coral' : 'text-muted-foreground'
                           )}>
                             {action.icon}
                           </span>
                         </div>
                         <span className={cn(
                           'text-base font-medium',
-                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                          action.variant === 'destructive' && 'text-coral dark:text-coral'
                         )}>
                           {action.label}
                         </span>
@@ -387,7 +387,7 @@ export function CardPurchaseCard({
                     />
                   </div>
                 ) : (
-                  <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center shrink-0">
+                  <div className="w-5 h-5 rounded bg-sky-soft flex items-center justify-center shrink-0">
                     <CreditCard className="h-3 w-3 text-muted-foreground" />
                   </div>
                 )}
@@ -410,9 +410,9 @@ export function CardPurchaseCard({
                     <div>
                       <p className={cardStyles.detailsLabel}>Intereses</p>
                       {hasInterest ? (
-                        <p className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
+                        <p className="text-sm font-semibold tabular-nums text-coral dark:text-coral">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
                       ) : (
-                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Sin interés</p>
+                        <p className="text-sm font-semibold text-jade dark:text-jade">Sin interés</p>
                       )}
                     </div>
                   </div>
@@ -460,7 +460,7 @@ export function CardPurchaseCard({
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-red-500 dark:text-red-400'
+                      ? 'text-coral dark:text-coral'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}
@@ -514,7 +514,7 @@ export function CardPurchaseCard({
                   />
                 </div>
               ) : (
-                <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center shrink-0">
+                <div className="w-5 h-5 rounded bg-sky-soft flex items-center justify-center shrink-0">
                   <CreditCard className="h-3 w-3 text-muted-foreground" />
                 </div>
               )}
@@ -537,9 +537,9 @@ export function CardPurchaseCard({
                   <div>
                     <p className={cardStyles.detailsLabel}>Intereses</p>
                     {hasInterest ? (
-                      <p className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
+                      <p className="text-sm font-semibold tabular-nums text-coral dark:text-coral">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
                     ) : (
-                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Sin interés</p>
+                      <p className="text-sm font-semibold text-jade dark:text-jade">Sin interés</p>
                     )}
                   </div>
                 </div>

@@ -39,7 +39,7 @@ export const FloatingLabelTextarea = forwardRef<HTMLTextAreaElement, FloatingLab
           className={cn(
             'absolute left-3 transition-all flex items-center gap-1 pointer-events-none',
             isActive ? 'top-1.5 text-xs' : 'top-3 text-base',
-            valid ? 'text-emerald-600' : hasError ? 'text-destructive' : 'text-muted-foreground'
+            valid ? 'text-jade' : hasError ? 'text-destructive' : 'text-muted-foreground'
           )}
         >
           {label}
@@ -50,7 +50,7 @@ export const FloatingLabelTextarea = forwardRef<HTMLTextAreaElement, FloatingLab
           ref={ref}
           className={cn(
             'pt-6 pb-2 resize-none',
-            valid && 'ring-1 ring-emerald-500',
+            valid && 'ring-1 ring-jade',
             hasError && 'ring-1 ring-destructive',
             className
           )}

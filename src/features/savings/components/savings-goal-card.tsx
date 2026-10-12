@@ -221,8 +221,8 @@ export function SavingsGoalCard({
           <div className={cn(
             'p-3 sm:p-2.5 rounded-xl flex-shrink-0',
             isCompleted
-              ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'
-              : 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400'
+              ? 'bg-jade-soft text-jade dark:bg-jade-soft dark:text-jade'
+              : 'bg-sky-soft text-sky dark:bg-sky-soft dark:text-sky'
           )}>
             {GOAL_TYPE_ICONS[goal.type]}
           </div>
@@ -235,7 +235,7 @@ export function SavingsGoalCard({
                 <div className="flex items-center gap-2">
                   <p className="font-semibold text-base truncate">{goal.name}</p>
                   {isCompleted && (
-                    <Badge className="shrink-0 text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    <Badge className="shrink-0 text-[10px] px-1.5 py-0 bg-jade-soft text-jade dark:text-jade">
                       Completada
                     </Badge>
                   )}
@@ -244,7 +244,7 @@ export function SavingsGoalCard({
               </div>
 
               {/* Desktop: Amount */}
-              <p className="hidden sm:block text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 shrink-0">
+              <p className="hidden sm:block text-2xl font-bold tabular-nums text-jade dark:text-jade shrink-0">
                 {formatCurrency(goal.currentBalance, goal.currencyCode)}
               </p>
               {/* Actions toggle (mobile: opens drawer, desktop: toggles inline) */}
@@ -273,7 +273,7 @@ export function SavingsGoalCard({
             </div>
 
             {/* Mobile: Amount below description */}
-            <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 mt-1 sm:hidden">
+            <p className="text-2xl font-bold tabular-nums text-jade dark:text-jade mt-1 sm:hidden">
               {formatCurrency(goal.currentBalance, goal.currencyCode)}
             </p>
 
@@ -292,23 +292,23 @@ export function SavingsGoalCard({
                         disabled={isPending}
                         className={cn(
                           cardStyles.drawerAction,
-                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-muted'
                         )}
                       >
                         <div className={cn(
                           cardStyles.drawerActionIconBox,
-                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-muted'
                         )}>
                           <span className={cn(
                             '[&>svg]:h-5 [&>svg]:w-5',
-                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                            action.variant === 'destructive' ? 'text-coral dark:text-coral' : 'text-muted-foreground'
                           )}>
                             {action.icon}
                           </span>
                         </div>
                         <span className={cn(
                           'text-base font-medium',
-                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                          action.variant === 'destructive' && 'text-coral dark:text-coral'
                         )}>
                           {action.label}
                         </span>
@@ -357,11 +357,11 @@ export function SavingsGoalCard({
               <button
                 onClick={(e) => { e.stopPropagation(); handleComplete(); }}
                 disabled={isPending}
-                className="mt-3 w-full flex items-center gap-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 px-4 py-3 ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-500/15 dark:hover:bg-emerald-500/20 disabled:opacity-50"
+                className="mt-3 w-full flex items-center gap-3 rounded-xl bg-jade-soft dark:bg-jade-soft px-4 py-3 ring-1 ring-jade/20 transition-colors hover:bg-jade-soft dark:hover:bg-jade-soft disabled:opacity-50"
               >
-                <PartyPopper className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Meta alcanzada</span>
-                <span className="ml-auto text-xs font-medium text-emerald-600 dark:text-emerald-400">Marcar completada</span>
+                <PartyPopper className="h-5 w-5 text-jade dark:text-jade shrink-0" />
+                <span className="text-sm font-medium text-jade dark:text-jade-text">Meta alcanzada</span>
+                <span className="ml-auto text-xs font-medium text-jade dark:text-jade">Marcar completada</span>
               </button>
             )}
             {/* Details toggle */}
@@ -406,7 +406,7 @@ export function SavingsGoalCard({
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-red-500 dark:text-red-400'
+                      ? 'text-coral dark:text-coral'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}
@@ -441,11 +441,11 @@ export function SavingsGoalCard({
             <button
               onClick={(e) => { e.stopPropagation(); handleComplete(); }}
               disabled={isPending}
-              className="mt-3 w-full flex items-center gap-3 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 px-4 py-3 ring-1 ring-emerald-500/20 transition-colors active:bg-emerald-500/15 dark:active:bg-emerald-500/20 disabled:opacity-50"
+              className="mt-3 w-full flex items-center gap-3 rounded-xl bg-jade-soft dark:bg-jade-soft px-4 py-3 ring-1 ring-jade/20 transition-colors active:bg-jade-soft dark:active:bg-jade-soft disabled:opacity-50"
             >
-              <PartyPopper className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Meta alcanzada</span>
-              <span className="ml-auto text-xs font-medium text-emerald-600 dark:text-emerald-400">Marcar completada</span>
+              <PartyPopper className="h-5 w-5 text-jade dark:text-jade shrink-0" />
+              <span className="text-sm font-medium text-jade dark:text-jade-text">Meta alcanzada</span>
+              <span className="ml-auto text-xs font-medium text-jade dark:text-jade">Marcar completada</span>
             </button>
           )}
           {/* Details toggle (mobile) */}

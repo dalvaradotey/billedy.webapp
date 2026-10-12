@@ -117,8 +117,8 @@ export function SavingsGoalTransactions({
               className={cn(
                 'text-sm font-semibold tabular-nums shrink-0',
                 t.type === 'income'
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-red-600 dark:text-red-400'
+                  ? 'text-jade dark:text-jade'
+                  : 'text-coral dark:text-coral'
               )}
             >
               {t.type === 'income' ? '+' : '-'}
@@ -130,7 +130,7 @@ export function SavingsGoalTransactions({
                 handleUnlink(t.id, t.description);
               }}
               disabled={isPending}
-              className="shrink-0 p-1.5 rounded-md text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+              className="shrink-0 p-1.5 rounded-md text-muted-foreground/50 hover:text-coral hover:bg-coral-soft transition-colors disabled:opacity-50"
               title="Desvincular de esta meta"
             >
               <Unlink className="h-3.5 w-3.5" />

@@ -138,7 +138,7 @@ export function CategorySelector({
             className={cn(
               'w-full justify-between font-normal',
               label ? 'h-14 py-1' : 'h-12',
-              valid && 'ring-1 ring-emerald-500',
+              valid && 'ring-1 ring-jade',
               invalid && 'ring-1 ring-destructive'
             )}
             disabled={disabled}
@@ -150,7 +150,7 @@ export function CategorySelector({
                   className={cn(
                     'transition-all flex items-center gap-1',
                     selectedCategory ? 'text-xs' : 'text-base',
-                    valid ? 'text-emerald-600' : invalid ? 'text-destructive' : 'text-muted-foreground'
+                    valid ? 'text-jade' : invalid ? 'text-destructive' : 'text-muted-foreground'
                   )}
                 >
                   {label}
@@ -377,7 +377,7 @@ function CreateCategoryDialog({
                     className={cn(
                       'flex items-center gap-1 text-sm font-medium',
                       fieldState.isDirty && !fieldState.invalid
-                        ? 'text-emerald-600'
+                        ? 'text-jade'
                         : fieldState.invalid
                           ? 'text-destructive'
                           : 'text-foreground'

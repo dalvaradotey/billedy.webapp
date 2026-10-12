@@ -144,13 +144,13 @@ export function CardActions({
             className={cn(
               'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50',
               action.variant === 'destructive'
-                ? 'bg-red-500/10 hover:bg-red-500/20'
+                ? 'bg-coral-soft hover:bg-coral-soft'
                 : 'bg-muted/50 hover:bg-muted'
             )}
           >
             <span className={cn(
               action.variant === 'destructive'
-                ? 'text-red-500 dark:text-red-400'
+                ? 'text-coral dark:text-coral'
                 : 'text-muted-foreground',
               '[&>svg]:h-4 [&>svg]:w-4'
             )}>
@@ -158,7 +158,7 @@ export function CardActions({
             </span>
             <span className={cn(
               'text-sm font-medium',
-              action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+              action.variant === 'destructive' && 'text-coral dark:text-coral'
             )}>
               {action.label}
             </span>
@@ -207,19 +207,19 @@ export function CardActions({
                   className={cn(
                     'w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors disabled:opacity-50',
                     action.variant === 'destructive'
-                      ? 'active:bg-red-500/10'
+                      ? 'active:bg-coral-soft'
                       : 'active:bg-muted'
                   )}
                 >
                   <div className={cn(
                     'w-10 h-10 rounded-xl flex items-center justify-center',
                     action.variant === 'destructive'
-                      ? 'bg-red-500/10'
+                      ? 'bg-coral-soft'
                       : 'bg-muted'
                   )}>
                     <span className={cn(
                       action.variant === 'destructive'
-                        ? 'text-red-500 dark:text-red-400'
+                        ? 'text-coral dark:text-coral'
                         : 'text-muted-foreground',
                       '[&>svg]:h-5 [&>svg]:w-5'
                     )}>
@@ -228,7 +228,7 @@ export function CardActions({
                   </div>
                   <span className={cn(
                     'text-base font-medium',
-                    action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                    action.variant === 'destructive' && 'text-coral dark:text-coral'
                   )}>
                     {action.label}
                   </span>

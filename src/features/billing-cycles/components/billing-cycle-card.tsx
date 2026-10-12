@@ -173,11 +173,11 @@ export function BillingCycleCard({
         <div className="flex items-start gap-3">
           {/* Status Icon */}
           {isOpen ? (
-            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-sky-soft text-sky dark:bg-sky-soft dark:text-sky">
               <Clock className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
           ) : (
-            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-jade-soft text-jade dark:bg-jade-soft dark:text-jade">
               <CheckCircle2 className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
           )}
@@ -257,23 +257,23 @@ export function BillingCycleCard({
                         disabled={isPending}
                         className={cn(
                           cardStyles.drawerAction,
-                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-muted'
                         )}
                       >
                         <div className={cn(
                           cardStyles.drawerActionIconBox,
-                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-muted'
                         )}>
                           <span className={cn(
                             '[&>svg]:h-5 [&>svg]:w-5',
-                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                            action.variant === 'destructive' ? 'text-coral dark:text-coral' : 'text-muted-foreground'
                           )}>
                             {action.icon}
                           </span>
                         </div>
                         <span className={cn(
                           'text-base font-medium',
-                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                          action.variant === 'destructive' && 'text-coral dark:text-coral'
                         )}>
                           {action.label}
                         </span>
@@ -338,7 +338,7 @@ export function BillingCycleCard({
             </span>
             <span className="flex shrink-0 items-center gap-1.5">
               {balance.warnings.length > 0 && (
-                <AlertTriangle className="h-4 w-4 text-amber-500" aria-label="Hay avisos" />
+                <AlertTriangle className="h-4 w-4 text-amber" aria-label="Hay avisos" />
               )}
               <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', showDetails && 'rotate-180')} />
             </span>
@@ -379,7 +379,7 @@ export function BillingCycleCard({
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-red-500 dark:text-red-400'
+                      ? 'text-coral dark:text-coral'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}

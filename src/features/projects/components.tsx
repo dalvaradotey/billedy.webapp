@@ -124,7 +124,7 @@ export function ProjectSelector({
                 {isOwner && (
                   <ResponsiveDrawer open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                     <DrawerTrigger asChild>
-                      <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm text-emerald-600 dark:text-emerald-400">
+                      <button className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:bg-accent rounded-sm text-jade dark:text-jade">
                         <UserPlus className="h-4 w-4" />
                         Invitar miembro
                       </button>
@@ -575,7 +575,7 @@ function MembersDialogContent({
                 {roleInfo.label}
               </span>
               {isPending && (
-                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                <span className="flex items-center gap-1 text-amber dark:text-amber">
                   <Clock className="h-3 w-3" />
                   Pendiente
                 </span>

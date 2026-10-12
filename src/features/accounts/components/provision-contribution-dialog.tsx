@@ -116,7 +116,7 @@ export function ProvisionContributionDialogContent({
     >
       <FormDrawerBody as="form" onSubmit={handleSubmit}>
         {missingCategories && (
-          <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-sm text-amber-200">
+          <div className="rounded-lg bg-amber-soft border border-amber/30 p-3 text-sm text-amber-text">
             No se encontraron las categorías automáticas para esta cuenta.
             Verifica que existan las categorías &quot;Aporte {account.name}&quot; y &quot;Rentabilidad {account.name}&quot;.
           </div>

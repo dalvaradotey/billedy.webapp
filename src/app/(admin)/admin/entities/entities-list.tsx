@@ -340,7 +340,7 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
               aria-expanded={typeOpen}
               className={cn(
                 'w-full justify-between font-normal h-14 py-1',
-                type && 'ring-1 ring-emerald-500'
+                type && 'ring-1 ring-jade'
               )}
             >
               <div className="flex flex-col items-start gap-0.5 min-w-0">
@@ -348,7 +348,7 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
                   className={cn(
                     'transition-all flex items-center gap-1',
                     type ? 'text-xs' : 'text-base',
-                    type ? 'text-emerald-600' : 'text-muted-foreground'
+                    type ? 'text-jade' : 'text-muted-foreground'
                   )}
                 >
                   Tipo

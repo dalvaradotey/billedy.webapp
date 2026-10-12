@@ -56,7 +56,7 @@ export function SwitchCard({
       }}
       className={cn(
         'flex flex-row items-center justify-between rounded-lg border p-3 transition-colors',
-        showActiveState && checked && 'ring-1 ring-emerald-500',
+        showActiveState && checked && 'ring-1 ring-jade',
         disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent/50',
         className
       )}

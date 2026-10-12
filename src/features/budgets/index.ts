@@ -7,7 +7,6 @@ export type { CreateBudgetInput, UpdateBudgetInput } from './schemas';
 
 // Components
 export { BudgetList } from './components';
-export { BudgetProgressSlider } from './components/budget-progress-slider';
 
 // Queries
 export { getBudgetsWithCategory, getActiveBudgets, getProjectCategories, getBudgetsProgress } from './queries';

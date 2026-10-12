@@ -166,7 +166,7 @@ export function CreditCard({
               />
             </div>
           ) : (
-            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-sky-soft text-sky dark:bg-sky-soft dark:text-sky">
               <CreditCardIcon className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
           )}
@@ -245,23 +245,23 @@ export function CreditCard({
                         disabled={isPending}
                         className={cn(
                           cardStyles.drawerAction,
-                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-muted'
                         )}
                       >
                         <div className={cn(
                           cardStyles.drawerActionIconBox,
-                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-muted'
                         )}>
                           <span className={cn(
                             '[&>svg]:h-5 [&>svg]:w-5',
-                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                            action.variant === 'destructive' ? 'text-coral dark:text-coral' : 'text-muted-foreground'
                           )}>
                             {action.icon}
                           </span>
                         </div>
                         <span className={cn(
                           'text-base font-medium',
-                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                          action.variant === 'destructive' && 'text-coral dark:text-coral'
                         )}>
                           {action.label}
                         </span>
@@ -335,9 +335,9 @@ export function CreditCard({
                     <div>
                       <p className={cardStyles.detailsLabel}>Intereses</p>
                       {hasInterest ? (
-                        <p className={cn(cardStyles.detailsValue, 'text-red-500 dark:text-red-400')}>{formatCurrency(interestAmount)}</p>
+                        <p className={cn(cardStyles.detailsValue, 'text-coral dark:text-coral')}>{formatCurrency(interestAmount)}</p>
                       ) : (
-                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Sin interés</p>
+                        <p className="text-sm font-semibold text-jade dark:text-jade">Sin interés</p>
                       )}
                     </div>
                   </div>
@@ -391,7 +391,7 @@ export function CreditCard({
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-red-500 dark:text-red-400'
+                      ? 'text-coral dark:text-coral'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}
@@ -451,9 +451,9 @@ export function CreditCard({
                   <div>
                     <p className={cardStyles.detailsLabel}>Intereses</p>
                     {hasInterest ? (
-                      <p className={cn(cardStyles.detailsValue, 'text-red-500 dark:text-red-400')}>{formatCurrency(interestAmount)}</p>
+                      <p className={cn(cardStyles.detailsValue, 'text-coral dark:text-coral')}>{formatCurrency(interestAmount)}</p>
                     ) : (
-                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Sin interés</p>
+                      <p className="text-sm font-semibold text-jade dark:text-jade">Sin interés</p>
                     )}
                   </div>
                 </div>

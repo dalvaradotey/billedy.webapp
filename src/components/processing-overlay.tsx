@@ -50,7 +50,7 @@ function LoadingContent({ text }: { text?: string }) {
         style={{ top: '60%', right: '25%', animationDelay: '1s' }}
       />
       <div
-        className="absolute w-14 h-14 rounded-full bg-cyan-400/20 blur-lg animate-float-slow"
+        className="absolute w-14 h-14 rounded-full bg-sky-soft blur-lg animate-float-slow"
         style={{ bottom: '30%', left: '30%', animationDelay: '0.5s' }}
       />
 
@@ -91,15 +91,15 @@ function SuccessContent({ text }: { text?: string }) {
         style={{ '--tx': '-70px', '--ty': '80px', animationDelay: '0.15s' } as React.CSSProperties}
       />
       <div
-        className="absolute w-18 h-18 rounded-full bg-teal-500/25 blur-xl animate-success-particle"
+        className="absolute w-18 h-18 rounded-full bg-jade-soft blur-xl animate-success-particle"
         style={{ '--tx': '100px', '--ty': '60px', animationDelay: '0.2s' } as React.CSSProperties}
       />
       <div
-        className="absolute w-12 h-12 rounded-full bg-cyan-400/30 blur-lg animate-success-particle"
+        className="absolute w-12 h-12 rounded-full bg-sky/30 blur-lg animate-success-particle"
         style={{ '--tx': '0px', '--ty': '-100px', animationDelay: '0.05s' } as React.CSSProperties}
       />
       <div
-        className="absolute w-16 h-16 rounded-full bg-green-500/25 blur-xl animate-success-particle"
+        className="absolute w-16 h-16 rounded-full bg-jade-soft blur-xl animate-success-particle"
         style={{ '--tx': '-110px', '--ty': '0px', animationDelay: '0.25s' } as React.CSSProperties}
       />
 

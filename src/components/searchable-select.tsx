@@ -142,7 +142,7 @@ export function SearchableSelect({
           className={cn(
             'w-full justify-between font-normal',
             label ? 'h-14 py-1' : 'h-12',
-            valid && 'ring-1 ring-emerald-500',
+            valid && 'ring-1 ring-jade',
             invalid && 'ring-1 ring-destructive'
           )}
           disabled={disabled}
@@ -154,7 +154,7 @@ export function SearchableSelect({
                 className={cn(
                   'transition-all flex items-center gap-1',
                   selectedOption ? 'text-xs' : 'text-base',
-                  valid ? 'text-emerald-600' : invalid ? 'text-destructive' : 'text-muted-foreground'
+                  valid ? 'text-jade' : invalid ? 'text-destructive' : 'text-muted-foreground'
                 )}
               >
                 {label}

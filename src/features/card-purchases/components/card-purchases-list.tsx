@@ -151,7 +151,7 @@ export function CardPurchasesList({
       {hasPendingCharges && (
         <button
           onClick={handleChargeAll}
-          className="w-full flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400 transition-colors active:bg-amber-500/20"
+          className="w-full flex items-center gap-2 rounded-xl border border-amber/30 bg-amber-soft px-3 py-2.5 text-sm text-amber dark:text-amber transition-colors active:bg-amber-soft"
         >
           <Receipt className="h-4 w-4 shrink-0" />
           <span className="font-medium">Hay cuotas pendientes de cobro</span>

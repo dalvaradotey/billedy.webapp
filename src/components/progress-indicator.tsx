@@ -27,7 +27,7 @@ export function ProgressIndicator({
           key={i}
           className={cn(
             'h-2 w-2 rounded-full transition-colors duration-200',
-            current > i ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+            current > i ? 'bg-jade' : 'bg-muted-foreground/30'
           )}
         />
       ))}

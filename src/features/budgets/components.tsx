@@ -529,12 +529,12 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
             <div
               className={cn(
                 'w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0 flex items-center justify-center',
-                isExpired ? 'bg-muted' : 'bg-blue-500/15'
+                isExpired ? 'bg-muted' : 'bg-sky-soft'
               )}
             >
               <Calendar className={cn(
                 'h-5 w-5 sm:h-4 sm:w-4',
-                isExpired ? 'text-muted-foreground' : 'text-blue-600 dark:text-blue-400'
+                isExpired ? 'text-muted-foreground' : 'text-sky dark:text-sky'
               )} />
             </div>
           ) : budget.categoryColor ? (
@@ -567,7 +567,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
                     <Badge variant="destructive" className="text-xs flex-shrink-0">Expirado</Badge>
                   )}
                   {isTemporary && !isExpired && days !== null && (
-                    <Badge variant="outline" className="text-xs flex-shrink-0 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                    <Badge variant="outline" className="text-xs flex-shrink-0 text-sky dark:text-sky border-sky/30 dark:border-sky">
                       {days === 0 ? 'Último día' : days === 1 ? '1 día' : `${days} días`}
                     </Badge>
                   )}
@@ -632,23 +632,23 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
                         disabled={isPending}
                         className={cn(
                           cardStyles.drawerAction,
-                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-muted'
                         )}
                       >
                         <div className={cn(
                           cardStyles.drawerActionIconBox,
-                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-muted'
                         )}>
                           <span className={cn(
                             '[&>svg]:h-5 [&>svg]:w-5',
-                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                            action.variant === 'destructive' ? 'text-coral dark:text-coral' : 'text-muted-foreground'
                           )}>
                             {action.icon}
                           </span>
                         </div>
                         <span className={cn(
                           'text-base font-medium',
-                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                          action.variant === 'destructive' && 'text-coral dark:text-coral'
                         )}>
                           {action.label}
                         </span>
@@ -690,7 +690,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-red-500 dark:text-red-400'
+                      ? 'text-coral dark:text-coral'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}
