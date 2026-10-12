@@ -200,13 +200,15 @@ export async function getTransactionSummary(
     .select({
       type: transactions.type,
       isPaid: transactions.isPaid,
+      accountType: accounts.type,
       totalAmount: sql<string>`SUM(${transactions.baseAmount})`,
       count: sql<number>`COUNT(*)`,
     })
     .from(transactions)
     .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
+    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
     .where(and(...conditions))
-    .groupBy(transactions.type, transactions.isPaid);
+    .groupBy(transactions.type, transactions.isPaid, accounts.type);
 
   let paidIncome = 0;
   let pendingIncome = 0;
@@ -220,10 +222,13 @@ export async function getTransactionSummary(
     const count = Number(row.count);
 
     if (row.type === 'income') {
-      if (row.isPaid) {
-        paidIncome += amount;
-      } else {
-        pendingIncome += amount;
+      // Lo que entra a una tarjeta (diferencias, devoluciones) no es ingreso
+      if (row.accountType !== 'credit_card') {
+        if (row.isPaid) {
+          paidIncome += amount;
+        } else {
+          pendingIncome += amount;
+        }
       }
     } else {
       if (row.isPaid) {

@@ -412,13 +412,15 @@ export function TransactionTable({
       }
       const amount = parseFloat(t.baseAmount);
       g.rows.push(t);
-      // Pagos de tarjeta y traspasos entre tus cuentas no son ni ingreso ni gasto
+      // Pagos de tarjeta y traspasos entre tus cuentas no son ni ingreso ni gasto, y lo
+      // que entra a una tarjeta (diferencias, devoluciones) tampoco es ingreso
       if (t.linkedTransactionId) continue;
+      if (t.type === 'income' && accountsMap.get(t.accountId ?? '')?.type === 'credit_card') continue;
       if (t.type === 'income') g.income += amount;
       if (t.type === 'expense') g.spent += amount;
     }
     return groups;
-  }, [sortedTransactions, groupByDay]);
+  }, [sortedTransactions, groupByDay, accountsMap]);
   const maxDaySpent = Math.max(1, ...dayGroups.map((g) => g.spent));
   const allSelected = transactions.length > 0 && selectedIds.size === transactions.length;
 

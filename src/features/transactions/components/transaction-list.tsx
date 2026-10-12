@@ -328,6 +328,7 @@ export function TransactionList({
         selectedDay={selectedDay}
         onSelectDay={setSelectedDay}
         reconciledCount={transactions.filter((t) => t.isReconciled).length}
+        creditCardAccountIds={new Set(accounts.filter((a) => a.type === 'credit_card').map((a) => a.id))}
       />
 
       {/* ═══ TOOLBAR + FILTROS ═══ */}

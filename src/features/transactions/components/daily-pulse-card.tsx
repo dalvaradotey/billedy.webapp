@@ -40,6 +40,8 @@ interface DailyPulseCardProps {
   selectedDay: string | null;
   onSelectDay: (day: string | null) => void;
   reconciledCount: number;
+  /** Lo que entra a una tarjeta (pagos, ajustes) no es ingreso */
+  creditCardAccountIds: Set<string>;
 }
 
 /**
@@ -56,6 +58,7 @@ export function DailyPulseCard({
   selectedDay,
   onSelectDay,
   reconciledCount,
+  creditCardAccountIds,
 }: DailyPulseCardProps) {
   const [ref, W] = useWidth<HTMLDivElement>();
   // Día bajo el mouse o el dedo: muestra lo que salió, entró y el acumulado
@@ -68,8 +71,10 @@ export function DailyPulseCard({
     const count = Math.max(1, Math.min(62, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1));
     const byDay = new Map<string, { spent: number; income: number }>();
     for (const t of transactions) {
-      // Pagos de tarjeta y traspasos entre tus cuentas no son ni ingreso ni gasto
+      // Pagos de tarjeta y traspasos entre tus cuentas no son ni ingreso ni gasto, y lo
+      // que entra a una tarjeta (diferencias, devoluciones) tampoco es ingreso
       if (t.linkedTransactionId) continue;
+      if (t.type === 'income' && creditCardAccountIds.has(t.accountId ?? '')) continue;
       const key = new Date(t.date).toISOString().slice(0, 10);
       const cur = byDay.get(key) ?? { spent: 0, income: 0 };
       if (t.type === 'expense') cur.spent += parseFloat(t.baseAmount);
@@ -82,7 +87,7 @@ export function DailyPulseCard({
       const iso = d.toISOString().slice(0, 10);
       return { iso, date: d, ...(byDay.get(iso) ?? { spent: 0, income: 0 }), future: iso > todayIso };
     });
-  }, [transactions, startDate, endDate, todayIso]);
+  }, [transactions, startDate, endDate, todayIso, creditCardAccountIds]);
 
   const H = 130;
   const base = H - 20;
