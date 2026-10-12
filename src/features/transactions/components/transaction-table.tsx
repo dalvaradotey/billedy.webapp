@@ -401,22 +401,26 @@ export function TransactionTable({
   // Agrupar por día cuando el orden es por fecha (el orden por defecto)
   const groupByDay = sortColumn === null || sortColumn === 'date';
   const dayGroups = useMemo(() => {
-    if (!groupByDay) return [{ key: 'all', label: '', rows: sortedTransactions, net: 0, spent: 0 }];
-    const groups: { key: string; label: string; rows: TransactionWithCategory[]; net: number; spent: number }[] = [];
+    if (!groupByDay) return [{ key: 'all', label: '', rows: sortedTransactions, income: 0, spent: 0 }];
+    const groups: { key: string; label: string; rows: TransactionWithCategory[]; income: number; spent: number }[] = [];
     for (const t of sortedTransactions) {
       const key = new Date(t.date).toISOString().slice(0, 10);
       let g = groups[groups.length - 1];
       if (!g || g.key !== key) {
-        g = { key, label: dayLabel(key), rows: [], net: 0, spent: 0 };
+        g = { key, label: dayLabel(key), rows: [], income: 0, spent: 0 };
         groups.push(g);
       }
       const amount = parseFloat(t.baseAmount);
       g.rows.push(t);
-      g.net += t.type === 'income' ? amount : -amount;
+      // Pagos de tarjeta y traspasos entre tus cuentas no son ni ingreso ni gasto, y lo
+      // que entra a una tarjeta (diferencias, devoluciones) tampoco es ingreso
+      if (t.linkedTransactionId) continue;
+      if (t.type === 'income' && accountsMap.get(t.accountId ?? '')?.type === 'credit_card') continue;
+      if (t.type === 'income') g.income += amount;
       if (t.type === 'expense') g.spent += amount;
     }
     return groups;
-  }, [sortedTransactions, groupByDay]);
+  }, [sortedTransactions, groupByDay, accountsMap]);
   const maxDaySpent = Math.max(1, ...dayGroups.map((g) => g.spent));
   const allSelected = transactions.length > 0 && selectedIds.size === transactions.length;
 
@@ -517,12 +521,20 @@ export function TransactionTable({
               /* Encabezado del día: queda pegado arriba hasta que llega el siguiente */
               <div className="sticky top-16 z-20 -mx-4 flex items-center gap-2.5 bg-background/95 px-5 py-2 backdrop-blur-sm md:top-0 md:-mx-2 md:px-3">
                 <span className="text-[13px] font-extrabold">{group.label}</span>
-                <span aria-hidden className="h-1 flex-1 overflow-hidden rounded-full bg-surface-2">
+                <span aria-hidden className="h-1 min-w-4 flex-1 overflow-hidden rounded-full bg-surface-2">
                   <span className="block h-1 rounded-full bg-coral" style={{ width: `${Math.round((group.spent / maxDaySpent) * 100)}%` }} />
                 </span>
-                <span className={cn('num text-xs font-extrabold', group.net >= 0 ? 'text-jade' : 'text-foreground')}>
-                  {group.net >= 0 ? '+' : '−'}{formatCurrency(Math.abs(group.net), defaultCurrency)}
-                </span>
+                {/* Lo que entró y lo que salió ese día (el neto no dice mucho) */}
+                {group.income > 0 && (
+                  <span className="num text-xs font-extrabold text-jade" aria-label={`Entró ${formatCurrency(group.income, defaultCurrency)}`}>
+                    +{formatCurrency(group.income, defaultCurrency)}
+                  </span>
+                )}
+                {group.spent > 0 && (
+                  <span className="num text-xs font-extrabold text-coral-text" aria-label={`Salió ${formatCurrency(group.spent, defaultCurrency)}`}>
+                    −{formatCurrency(group.spent, defaultCurrency)}
+                  </span>
+                )}
               </div>
             )}
             <ul className="rounded-[22px] border border-line bg-surface px-3.5 py-0.5 md:px-4">

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Wallet, Plus, RefreshCw } from 'lucide-react';
 
 import { ResponsiveDrawer } from '@/components/ui/drawer';
+import { ScrollRow } from '@/components/ui/scroll-row';
 import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
@@ -225,7 +226,7 @@ export function AccountsList({
           description="Crea una cuenta para comenzar a registrar tus transacciones."
         />
       ) : (
-        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start md:gap-5">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:items-start md:gap-5">
           {/* Patrimonio */}
           <section className="md:col-start-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -267,13 +268,13 @@ export function AccountsList({
 
           {/* Carrusel (móvil) */}
           <section aria-label="Tus cuentas" className="-mx-4 md:hidden">
-            <div className="scrollbar-hide flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1">
+            <ScrollRow className="flex snap-x snap-mandatory gap-3 px-4 pb-1">
               {ordered.filter((a) => !a.isArchived).map((account) => (
                 <div key={account.id} className="w-[300px] flex-none snap-center">
                   <WalletCard account={account} selected={selected?.id === account.id} onSelect={() => setSelectedId(account.id)} />
                 </div>
               ))}
-            </div>
+            </ScrollRow>
           </section>
 
           {/* Detalle de la cuenta elegida */}

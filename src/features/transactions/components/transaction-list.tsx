@@ -21,6 +21,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
+import { ScrollRow } from '@/components/ui/scroll-row';
 import { ResponsiveDrawer, Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { PageToolbar } from '@/components/page-toolbar';
 import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
@@ -327,6 +328,7 @@ export function TransactionList({
         selectedDay={selectedDay}
         onSelectDay={setSelectedDay}
         reconciledCount={transactions.filter((t) => t.isReconciled).length}
+        creditCardAccountIds={new Set(accounts.filter((a) => a.type === 'credit_card').map((a) => a.id))}
       />
 
       {/* ═══ TOOLBAR + FILTROS ═══ */}
@@ -514,7 +516,7 @@ export function TransactionList({
               </div>
 
               {/* Naturaleza */}
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+              <ScrollRow indicator={false} className="flex items-center gap-1.5">
                 {NATURE_FILTER_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -528,7 +530,7 @@ export function TransactionList({
                     {opt.label}
                   </button>
                 ))}
-              </div>
+              </ScrollRow>
 
               {/* Multi-select: Cuentas y Presupuestos */}
               <div className="flex items-center gap-1.5">

@@ -40,6 +40,8 @@ interface DailyPulseCardProps {
   selectedDay: string | null;
   onSelectDay: (day: string | null) => void;
   reconciledCount: number;
+  /** Lo que entra a una tarjeta (pagos, ajustes) no es ingreso */
+  creditCardAccountIds: Set<string>;
 }
 
 /**
@@ -56,8 +58,12 @@ export function DailyPulseCard({
   selectedDay,
   onSelectDay,
   reconciledCount,
+  creditCardAccountIds,
 }: DailyPulseCardProps) {
   const [ref, W] = useWidth<HTMLDivElement>();
+  // Día bajo el mouse o el dedo: muestra lo que salió, entró y el acumulado
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const pressing = useRef(false);
 
   const days = useMemo(() => {
     const start = new Date(`${startDate}T00:00:00Z`);
@@ -65,6 +71,10 @@ export function DailyPulseCard({
     const count = Math.max(1, Math.min(62, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1));
     const byDay = new Map<string, { spent: number; income: number }>();
     for (const t of transactions) {
+      // Pagos de tarjeta y traspasos entre tus cuentas no son ni ingreso ni gasto, y lo
+      // que entra a una tarjeta (diferencias, devoluciones) tampoco es ingreso
+      if (t.linkedTransactionId) continue;
+      if (t.type === 'income' && creditCardAccountIds.has(t.accountId ?? '')) continue;
       const key = new Date(t.date).toISOString().slice(0, 10);
       const cur = byDay.get(key) ?? { spent: 0, income: 0 };
       if (t.type === 'expense') cur.spent += parseFloat(t.baseAmount);
@@ -77,7 +87,7 @@ export function DailyPulseCard({
       const iso = d.toISOString().slice(0, 10);
       return { iso, date: d, ...(byDay.get(iso) ?? { spent: 0, income: 0 }), future: iso > todayIso };
     });
-  }, [transactions, startDate, endDate, todayIso]);
+  }, [transactions, startDate, endDate, todayIso, creditCardAccountIds]);
 
   const H = 130;
   const base = H - 20;
@@ -87,7 +97,9 @@ export function DailyPulseCard({
   const barW = Math.max(3, Math.min(12, col - 3));
   let acc = 0;
   const cum: string[] = [];
+  const cumByDay: number[] = [];
   days.forEach((d, i) => {
+    cumByDay.push(acc + (d.future ? 0 : d.spent));
     if (d.future) return;
     acc += d.spent;
     cum.push(`${(i * col + col / 2).toFixed(1)},${(base - (acc / totalSpent) * 92).toFixed(1)}`);
@@ -95,6 +107,13 @@ export function DailyPulseCard({
   const todayIndex = days.findIndex((d) => d.iso === todayIso);
   const selected = selectedDay ? days.find((d) => d.iso === selectedDay) : null;
   const label = (d: Date) => `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  const hovered = hoverIndex != null && days[hoverIndex] && !days[hoverIndex].future ? days[hoverIndex] : null;
+  const indexAt = (clientX: number, el: Element) =>
+    Math.min(days.length - 1, Math.max(0, Math.floor((clientX - el.getBoundingClientRect().left) / Math.max(1, col))));
+  const tipW = 148;
+  const tipH = hovered?.income ? 64 : 50;
+  const hoverX = hoverIndex != null ? hoverIndex * col + col / 2 : 0;
+  const tipX = Math.min(Math.max(0, hoverX - tipW / 2), Math.max(0, W - tipW));
 
   return (
     <section className="rounded-[28px] border border-line bg-surface px-3.5 pb-4 pt-4 md:px-5">
@@ -115,13 +134,37 @@ export function DailyPulseCard({
         </div>
       </div>
 
-      <div ref={ref} className="mt-3.5 w-full" style={{ height: H }}>
+      <div
+        ref={ref}
+        className="mt-3.5 w-full touch-pan-y select-none"
+        style={{ height: H }}
+        onPointerDown={(e) => {
+          pressing.current = true;
+          setHoverIndex(indexAt(e.clientX, e.currentTarget));
+        }}
+        onPointerMove={(e) => {
+          if (e.pointerType === 'mouse' || pressing.current) setHoverIndex(indexAt(e.clientX, e.currentTarget));
+        }}
+        onPointerUp={(e) => {
+          pressing.current = false;
+          if (e.pointerType !== 'mouse') setHoverIndex(null);
+        }}
+        onPointerCancel={() => {
+          pressing.current = false;
+          setHoverIndex(null);
+        }}
+        onPointerLeave={() => {
+          pressing.current = false;
+          setHoverIndex(null);
+        }}
+      >
         {W > 0 && (
           <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Gasto por día del período, con el acumulado" className="overflow-visible">
             {days.map((d, i) => {
               const h = d.future ? 3 : Math.max(3, (d.spent / maxSpent) * 92);
               const isSel = d.iso === selectedDay;
               const fill = d.future ? 'fill-line-strong' : isSel ? 'fill-cream' : d.income > 0 ? 'fill-jade' : 'fill-coral';
+              const dim = hovered && hovered.iso !== d.iso && !isSel;
               return (
                 <g key={d.iso}>
                   <rect
@@ -131,6 +174,7 @@ export function DailyPulseCard({
                     height={h}
                     rx={Math.min(3, barW / 2)}
                     className={fill}
+                    opacity={dim ? 0.45 : 1}
                   />
                   {!d.future && (
                     <rect
@@ -150,6 +194,33 @@ export function DailyPulseCard({
             })}
             {cum.length > 1 && (
               <polyline points={cum.join(' ')} fill="none" stroke="#F4EFE8" strokeOpacity={0.7} strokeWidth={2} strokeLinejoin="round" pointerEvents="none" />
+            )}
+            {hovered && hoverIndex != null && (
+              <g pointerEvents="none">
+                <circle
+                  cx={hoverX}
+                  cy={base - (cumByDay[hoverIndex] / totalSpent) * 92}
+                  r={4}
+                  fill="#F4EFE8"
+                  className="stroke-surface"
+                  strokeWidth={2}
+                />
+                <g transform={`translate(${tipX},0)`}>
+                  <rect width={tipW} height={tipH} rx={12} className="fill-cream" />
+                  <text x={10} y={15} className="fill-[#6B6172] text-[10px] font-bold uppercase">
+                    {WEEKDAYS[hovered.date.getUTCDay()]} {label(hovered.date)}
+                  </text>
+                  <text x={10} y={31} className="fill-cream-ink text-[13px] font-extrabold">
+                    −{formatCLP(hovered.spent, currency)}
+                  </text>
+                  {hovered.income > 0 && (
+                    <text x={10} y={45} className="fill-[#1F6B55] text-[11px] font-extrabold">+{formatCLP(hovered.income, currency)}</text>
+                  )}
+                  <text x={10} y={tipH - 6} className="fill-[#6B6172] text-[10px] font-bold">
+                    acumulado {compact(cumByDay[hoverIndex])}
+                  </text>
+                </g>
+              </g>
             )}
             <line x1="0" x2={W} y1={base} y2={base} className="stroke-line-strong" />
             <text x="0" y={H - 4} className="fill-faint text-[10px]">{label(days[0].date)}</text>

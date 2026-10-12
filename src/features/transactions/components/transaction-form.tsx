@@ -4,31 +4,22 @@ import { useState, useTransition, useEffect, useCallback, useMemo, useRef } from
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { ArrowUpCircle, ArrowDownCircle, ArrowLeftRight, Pencil, Store, Tag, Wallet, ArrowRight, Check, ArrowRightLeft, CheckCircle2, XCircle, Settings } from 'lucide-react';
+import { Pencil, Store, Tag, Wallet, X, XCircle } from 'lucide-react';
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SuccessOverlay } from '@/components/success-overlay';
 import { SubmitButton } from '@/components/submit-button';
-import { ProgressIndicator } from '@/components/progress-indicator';
 import { FloatingLabelInput } from '@/components/floating-label-input';
 import { FloatingLabelTextarea } from '@/components/floating-label-textarea';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
+import { DrawerClose, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
@@ -36,6 +27,8 @@ import { CategorySelector } from '@/components/category-selector';
 import { NatureSelector } from './nature-selector';
 import { DescriptionField } from './description-field';
 import { CapImpactNotice } from './cap-impact-notice';
+import { AccountCardPicker } from './account-card-picker';
+import { TONE_CLASSES, toneForName } from '@/lib/pulse-tone';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { fetchCardImpactData, type CardImpactData } from '@/features/billing-cycles/actions';
 import { fetchAccountFunds } from '@/features/accounts/fund-actions';
@@ -44,7 +37,6 @@ import { formatCurrency } from '@/lib/formatting';
 import { normalizeNature, type TransactionNature } from '../nature';
 import { CurrencyInput } from '@/components/currency-input';
 import { EntitySelector } from '@/components/entity-selector';
-import { AccountSelector } from '@/components/account-selector';
 import { BudgetSelector } from '@/components/budget-selector';
 import { SavingsGoalSelector } from '@/components/savings-goal-selector';
 import {
@@ -293,7 +285,6 @@ export function TransactionDialogContent({
   const watchedAccountId = form.watch('accountId');
   const watchedType = form.watch('type');
   const watchedAmount = form.watch('originalAmount');
-  const watchedDescription = form.watch('description');
   const selectedAccount = accountsMap.get(watchedAccountId);
   const isCreditCardExpense = selectedAccount?.type === 'credit_card' && watchedType === 'expense';
 
@@ -391,26 +382,6 @@ export function TransactionDialogContent({
       }
     }
   }, [isProvisionAccount, transaction, form, selectedAccount, setFormMode]);
-
-  // Calculate form progress for transaction form
-  const transactionProgress = useMemo(() => {
-    const fields = [
-      watchedAmount !== undefined && watchedAmount > 0,
-      !!watchedAccountId,
-      !!watchedDescription,
-    ];
-    return fields.filter(Boolean).length;
-  }, [watchedAmount, watchedAccountId, watchedDescription]);
-
-  // Calculate form progress for transfer form
-  const transferProgress = useMemo(() => {
-    const fields = [
-      transferAmount !== undefined && transferAmount > 0,
-      !!transferFromAccountId,
-      !!transferToAccountId,
-    ];
-    return fields.filter(Boolean).length;
-  }, [transferAmount, transferFromAccountId, transferToAccountId]);
 
   const onSubmit = (data: CreateTransactionInput) => {
     // Pasarse del techo de gasto propio en TC requiere confirmación explícita
@@ -536,6 +507,28 @@ export function TransactionDialogContent({
     }
   };
 
+  const capOver = isOwnCardExpense && cardAvailable != null && (watchedAmount || 0) > cardAvailable;
+  const typeModes: FormMode[] = isEditing ? ['expense', 'income'] : ['expense', 'income', 'transfer'];
+  const activeMode: FormMode = isEditing ? watchedType : formMode;
+
+  // Chips de detalles: muestran lo elegido y abren la sección completa
+  const watchedBudgetId = form.watch('budgetId');
+  const watchedDate = form.watch('date');
+  const watchedNotes = form.watch('notes');
+  const watchedSavingsGoalId = form.watch('savingsGoalId');
+  const categoryChipLabel =
+    budgets.find((b) => b.id === watchedBudgetId)?.name ??
+    activeCategories.find((c) => c.id === watchedCategoryId)?.name ??
+    'Categoría';
+  const goalName = savingsGoals.find((g) => g.id === watchedSavingsGoalId)?.name;
+  const extrasChipLabel = goalName ? `Meta: ${goalName}` : watchedNotes ? 'Con nota' : null;
+  const openDetail = (field: string) => {
+    setShowAdvancedOptions(true);
+    requestAnimationFrame(() =>
+      document.querySelector(`[data-field="${field}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    );
+  };
+
   return (
     <DrawerContent>
       <SuccessOverlay show={showSuccess} />
@@ -556,123 +549,97 @@ export function TransactionDialogContent({
           if (capConfirmData) submitTransaction(capConfirmData);
         }}
       />
-      <div className="mx-auto w-full max-w-lg md:flex md:flex-col md:h-full">
-        <DrawerHeader>
-          <div className="md:flex md:items-center md:justify-between">
-            <DrawerTitle>
-              {isEditing ? 'Editar movimiento' : isTransferMode ? 'Nuevo traspaso' : 'Nuevo movimiento'}
-            </DrawerTitle>
-            {/* Progress indicator - desktop only */}
-            {!isEditing && (
-              <ProgressIndicator current={isTransferMode ? transferProgress : transactionProgress} />
-            )}
-          </div>
-          <DrawerDescription>
-            {isEditing
-              ? 'Modifica los datos de la transacción.'
-              : isTransferMode
-              ? 'Mueve dinero entre tus cuentas.'
-              : 'Registra un nuevo ingreso o gasto.'}
+      <div className="mx-auto w-full max-w-lg md:flex md:h-full md:flex-col">
+        {/* Encabezado: tipo de movimiento y cerrar */}
+        <div className="flex items-center justify-between gap-3 px-4 pb-1 pt-3">
+          <DrawerTitle className="sr-only">
+            {isEditing ? 'Editar movimiento' : isTransferMode ? 'Nuevo traspaso' : 'Nuevo movimiento'}
+          </DrawerTitle>
+          <DrawerDescription className="sr-only">
+            {isTransferMode ? 'Mueve dinero entre tus cuentas.' : 'Registra un ingreso o un gasto.'}
           </DrawerDescription>
-        </DrawerHeader>
-
-      {/* Type Selector - Tabs */}
-      {!isEditing && (
-        <div className="px-4 pb-4">
-          <Tabs value={formMode} onValueChange={(v) => handleModeChange(v as FormMode)}>
-            <TabsList className="w-full">
-              <TabsTrigger value="expense" className="flex-1 gap-2">
-                <ArrowDownCircle className="h-4 w-4" />
-                Gasto
-              </TabsTrigger>
-              <TabsTrigger value="income" className="flex-1 gap-2">
-                <ArrowUpCircle className="h-4 w-4" />
-                Ingreso
-              </TabsTrigger>
-              <TabsTrigger value="transfer" className="flex-1 gap-2">
-                <ArrowLeftRight className="h-4 w-4" />
-                Traspaso
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div role="tablist" aria-label="Tipo de movimiento" className="flex gap-1 rounded-full bg-background p-1">
+            {typeModes.map((mode) => {
+              const active = activeMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() =>
+                    isEditing ? form.setValue('type', mode as 'expense' | 'income', { shouldValidate: true }) : handleModeChange(mode)
+                  }
+                  className={cn(
+                    'min-h-9 rounded-full px-3.5 text-[13px] transition-colors',
+                    active ? cn('font-extrabold', MODE_ACTIVE[mode]) : 'font-bold text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {MODE_LABELS[mode]}
+                </button>
+              );
+            })}
+          </div>
+          <DrawerClose asChild>
+            <button
+              type="button"
+              aria-label="Cerrar"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[#CFC6D6] transition-colors hover:text-foreground"
+            >
+              <X className="h-[18px] w-[18px]" strokeWidth={2.2} />
+            </button>
+          </DrawerClose>
         </div>
-      )}
 
-        {/* Transfer Form */}
         {isTransferMode && !isEditing ? (
-          <ScrollArea key="transfer" className="h-[65dvh] md:flex-1 animate-fade-in">
-            <div className="px-4 pt-2 space-y-4 pb-4">
-              {/* Amount - Hero section */}
-              <div className="pb-2">
-                <CurrencyInput
-                  value={transferAmount}
-                  onChange={setTransferAmount}
-                  currency={defaultCurrency}
-                  placeholder="0"
-                  size="lg"
-                  label="Monto"
-                  valid={transferAmount !== undefined && transferAmount > 0}
-                  autoFocus
-                />
-              </div>
-
-              {/* From Account */}
-              <AccountSelector
-                accounts={activeAccounts.filter((acc) => acc.id !== transferToAccountId)}
-                value={transferFromAccountId}
-                onValueChange={(value) => setTransferFromAccountId(value ?? '')}
-                label="Cuenta origen"
-                searchPlaceholder="Buscar cuenta..."
-                valid={!!transferFromAccountId}
+          <ScrollArea key="transfer" className="h-[72dvh] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
+            <div className="space-y-[18px] px-4 pb-4 pt-2">
+              <CurrencyInput
+                value={transferAmount}
+                onChange={setTransferAmount}
+                currency={defaultCurrency}
+                placeholder="0"
+                size="hero"
+                label="Monto"
+                autoFocus
               />
 
-              {/* To Account */}
-              <AccountSelector
+              <AccountCardPicker
+                label="¿Desde qué cuenta?"
+                accounts={activeAccounts}
+                value={transferFromAccountId}
+                onChange={(id) => {
+                  setTransferFromAccountId(id);
+                  if (id === transferToAccountId) setTransferToAccountId('');
+                }}
+              />
+              <AccountCardPicker
+                label="¿Hacia cuál?"
                 accounts={activeAccounts.filter((acc) => acc.id !== transferFromAccountId)}
                 value={transferToAccountId}
-                onValueChange={(value) => setTransferToAccountId(value ?? '')}
-                label="Cuenta destino"
-                searchPlaceholder="Buscar cuenta..."
-                valid={!!transferToAccountId}
+                onChange={setTransferToAccountId}
               />
 
-              {/* Otras opciones toggle */}
-              {!showTransferAdvancedOptions && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground h-auto p-0"
-                  onClick={() => setShowTransferAdvancedOptions(true)}
-                >
-                  <Settings className="mr-1.5 h-3 w-3" />
-                  Otras opciones
-                </Button>
-              )}
-
-              {/* Otras opciones section */}
-              {showTransferAdvancedOptions && (
-                <div className="space-y-4 pt-4 border-t">
+              {!showTransferAdvancedOptions ? (
+                <div className="flex flex-wrap gap-1.5">
+                  <DetailChip onClick={() => setShowTransferAdvancedOptions(true)}>{chipDate(transferDate)}</DetailChip>
+                  <DetailChip dashed={!transferDescription} onClick={() => setShowTransferAdvancedOptions(true)}>
+                    {transferDescription || '+ descripción, nota o meta'}
+                  </DetailChip>
+                </div>
+              ) : (
+                <div className="space-y-4 border-t border-surface-3 pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">Otras opciones</span>
-                    <Button
+                    <span className="text-[13px] font-extrabold">Más detalles</span>
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-auto p-0"
-                      onClick={() => {
-                        setTransferDescription('');
-                        setTransferDate(new Date());
-                        setTransferNotes('');
-                        setTransferSavingsGoalId(undefined);
-                        setShowTransferAdvancedOptions(false);
-                      }}
+                      className="min-h-9 px-1 text-xs font-bold text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowTransferAdvancedOptions(false)}
                     >
                       Ocultar
-                    </Button>
+                    </button>
                   </div>
 
-                  {/* Savings Goal */}
                   {savingsGoals.length > 0 && (
                     <SavingsGoalSelector
                       savingsGoals={savingsGoals}
@@ -684,7 +651,6 @@ export function TransactionDialogContent({
                     />
                   )}
 
-                  {/* Date */}
                   <FloatingLabelInput
                     label="Fecha"
                     type="date"
@@ -693,7 +659,6 @@ export function TransactionDialogContent({
                     valid={!!transferDate}
                   />
 
-                  {/* Description */}
                   <FloatingLabelInput
                     label="Descripción (opcional)"
                     value={transferDescription}
@@ -702,7 +667,6 @@ export function TransactionDialogContent({
                     valid={!!transferDescription}
                   />
 
-                  {/* Notes */}
                   <FloatingLabelTextarea
                     label="Notas (opcional)"
                     value={transferNotes}
@@ -713,72 +677,36 @@ export function TransactionDialogContent({
                 </div>
               )}
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && <p className="text-sm text-coral-text">{error}</p>}
 
-              <DrawerFooter className="px-0 pb-0">
-                <SubmitButton
-                  type="button"
-                  isPending={isPending}
-                  pendingText="Creando..."
-                  icon={<ArrowRightLeft className="size-7" />}
-                  onClick={onSubmitTransfer}
-                >
-                  Crear transferencia
-                </SubmitButton>
-              </DrawerFooter>
+              <SubmitButton type="button" isPending={isPending} pendingText="Creando..." onClick={onSubmitTransfer}>
+                Guardar traspaso
+              </SubmitButton>
             </div>
           </ScrollArea>
         ) : (
-          /* Regular Transaction Form */
-          <ScrollArea key="transaction" className="h-[65dvh] md:flex-1 animate-fade-in">
+          <ScrollArea key="transaction" className="h-[72dvh] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
             <Form {...form}>
-              <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="px-4 pt-2 space-y-4 pb-4">
-            {/* Type Selector for editing */}
-            {isEditing && (
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem data-field="type">
-                    <FormLabel>Tipo</FormLabel>
-                    <Tabs value={field.value} onValueChange={field.onChange}>
-                      <TabsList className="w-full">
-                        <TabsTrigger value="expense" className="flex-1 gap-2">
-                          <ArrowDownCircle className="h-4 w-4" />
-                          Gasto
-                        </TabsTrigger>
-                        <TabsTrigger value="income" className="flex-1 gap-2">
-                          <ArrowUpCircle className="h-4 w-4" />
-                          Ingreso
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {/* Amount - Hero section */}
+              <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-[18px] px-4 pb-4 pt-2">
+            {/* Monto: protagonista */}
             <FormField
               control={form.control}
               name="originalAmount"
               render={({ field, fieldState }) => (
-                <FormItem className="pb-2" data-field="originalAmount">
+                <FormItem data-field="originalAmount">
                   <FormControl>
                     <CurrencyInput
                       value={field.value}
                       onChange={field.onChange}
                       currency={defaultCurrency}
                       placeholder="0"
-                      size="lg"
+                      size="hero"
                       label="Monto"
-                      valid={field.value !== undefined && field.value > 0}
                       invalid={!!fieldState.error}
                       autoFocus={!isEditing}
                     />
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-center" />
                 </FormItem>
               )}
             />
@@ -864,27 +792,23 @@ export function TransactionDialogContent({
               )
             )}
 
-            {/* Account */}
+            {/* Cuenta: mini tarjetas */}
             <FormField
               control={form.control}
               name="accountId"
               render={({ field, fieldState }) => (
                 <FormItem data-field="accountId">
-                  <FormControl>
-                    <AccountSelector
-                      accounts={activeAccounts}
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value ?? '');
-                        // Limpiar saldo proveedor al cambiar cuenta
-                        setProviderBalance(undefined);
-                      }}
-                      label="Cuenta de cargo"
-                      searchPlaceholder="Buscar cuenta..."
-                      valid={!!field.value}
-                      invalid={!!fieldState.error}
-                    />
-                  </FormControl>
+                  <AccountCardPicker
+                    label={isProvisionAccount ? '¿A qué cuenta va el aporte?' : watchedType === 'income' ? '¿A qué cuenta llega?' : '¿Con qué pagas?'}
+                    accounts={activeAccounts}
+                    value={field.value}
+                    onChange={(value) => {
+                      field.onChange(value);
+                      // Limpiar saldo proveedor al cambiar cuenta
+                      setProviderBalance(undefined);
+                    }}
+                    invalid={!!fieldState.error}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -930,13 +854,15 @@ export function TransactionDialogContent({
                 render={({ field }) => (
                   <FormItem data-field="accountFundId">
                     <p className="text-[13px] font-extrabold">¿Lo pagas con un fondo?</p>
-                    <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Fondo">
+                    <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Fondo">
                       {[{ id: null, name: 'Sin fondo', balance: null as number | null }, ...accountFundsForSelected].map((fund) => {
                         const selected = (field.value ?? null) === fund.id;
                         const previousAmount =
                           transaction && transaction.accountFundId === fund.id ? parseFloat(transaction.originalAmount) : 0;
                         const available = fund.balance != null ? fund.balance + previousAmount : null;
-                        const insufficient = available != null && (watchedAmount || 0) > available;
+                        const after = available != null ? available - (watchedAmount || 0) : null;
+                        const insufficient = after != null && after < 0;
+                        const tone = fund.id ? TONE_CLASSES[toneForName(fund.name)] : TONE_CLASSES.jade;
                         return (
                           <button
                             key={fund.id ?? 'none'}
@@ -945,16 +871,30 @@ export function TransactionDialogContent({
                             aria-checked={selected}
                             onClick={() => field.onChange(fund.id)}
                             className={cn(
-                              'min-h-[52px] rounded-2xl border px-3.5 py-2 text-left text-sm transition-colors',
-                              selected ? 'border-amber bg-amber-soft text-foreground' : 'border-line text-muted-foreground hover:bg-surface-2'
+                              'min-h-[58px] rounded-2xl border px-3.5 py-2 text-left transition-colors',
+                              selected ? 'border-amber bg-amber-soft' : 'border-line-strong hover:bg-surface-2'
                             )}
                           >
-                            <span className="block truncate font-medium">{fund.name}</span>
-                            {available != null && (
-                              <span className={cn('text-[11px] tabular-nums', insufficient && 'text-coral-text')}>
-                                {formatCurrency(available)}
+                            <span className="flex items-center justify-between gap-3">
+                              <span className="flex min-w-0 items-center gap-2 text-sm font-bold">
+                                <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', tone.bar)} />
+                                <span className="truncate">{fund.name}</span>
                               </span>
-                            )}
+                              {after != null && (
+                                <span className={cn('num shrink-0 text-sm font-extrabold', insufficient && 'text-coral-text')}>
+                                  {formatCurrency(selected ? after : available ?? 0)}
+                                </span>
+                              )}
+                            </span>
+                            <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                              {fund.id == null
+                                ? 'sale de lo libre de la cuenta'
+                                : insufficient && selected
+                                  ? `no alcanza · tiene ${formatCurrency(available ?? 0)}`
+                                  : selected
+                                    ? `quedan después de este gasto · tenía ${formatCurrency(available ?? 0)}`
+                                    : 'disponible en el fondo'}
+                            </span>
                           </button>
                         );
                       })}
@@ -1026,43 +966,29 @@ export function TransactionDialogContent({
               </div>
             )}
 
-            {/* Otras opciones toggle */}
-            {!showAdvancedOptions && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground h-auto p-0"
-                onClick={() => setShowAdvancedOptions(true)}
-              >
-                <Settings className="mr-1.5 h-3 w-3" />
-                Otras opciones
-              </Button>
-            )}
-
-            {/* Otras opciones section */}
-            {showAdvancedOptions && (
-              <div className="space-y-4 pt-4 border-t">
+            {/* Detalles: chips con lo elegido; al tocarlos se abre la sección completa */}
+            {!showAdvancedOptions ? (
+              <div className="flex flex-wrap gap-1.5">
+                <DetailChip onClick={() => openDetail(budgets.length > 0 && !showManualCategory ? 'budgetId' : 'categoryId')}>
+                  {categoryChipLabel}
+                </DetailChip>
+                <DetailChip onClick={() => openDetail('date')}>{chipDate(watchedDate)}</DetailChip>
+                <DetailChip dashed={!extrasChipLabel} onClick={() => openDetail('notes')}>
+                  {extrasChipLabel ?? (savingsGoals.length > 0 ? '+ nota o meta' : '+ nota')}
+                </DetailChip>
+              </div>
+            ) : (
+              <div className="space-y-4 border-t border-surface-3 pt-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Otras opciones</span>
+                  <span className="text-[13px] font-extrabold">Más detalles</span>
                   {!isEditing && (
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-auto p-0"
-                      onClick={() => {
-                        form.setValue('date', new Date());
-                        form.setValue('notes', '');
-                        form.setValue('budgetId', undefined);
-                        form.setValue('savingsGoalId', undefined);
-                        form.setValue('categoryId', undefined);
-                        setShowManualCategory(false);
-                        setShowAdvancedOptions(false);
-                      }}
+                      className="min-h-9 px-1 text-xs font-bold text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowAdvancedOptions(false)}
                     >
                       Ocultar
-                    </Button>
+                    </button>
                   )}
                 </div>
 
@@ -1255,22 +1181,59 @@ export function TransactionDialogContent({
               </div>
             )}
 
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && <p className="text-sm text-coral-text">{error}</p>}
 
-              <DrawerFooter className="px-0 pb-0">
-                <SubmitButton
-                  isPending={isPending}
-                  pendingText="Guardando..."
-                  icon={isEditing ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
-                >
-                  {isEditing ? 'Guardar cambios' : watchedType === 'income' ? 'Guardar ingreso' : 'Guardar gasto'}
-                </SubmitButton>
-              </DrawerFooter>
+              <SubmitButton isPending={isPending} pendingText="Guardando...">
+                {isEditing
+                  ? 'Guardar cambios'
+                  : capOver
+                    ? 'Guardar igual'
+                    : watchedType === 'income'
+                      ? 'Guardar ingreso'
+                      : 'Guardar gasto'}
+              </SubmitButton>
               </form>
             </Form>
           </ScrollArea>
         )}
       </div>
     </DrawerContent>
+  );
+}
+
+const MODE_LABELS: Record<FormMode, string> = { expense: 'Gasto', income: 'Ingreso', transfer: 'Traspaso' };
+const MODE_ACTIVE: Record<FormMode, string> = {
+  expense: 'bg-coral text-coral-ink',
+  income: 'bg-jade text-jade-ink',
+  transfer: 'bg-sky text-sky-ink',
+};
+
+/** "Hoy, 12 oct", "Ayer, 11 oct" o "9 oct". */
+function chipDate(value: Date | string | undefined): string {
+  const d = value ? new Date(value) : new Date();
+  if (isNaN(d.getTime())) return 'Fecha';
+  const label = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'short' }).format(d).replace('.', '');
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return `Hoy, ${label}`;
+  if (d.toDateString() === yesterday.toDateString()) return `Ayer, ${label}`;
+  return label;
+}
+
+function DetailChip({ children, dashed, onClick }: { children: React.ReactNode; dashed?: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'min-h-10 max-w-full truncate rounded-full px-3.5 text-xs font-bold transition-colors',
+        dashed
+          ? 'border border-dashed border-line-strong text-muted-foreground hover:text-foreground'
+          : 'bg-surface-2 text-[#CFC6D6] hover:bg-surface-3'
+      )}
+    >
+      {children}
+    </button>
   );
 }

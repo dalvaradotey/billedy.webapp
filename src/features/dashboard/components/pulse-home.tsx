@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { TrendingUp, ArrowDownLeft, AlertTriangle, Archive, ChevronRight, Umbrella } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ScrollRow } from '@/components/ui/scroll-row';
 import { ResponsiveDrawer } from '@/components/ui/drawer';
 import { PulseChart } from '@/components/pulse-chart';
 import { formatCurrency } from '@/lib/formatting';
@@ -308,6 +309,7 @@ export function PulseHome({
                   midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
                   endLabel={shortDate(end)}
                   todayLabel={shortDate(today)}
+                  dayLabel={(d) => shortDate(addDays(start, d - 1))}
                   height={200}
                   ariaLabel={`Gasto propio con tarjeta: ${formatCurrency(card.spent)} a hoy; proyección ${formatCurrency(card.projection)}; techo ${formatCurrency(card.cap)}`}
                 />
@@ -343,6 +345,7 @@ export function PulseHome({
                   midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
                   endLabel={shortDate(end)}
                   todayLabel={shortDate(today)}
+                  dayLabel={(d) => shortDate(addDays(start, d - 1))}
                   height={200}
                   ariaLabel={`Saldo de caja del ciclo: ${formatCurrency(cashNow)} a hoy; cierre proyectado ${formatCurrency(cycle.balance.finalBalance.projected)}`}
                 />
@@ -384,6 +387,7 @@ export function PulseHome({
                   midLabel={shortDate(addDays(start, Math.floor(cycle.daysTotal / 2)))}
                   endLabel={shortDate(end)}
                   todayLabel={shortDate(today)}
+                  dayLabel={(d) => shortDate(addDays(start, d - 1))}
                   height={200}
                   ariaLabel={`Ahorro del ciclo: ${formatCurrency(savings.done)}${savings.target != null ? ` de ${formatCurrency(savings.target)}` : ''}`}
                 />
@@ -402,7 +406,7 @@ export function PulseHome({
             <h2 className="text-lg font-extrabold tracking-[-0.02em]">Señales del ciclo</h2>
             <span className="text-xs text-muted-foreground">{signals.length}</span>
           </div>
-          <div className="scrollbar-hide -mx-4 mt-2.5 flex snap-x gap-2.5 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
+          <ScrollRow className="-mx-4 mt-2.5 flex snap-x gap-2.5 px-4 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
             {signals.map((s) => {
               const Icon = s.icon;
               const content = (
@@ -427,7 +431,7 @@ export function PulseHome({
                 </button>
               );
             })}
-          </div>
+          </ScrollRow>
         </section>
       )}
 

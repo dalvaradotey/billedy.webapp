@@ -69,7 +69,7 @@ export function ProjectSelector({
   return (
     <div className={cn('flex items-center', className)}>
       <Select value={currentProjectId} onValueChange={onProjectChange}>
-        <SelectTrigger className="w-full h-full border-0 bg-transparent shadow-none px-0 py-0 focus:ring-0 [&>svg]:ml-1 [&>svg]:opacity-60">
+        <SelectTrigger className="w-full h-full rounded-none border-0 bg-transparent hover:bg-transparent px-0 py-0 focus:ring-0 focus-visible:ring-0 [&>svg]:ml-1 [&>svg]:opacity-60">
           <SelectValue placeholder="Seleccionar proyecto">
             <span className="truncate font-medium text-sm">{currentProject?.name ?? 'Seleccionar'}</span>
           </SelectValue>
