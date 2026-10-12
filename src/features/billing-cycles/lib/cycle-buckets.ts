@@ -30,12 +30,6 @@ export type Bucket = (typeof BUCKETS)[number];
  */
 export const INSTALLMENT_WINDOW_DAYS = 16;
 
-/**
- * Heurística temporal de abonos (Fase 1). Se reemplaza por
- * `nature = 'reimbursement'` en la Fase 2.
- */
-const REIMBURSEMENT_CATEGORIES = ['Reembolsos', 'Externo'];
-const REIMBURSEMENT_DESCRIPTION_PREFIX = 'abono%';
 
 export type DateRange = {
   key: string;
@@ -43,9 +37,12 @@ export type DateRange = {
   end: string; // YYYY-MM-DD
 };
 
+export type Nature = 'own' | 'external' | 'reimbursable' | 'fund' | 'reimbursement';
+
 export type BucketRow = {
   key: string;
   bucket: Bucket;
+  nature: Nature;
   cardAccountId: string | null;
   inRange: boolean;
   isInstallment: boolean;
@@ -73,10 +70,6 @@ export function bucketAggregationQuery(
     ranges.map((r) => sql`(${r.key}::text, ${r.start}::date, ${r.end}::date)`),
     sql`, `
   );
-  const reimbursementCategories = sql.join(
-    REIMBURSEMENT_CATEGORIES.map((c) => sql`${c}`),
-    sql`, `
-  );
 
   return sql`
     with ranges(key, start_date, end_date) as (values ${rangeValues}),
@@ -88,15 +81,14 @@ export function bucketAggregationQuery(
         t.base_amount,
         t.date,
         t.is_paid,
+        t.nature::text as nature,
         t.is_historically_paid,
         t.linked_transaction_id,
         t.card_purchase_id,
-        t.description,
         t.account_id,
         a.type::text as acc,
         x.account_id as contra_account_id,
-        xa.type::text as contra,
-        cat.name as cat
+        xa.type::text as contra
       from ranges r
       join n1n4_transactions t
         on t.project_id = ${projectId}
@@ -104,7 +96,6 @@ export function bucketAggregationQuery(
       join n1n4_accounts a on a.id = t.account_id
       left join n1n4_transactions x on x.id = t.linked_transaction_id
       left join n1n4_accounts xa on xa.id = x.account_id
-      left join n1n4_categories cat on cat.id = t.category_id
     ),
     b as (
       select
@@ -112,12 +103,12 @@ export function bucketAggregationQuery(
         (date <= end_date) as in_range,
         (card_purchase_id is not null) as is_installment,
         is_paid,
+        nature,
         (is_paid and not coalesce(is_historically_paid, false) and (acc <> 'credit_card' or date <= ${today}::date)) as is_real,
         base_amount,
         case
           when acc in ('checking', 'cash') and type = 'income' and linked_transaction_id is null
-               and (cat in (${reimbursementCategories})
-                    or ltrim(description) ilike ${REIMBURSEMENT_DESCRIPTION_PREFIX})
+               and nature = 'reimbursement'
             then 'reimbursement'
           when acc in ('checking', 'cash') and type = 'income' and linked_transaction_id is null
             then 'income'
@@ -146,6 +137,7 @@ export function bucketAggregationQuery(
     select
       key,
       bucket,
+      nature,
       card_account_id,
       in_range,
       is_installment,
@@ -155,13 +147,61 @@ export function bucketAggregationQuery(
       count(*)::int as n
     from b
     where in_range or (bucket = 'card_spend' and is_installment)
-    group by key, bucket, card_account_id, in_range, is_installment, is_paid, is_real
+    group by key, bucket, nature, card_account_id, in_range, is_installment, is_paid, is_real
+
+    -- Fondos dentro de cuentas corrientes: apartar = aporte de ahorro, liberar = retiro.
+    -- Los fondos de terceros no son tu ahorro; en cuentas de ahorro el fondo es solo una etiqueta.
+    union all
+    select
+      r.key,
+      case when m.kind = 'allocate' then 'savings_in' else 'savings_out' end as bucket,
+      'own' as nature,
+      null as card_account_id,
+      true as in_range,
+      false as is_installment,
+      true as is_paid,
+      true as is_real,
+      sum(m.amount)::text as total,
+      count(*)::int as n
+    from ranges r
+    join n1n4_fund_movements m on m.date between r.start_date and r.end_date
+    join n1n4_account_funds f on f.id = m.fund_id
+    join n1n4_accounts a on a.id = f.account_id
+    where f.project_id = ${projectId}
+      and not f.is_third_party
+      and a.type in ('checking', 'cash')
+      and m.kind in ('allocate', 'release')
+    group by r.key, m.kind
+
+    -- Gasto pagado con un fondo: se compensa (la plata se apartó antes, o no es tuya)
+    union all
+    select
+      r.key,
+      'savings_out' as bucket,
+      'own' as nature,
+      null as card_account_id,
+      true as in_range,
+      false as is_installment,
+      t.is_paid,
+      t.is_paid as is_real,
+      sum(t.base_amount)::text as total,
+      count(*)::int as n
+    from ranges r
+    join n1n4_transactions t
+      on t.project_id = ${projectId}
+     and t.date between r.start_date and r.end_date
+     and t.account_fund_id is not null
+     and t.type = 'expense'
+    join n1n4_accounts a on a.id = t.account_id
+    where a.type in ('checking', 'cash')
+    group by r.key, t.is_paid
   `;
 }
 
 type RawBucketRow = {
   key: string;
   bucket: Bucket;
+  nature: Nature;
   card_account_id: string | null;
   in_range: boolean;
   is_installment: boolean;
@@ -175,6 +215,7 @@ export function parseBucketRows(rows: RawBucketRow[]): BucketRow[] {
   return rows.map((r) => ({
     key: r.key,
     bucket: r.bucket,
+    nature: r.nature,
     cardAccountId: r.card_account_id,
     inRange: r.in_range,
     isInstallment: r.is_installment,

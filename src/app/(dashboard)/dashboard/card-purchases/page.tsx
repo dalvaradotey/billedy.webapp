@@ -35,13 +35,10 @@ export default async function CardPurchasesPage() {
   ]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Compras en Cuotas</h1>
-        <p className="text-muted-foreground">
-          Controla tus compras con tarjeta de crédito en cuotas y visualiza cuánto
-          estás pagando en intereses.
-        </p>
+        <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Compras en cuotas</h1>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">Controla tus compras con tarjeta de crédito en cuotas y visualiza cuánto estás pagando en intereses.</p>
       </div>
 
       <CardPurchasesList

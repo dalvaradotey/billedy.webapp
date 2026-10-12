@@ -1,6 +1,7 @@
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
-import { getCurrentCycle } from '@/features/billing-cycles/queries';
+import { getCurrentCycle, getCycleHistory } from '@/features/billing-cycles/queries';
+import { getCyclePlanStatus, getCardPaceSeries, getCycleDailySeries } from '@/features/billing-cycles/lib/cycle-plan';
 import { getAccountsSummaryWithAccounts, getAccountDebtBreakdown } from '@/features/accounts/queries';
 import { getBudgetsProgress, getActiveBudgets } from '@/features/budgets';
 import { getActiveCategories } from '@/features/categories/queries';
@@ -19,7 +20,7 @@ export async function getDashboardData(userId: string) {
   }
 
   // Obtener datos principales en paralelo
-  const [currentCycle, accountsData, project, categories, budgets, savingsGoals, allEntities, debtBreakdown] = await Promise.all([
+  const [currentCycle, accountsData, project, categories, budgets, savingsGoals, allEntities, debtBreakdown, cycleHistory] = await Promise.all([
     getCurrentCycle(projectId, userId),
     getAccountsSummaryWithAccounts(projectId, userId),
     getProjectById(projectId, userId),
@@ -28,21 +29,30 @@ export async function getDashboardData(userId: string) {
     getActiveSavingsGoals(userId, projectId),
     getEntities(),
     getAccountDebtBreakdown(projectId, userId),
+    getCycleHistory(projectId, userId),
   ]);
 
   const { summary: accountsSummary, accounts } = accountsData;
   const isOwner = project?.userId === userId;
   const totalExternalDebt = Object.values(debtBreakdown).reduce((sum, d) => sum + d.externalDebt, 0);
 
-  // Obtener progreso de presupuestos si hay ciclo activo
-  const budgetsProgress = currentCycle
-    ? await getBudgetsProgress(
-        projectId,
-        userId,
-        new Date(currentCycle.startDate),
-        new Date(currentCycle.endDate)
-      )
-    : [];
+  // Progreso de presupuestos y plan del ciclo (techo TC, ahorro, libre) si hay ciclo activo
+  const [budgetsProgress, planStatus] = currentCycle
+    ? await Promise.all([
+        getBudgetsProgress(
+          projectId,
+          userId,
+          new Date(currentCycle.startDate),
+          new Date(currentCycle.endDate)
+        ),
+        getCyclePlanStatus(currentCycle),
+      ])
+    : [[], null];
+
+  // Serie del gráfico de ritmo (gasto propio en TC acumulado por día)
+  const [cardPace, dailySeries] = currentCycle && planStatus
+    ? await Promise.all([getCardPaceSeries(currentCycle, planStatus.card.spent), getCycleDailySeries(currentCycle)])
+    : [null, null];
 
   return {
     hasProject: true as const,
@@ -57,6 +67,10 @@ export async function getDashboardData(userId: string) {
     allEntities,
     isOwner,
     budgetsProgress,
+    planStatus,
     totalExternalDebt,
+    cycleHistory,
+    cardPace,
+    dailySeries,
   };
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { Pencil, Trash2, MoreVertical } from 'lucide-react';
 import { toastActions } from '@/lib/toast-messages';
 
@@ -39,7 +40,7 @@ export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: Template
   };
 
   return (
-    <div className="flex items-start gap-3 py-2.5 px-3 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors">
+    <div className="flex items-start gap-3 py-2.5 px-3 rounded-xl hover:bg-sky-soft transition-colors">
       {/* Entity image */}
       {item.entityImageUrl ? (
         <img
@@ -64,8 +65,8 @@ export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: Template
             <span
               className={`text-sm font-semibold tabular-nums ${
                 item.type === 'income'
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-red-600 dark:text-red-400'
+                  ? 'text-jade'
+                  : 'text-coral'
               }`}
             >
               {item.type === 'income' ? '+' : '-'}
@@ -96,7 +97,7 @@ export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: Template
           {item.entityName && <span>{item.entityName}</span>}
           <span
             className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-            style={{ backgroundColor: item.categoryColor }}
+            style={{ backgroundColor: pulseColor(item.categoryColor) }}
           />
           <span>{item.categoryName}</span>
           {item.accountName && (

@@ -6,7 +6,7 @@ export type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string };
 
-export const UNAUTHORIZED_ERROR = 'Tu sesión expiró. Vuelve a iniciar sesión.';
+export { UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 
 /**
  * Verifica que el usuario tenga acceso al proyecto

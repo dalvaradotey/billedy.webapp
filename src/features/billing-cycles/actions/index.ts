@@ -11,3 +11,14 @@ export {
 
 // Status operations
 export { closeBillingCycle, reopenBillingCycle } from './billing-cycle-status';
+
+// Plan del ciclo y compensaciones
+export {
+  updateProjectPlan,
+  fetchCyclePlanStatus,
+  fetchCardImpactData,
+  fetchPendingSettlements,
+  settleExpense,
+  liquidateFund,
+} from './plan-actions';
+export type { ProjectPlanInput, CardImpactData } from './plan-actions';

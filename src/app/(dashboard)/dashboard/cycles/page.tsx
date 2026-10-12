@@ -34,12 +34,10 @@ export default async function CyclesPage() {
   const summary = summarizeBillingCycles(cycles);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Ciclos de Facturación</h1>
-        <p className="text-muted-foreground">
-          Organiza tus finanzas por períodos de facturación.
-        </p>
+        <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Ciclos</h1>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">Organiza tus finanzas por períodos de facturación.</p>
       </div>
 
       <BillingCyclesList

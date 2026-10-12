@@ -17,30 +17,10 @@ interface SummaryCardProps {
 }
 
 const variantStyles: Record<SummaryCardVariant, { bg: string; border: string; icon: string; value: string }> = {
-  success: {
-    bg: 'bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 dark:from-emerald-500/20 dark:to-emerald-600/10',
-    border: 'border-emerald-500/20 dark:border-emerald-500/30',
-    icon: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
-    value: 'text-emerald-600 dark:text-emerald-400',
-  },
-  danger: {
-    bg: 'bg-gradient-to-br from-red-500/10 to-red-600/5 dark:from-red-500/20 dark:to-red-600/10',
-    border: 'border-red-500/20 dark:border-red-500/30',
-    icon: 'bg-red-500/20 text-red-600 dark:text-red-400',
-    value: 'text-red-600 dark:text-red-400',
-  },
-  neutral: {
-    bg: 'bg-gradient-to-br from-slate-500/10 to-slate-600/5 dark:from-slate-500/20 dark:to-slate-600/10',
-    border: 'border-slate-500/20 dark:border-slate-500/30',
-    icon: 'bg-slate-500/20 text-slate-600 dark:text-slate-400',
-    value: 'text-foreground',
-  },
-  info: {
-    bg: 'bg-gradient-to-br from-blue-500/10 to-blue-600/5 dark:from-blue-500/20 dark:to-blue-600/10',
-    border: 'border-blue-500/20 dark:border-blue-500/30',
-    icon: 'bg-blue-500/20 text-blue-600 dark:text-blue-400',
-    value: 'text-blue-600 dark:text-blue-400',
-  },
+  success: { bg: 'bg-surface', border: 'border-line', icon: 'bg-jade-soft text-jade', value: 'text-jade' },
+  danger: { bg: 'bg-surface', border: 'border-line', icon: 'bg-coral-soft text-coral', value: 'text-coral-text' },
+  neutral: { bg: 'bg-surface', border: 'border-line', icon: 'bg-surface-3 text-muted-foreground', value: 'text-foreground' },
+  info: { bg: 'bg-surface', border: 'border-line', icon: 'bg-sky-soft text-sky', value: 'text-sky' },
 };
 
 export function SummaryCard({
@@ -58,25 +38,17 @@ export function SummaryCard({
   const valueStyles = valueClassName || styles.value;
 
   return (
-    <div className={cn(`rounded-2xl border p-3 sm:p-4 ${styles.bg} ${styles.border}`, className)}>
-      <div className="flex items-start gap-2 sm:gap-3">
+    <div className={cn('rounded-[22px] border border-line bg-surface p-3.5 sm:p-4', className)}>
+      <div className="flex items-center gap-2">
         {icon && (
-          <div className={`p-1.5 sm:p-2 rounded-lg ${styles.icon} flex-shrink-0`}>
+          <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] [&_svg]:h-3.5 [&_svg]:w-3.5', styles.icon)}>
             {icon}
-          </div>
+          </span>
         )}
-        <div className="min-w-0 flex-1">
-          <div className="text-[11px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wide truncate">
-            {title}
-          </div>
-          <div className={cn('text-lg sm:text-xl font-bold tabular-nums truncate mt-0.5', valueStyles)}>
-            {value}
-          </div>
-          <div className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 truncate min-h-[14px] sm:min-h-[16px]">
-            {subtitle || '\u00A0'}
-          </div>
-        </div>
+        <span className="truncate text-xs text-muted-foreground">{title}</span>
       </div>
+      <div className={cn('num mt-2 truncate text-xl font-extrabold sm:text-[22px]', valueStyles)}>{value}</div>
+      {subtitle && <div className="mt-0.5 truncate text-[11px] text-faint">{subtitle}</div>}
     </div>
   );
 }

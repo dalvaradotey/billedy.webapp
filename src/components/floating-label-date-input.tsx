@@ -54,11 +54,10 @@ export const FloatingLabelDateInput = forwardRef<HTMLInputElement, FloatingLabel
         <span
           className={cn(
             'absolute left-3 top-1.5 text-xs flex items-center gap-1 pointer-events-none',
-            valid ? 'text-emerald-600' : hasError ? 'text-destructive' : 'text-muted-foreground'
+            hasError ? 'text-destructive' : 'text-muted-foreground'
           )}
         >
           {label}
-          {valid && <CheckCircle2 className="h-3.5 w-3.5" />}
           {hasError && !hasValue && <XCircle className="h-3.5 w-3.5" />}
         </span>
         <Input
@@ -67,8 +66,7 @@ export const FloatingLabelDateInput = forwardRef<HTMLInputElement, FloatingLabel
           data-vaul-no-drag
           onClick={handleClick}
           className={cn(
-            'h-14 pt-5 pb-1',
-            hasValue && valid && 'ring-1 ring-emerald-500',
+            'h-14 rounded-2xl pt-5 pb-1',
             hasError && 'ring-1 ring-destructive',
             className
           )}

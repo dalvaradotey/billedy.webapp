@@ -3,7 +3,7 @@ import { billingCycles, projectMembers } from '@/lib/db/schema';
 import { eq, and, isNotNull, desc } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import { getToday, daysBetween } from '@/lib/formatting';
-import { getCycleBalances } from './lib/cycle-balance';
+import { getCycleBalances, type ClosingSnapshot } from './lib/cycle-balance';
 import type { BillingCycleWithTotals, BillingCycleSummary } from './types';
 
 type BillingCycleRow = typeof billingCycles.$inferSelect;
@@ -37,9 +37,23 @@ async function enrichCyclesWithTotals(
         ? daysTotal
         : Math.min(daysTotal, Math.max(0, daysBetween(startDate, today) + 1));
 
+    const balance = balances.get(cycle.id)!;
+
+    // Aviso si los movimientos del ciclo cambiaron después del cierre
+    const snapshot = cycle.closingSnapshot as ClosingSnapshot | null;
+    if (cycle.status === 'closed' && snapshot?.version === 1) {
+      const current = balance.finalBalance.real;
+      if (Math.abs(current - snapshot.finalBalance) >= 1) {
+        balance.warnings = [
+          ...balance.warnings,
+          { kind: 'changed_since_close', closedAt: snapshot.finalBalance, current },
+        ];
+      }
+    }
+
     return {
       ...cycle,
-      balance: balances.get(cycle.id)!,
+      balance,
       daysTotal,
       daysElapsed,
       daysRemaining: Math.max(0, daysTotal - daysElapsed),
@@ -106,6 +120,29 @@ async function _getCurrentCycle(
 export const getCurrentCycle = cachedQuery(
   _getCurrentCycle,
   ['billing-cycles', 'current'],
+  { tags: [CACHE_TAGS.billingCycles, CACHE_TAGS.transactions, CACHE_TAGS.savings] }
+);
+
+export type CycleHistoryPoint = { id: string; name: string; finalBalance: number; isOpen: boolean };
+
+/**
+ * Saldo final de los últimos ciclos (el más antiguo primero), para el historial del inicio.
+ * Cacheada igual que el ciclo actual.
+ */
+export const getCycleHistory = cachedQuery(
+  async (projectId: string, userId: string, limit: number = 8): Promise<CycleHistoryPoint[]> => {
+    const cycles = await getBillingCycles(projectId, userId);
+    return cycles
+      .slice(0, limit)
+      .reverse()
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        finalBalance: c.status === 'open' ? c.balance.finalBalance.projected : c.balance.finalBalance.real,
+        isOpen: c.status === 'open',
+      }));
+  },
+  ['billing-cycles', 'history'],
   { tags: [CACHE_TAGS.billingCycles, CACHE_TAGS.transactions, CACHE_TAGS.savings] }
 );
 

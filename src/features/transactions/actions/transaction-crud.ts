@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { transactions, projects, projectMembers, accounts } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
@@ -24,26 +25,10 @@ import type {
   BulkUpdateDateInput,
 } from '../schemas';
 import type { ActionResult } from '../types';
-import { updateAccountBalance } from '@/features/accounts/actions';
-
-/**
- * Verifica que el usuario tenga acceso al proyecto
- */
-export async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
-  const member = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  return member.length > 0;
-}
+import { updateAccountBalance } from '@/features/accounts/lib/balance';
+import { verifyProjectAccess } from '../lib/access';
+import { normalizeNature } from '../nature';
+import { validateFundPayment } from '../lib/fund-validation';
 
 /**
  * Crea una nueva transacción
@@ -52,6 +37,10 @@ export async function createTransaction(
   userId: string,
   input: CreateTransactionInput
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createTransactionSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -92,6 +81,18 @@ export async function createTransaction(
 
   const isPaid = parsed.data.isPaid ?? false;
 
+  // Pago con un fondo de la cuenta (solo gastos)
+  const accountFundId = parsed.data.type === 'expense' ? (parsed.data.accountFundId ?? null) : null;
+  if (accountFundId) {
+    const fundError = await validateFundPayment({
+      projectId: parsed.data.projectId,
+      accountId: parsed.data.accountId,
+      fundId: accountFundId,
+      amount: parsed.data.originalAmount,
+    });
+    if (fundError) return { success: false, error: fundError };
+  }
+
   const [newTransaction] = await db
     .insert(transactions)
     .values({
@@ -103,6 +104,8 @@ export async function createTransaction(
       budgetId: parsed.data.budgetId ?? null,
       savingsGoalId: parsed.data.savingsGoalId ?? null,
       type: parsed.data.type,
+      nature: normalizeNature(parsed.data.nature, parsed.data.type),
+      accountFundId,
       description: parsed.data.description,
       notes: parsed.data.notes,
       date: parsed.data.date,
@@ -183,6 +186,10 @@ export async function updateTransaction(
   userId: string,
   input: UpdateTransactionInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = updateTransactionSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -195,6 +202,8 @@ export async function updateTransaction(
       projectId: transactions.projectId,
       accountId: transactions.accountId,
       type: transactions.type,
+      nature: transactions.nature,
+      accountFundId: transactions.accountFundId,
       originalAmount: transactions.originalAmount,
       isPaid: transactions.isPaid,
     })
@@ -219,6 +228,37 @@ export async function updateTransaction(
     ...parsed.data,
     updatedAt: new Date(),
   };
+
+  // La naturaleza debe ser coherente con el tipo (si cambia el tipo, puede dejar de aplicar)
+  if (parsed.data.nature !== undefined || parsed.data.type !== undefined) {
+    updateData.nature = normalizeNature(
+      parsed.data.nature ?? oldTransaction.nature,
+      parsed.data.type ?? oldTransaction.type
+    );
+  }
+
+  // Pago con fondo: coherente con el tipo, la cuenta y el saldo del fondo
+  {
+    const finalType = parsed.data.type ?? oldTransaction.type;
+    const finalAccountId = parsed.data.accountId ?? oldTransaction.accountId;
+    const finalFundId =
+      finalType === 'expense'
+        ? parsed.data.accountFundId !== undefined
+          ? parsed.data.accountFundId
+          : oldTransaction.accountFundId
+        : null;
+    if (finalFundId && finalAccountId) {
+      const fundError = await validateFundPayment({
+        projectId: oldTransaction.projectId,
+        accountId: finalAccountId,
+        fundId: finalFundId,
+        amount: parsed.data.originalAmount ?? parseFloat(oldTransaction.originalAmount),
+        previous: { fundId: oldTransaction.accountFundId, amount: parseFloat(oldTransaction.originalAmount) },
+      });
+      if (fundError) return { success: false, error: fundError };
+    }
+    updateData.accountFundId = finalFundId;
+  }
 
   // Convertir categoryId vacío a null
   if ('categoryId' in updateData) {
@@ -272,6 +312,10 @@ export async function toggleTransactionPaid(
   userId: string,
   input: TogglePaidInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = togglePaidSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -345,6 +389,10 @@ export async function toggleTransactionReconciled(
   userId: string,
   input: ToggleReconciledInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = toggleReconciledSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -395,6 +443,10 @@ export async function bulkToggleTransactionsReconciled(
   userId: string,
   input: BulkToggleReconciledInput
 ): Promise<ActionResult<{ updatedCount: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = bulkToggleReconciledSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -448,6 +500,10 @@ export async function deleteTransaction(
   transactionId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso y obtener datos para revertir el balance
   const existing = await db
     .select({
@@ -526,6 +582,10 @@ export async function bulkToggleTransactionsPaid(
   userId: string,
   input: BulkTogglePaidInput
 ): Promise<ActionResult<{ updatedCount: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = bulkTogglePaidSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -612,6 +672,10 @@ export async function bulkUpdateTransactionDates(
   userId: string,
   input: BulkUpdateDateInput
 ): Promise<ActionResult<{ updatedCount: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = bulkUpdateDateSchema.safeParse(input);
 
   if (!parsed.success) {

@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { categories, projectMembers } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
@@ -37,6 +38,10 @@ export async function createCategory(
   userId: string,
   input: CreateCategoryInput
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createCategorySchema.safeParse(input);
 
   if (!parsed.success) {
@@ -54,6 +59,7 @@ export async function createCategory(
       projectId: parsed.data.projectId,
       name: parsed.data.name,
       color: parsed.data.color,
+      defaultNature: parsed.data.defaultNature ?? null,
     })
     .returning({ id: categories.id });
 
@@ -70,6 +76,10 @@ export async function updateCategory(
   userId: string,
   input: UpdateCategoryInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = updateCategorySchema.safeParse(input);
 
   if (!parsed.success) {
@@ -114,6 +124,10 @@ export async function archiveCategory(
   categoryId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso
   const existing = await db
     .select({ projectId: categories.projectId })
@@ -152,6 +166,10 @@ export async function restoreCategory(
   categoryId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso
   const existing = await db
     .select({ projectId: categories.projectId })
@@ -191,6 +209,10 @@ export async function deleteCategory(
   categoryId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso
   const existing = await db
     .select({ projectId: categories.projectId })

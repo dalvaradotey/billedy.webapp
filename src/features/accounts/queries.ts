@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { getFundTotals } from './lib/funds';
 import { accounts, entities, projectMembers, cardPurchases, transactions } from '@/lib/db/schema';
 import { eq, and, desc, isNotNull, or, sql } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
@@ -160,14 +161,10 @@ export async function getDefaultAccount(
 }
 
 /**
- * Query interna para resumen de cuentas del proyecto
+ * Totales de cuentas. La plata de terceros guardada en fondos no cuenta como
+ * tuya: se descuenta del disponible y del patrimonio.
  */
-async function _getAccountsSummary(
-  projectId: string,
-  userId: string
-): Promise<AccountsSummary> {
-  const projectAccounts = await _getAccounts(projectId, userId);
-
+async function summarizeAccounts(projectId: string, projectAccounts: AccountWithEntity[]) {
   let totalDebitBalance = 0;
   let totalCreditBalance = 0;
   let totalProvisionBalance = 0;
@@ -184,12 +181,45 @@ async function _getAccountsSummary(
     }
   }
 
+  const fundTotals = projectAccounts.length > 0 ? await getFundTotals(projectId) : null;
+  const liquidIds = projectAccounts
+    .filter((a) => a.type === 'checking' || a.type === 'cash')
+    .map((a) => a.id);
+  const freeLiquidBalance = fundTotals
+    ? liquidIds.reduce((acc, id) => acc + (fundTotals.byAccount[id]?.free ?? 0), 0)
+    : 0;
+
+  return {
+    totalDebitBalance: totalDebitBalance - (fundTotals?.thirdParty ?? 0),
+    totalCreditBalance,
+    totalProvisionBalance,
+    funds: {
+      fundsBalance: fundTotals?.own ?? 0,
+      thirdPartyBalance: fundTotals?.thirdParty ?? 0,
+      freeLiquidBalance,
+    },
+  };
+}
+
+/**
+ * Query interna para resumen de cuentas del proyecto
+ */
+async function _getAccountsSummary(
+  projectId: string,
+  userId: string
+): Promise<AccountsSummary> {
+  const projectAccounts = await _getAccounts(projectId, userId);
+
+  const { totalDebitBalance, totalCreditBalance, totalProvisionBalance, funds } =
+    await summarizeAccounts(projectId, projectAccounts);
+
   return {
     totalAccounts: projectAccounts.length,
     totalDebitBalance,
     totalCreditBalance,
     totalProvisionBalance,
     netWorth: totalDebitBalance - totalCreditBalance,
+    ...funds,
   };
 }
 
@@ -213,21 +243,8 @@ async function _getAccountsSummaryWithAccounts(
 ): Promise<{ summary: AccountsSummary; accounts: AccountWithEntity[] }> {
   const projectAccounts = await _getAccounts(projectId, userId);
 
-  let totalDebitBalance = 0;
-  let totalCreditBalance = 0;
-  let totalProvisionBalance = 0;
-
-  for (const account of projectAccounts) {
-    const balance = parseFloat(account.currentBalance);
-
-    if (account.type === 'credit_card') {
-      totalCreditBalance += Math.abs(balance);
-    } else if (account.type === 'pension' || account.type === 'unemployment') {
-      totalProvisionBalance += balance;
-    } else {
-      totalDebitBalance += balance;
-    }
-  }
+  const { totalDebitBalance, totalCreditBalance, totalProvisionBalance, funds } =
+    await summarizeAccounts(projectId, projectAccounts);
 
   return {
     summary: {
@@ -236,6 +253,7 @@ async function _getAccountsSummaryWithAccounts(
       totalCreditBalance,
       totalProvisionBalance,
       netWorth: totalDebitBalance - totalCreditBalance,
+      ...funds,
     },
     accounts: projectAccounts,
   };

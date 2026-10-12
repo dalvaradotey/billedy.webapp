@@ -38,12 +38,10 @@ export default async function BudgetsPage() {
   const defaultCurrency = project?.currency ?? 'CLP';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Presupuestos</h1>
-        <p className="text-muted-foreground">
-          Define plantillas de presupuesto para asignar a cada ciclo de facturación.
-        </p>
+        <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Presupuestos</h1>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">Define plantillas de presupuesto para asignar a cada ciclo de facturación.</p>
       </div>
 
       <BudgetList

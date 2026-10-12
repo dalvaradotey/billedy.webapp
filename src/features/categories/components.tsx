@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect, useCallback } from 'react';
+import { PULSE_PALETTE, pulseColor } from '@/lib/pulse-tone';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -51,27 +52,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { createCategory, updateCategory, archiveCategory, restoreCategory, deleteCategory } from './actions';
 import { createCategorySchema, type CreateCategoryInput } from './schemas';
+import { NATURE_LABELS, TRANSACTION_NATURES } from '@/features/transactions/nature';
 import type { Category } from './types';
 
 // Colores predefinidos para categorías
-const PRESET_COLORS = [
-  '#ef4444', // red
-  '#f97316', // orange
-  '#f59e0b', // amber
-  '#eab308', // yellow
-  '#84cc16', // lime
-  '#22c55e', // green
-  '#10b981', // emerald
-  '#14b8a6', // teal
-  '#06b6d4', // cyan
-  '#0ea5e9', // sky
-  '#3b82f6', // blue
-  '#6366f1', // indigo
-  '#8b5cf6', // violet
-  '#a855f7', // purple
-  '#d946ef', // fuchsia
-  '#ec4899', // pink
-];
+const PRESET_COLORS = PULSE_PALETTE;
 
 interface CategoryListProps {
   categories: Category[];
@@ -199,13 +184,13 @@ function CategoryCard({ category, userId, onEdit }: CategoryCardProps) {
 
   return (
     <div
-      className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-accent/50"
-      style={{ borderLeftColor: category.color, borderLeftWidth: '4px' }}
+      className="flex items-center justify-between rounded-2xl border p-3 transition-colors hover:bg-accent/50"
+      style={{ borderLeftColor: pulseColor(category.color), borderLeftWidth: '4px' }}
     >
       <div className="flex items-center gap-3 min-w-0">
         <div
           className="h-3 w-3 rounded-full shrink-0"
-          style={{ backgroundColor: category.color }}
+          style={{ backgroundColor: pulseColor(category.color) }}
         />
         <p className="font-medium truncate">{category.name}</p>
       </div>
@@ -286,6 +271,7 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
     projectId,
     name: category?.name ?? '',
     color: category?.color ?? PRESET_COLORS[0],
+    defaultNature: category?.defaultNature ?? null,
   }), [projectId, category]);
 
   const form = useForm<CreateCategoryInput>({
@@ -304,7 +290,7 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
 
     startTransition(async () => {
       const result = category
-        ? await updateCategory(category.id, userId, { name: data.name, color: data.color })
+        ? await updateCategory(category.id, userId, { name: data.name, color: data.color, defaultNature: data.defaultNature ?? null })
         : await createCategory(userId, data);
 
       if (result.success) {
@@ -384,6 +370,40 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
             )}
           />
 
+          <FormField
+            control={form.control}
+            name="defaultNature"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Naturaleza sugerida</FormLabel>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Naturaleza sugerida">
+                  {([null, ...TRANSACTION_NATURES] as const).map((nature) => {
+                    const selected = (field.value ?? null) === nature;
+                    return (
+                      <button
+                        key={nature ?? 'none'}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => field.onChange(nature)}
+                        className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
+                          selected
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border text-muted-foreground hover:bg-muted'
+                        }`}
+                      >
+                        {nature ? NATURE_LABELS[nature] : 'Sin sugerencia'}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Al usar esta categoría, el formulario marca esta naturaleza (la puedes cambiar).
+                </p>
+              </FormItem>
+            )}
+          />
+
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <DrawerFooter className="pt-4">
@@ -426,7 +446,7 @@ export function CategorySelect({
             <div className="flex items-center gap-2">
               <div
                 className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: cat.color }}
+                style={{ backgroundColor: pulseColor(cat.color) }}
               />
               {cat.name}
             </div>

@@ -116,7 +116,7 @@ export function ProvisionContributionDialogContent({
     >
       <FormDrawerBody as="form" onSubmit={handleSubmit}>
         {missingCategories && (
-          <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-sm text-amber-200">
+          <div className="rounded-2xl bg-amber-soft border border-amber/30 p-3 text-sm text-amber-text">
             No se encontraron las categorías automáticas para esta cuenta.
             Verifica que existan las categorías &quot;Aporte {account.name}&quot; y &quot;Rentabilidad {account.name}&quot;.
           </div>
@@ -163,18 +163,18 @@ export function ProvisionContributionDialogContent({
 
         {/* Preview de rentabilidad */}
         {preview && (
-          <div className={`rounded-lg p-3 flex items-center gap-3 ${
+          <div className={`rounded-2xl p-3 flex items-center gap-3 ${
             preview.isGain
-              ? 'bg-emerald-500/10 border border-emerald-500/30'
-              : 'bg-red-500/10 border border-red-500/30'
+              ? 'bg-jade-soft border border-jade/30'
+              : 'bg-coral-soft border border-coral/30'
           }`}>
             {preview.isGain ? (
-              <TrendingUp className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+              <TrendingUp className="w-5 h-5 text-jade flex-shrink-0" />
             ) : (
-              <TrendingDown className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <TrendingDown className="w-5 h-5 text-coral-text flex-shrink-0" />
             )}
             <div>
-              <p className={`text-sm font-medium ${preview.isGain ? 'text-emerald-400' : 'text-red-400'}`}>
+              <p className={`text-sm font-medium ${preview.isGain ? 'text-jade' : 'text-coral-text'}`}>
                 {preview.isGain ? 'Ganancia' : 'Pérdida'}: {formatCurrency(Math.abs(preview.adjustment))}
               </p>
               <p className="text-xs text-muted-foreground">

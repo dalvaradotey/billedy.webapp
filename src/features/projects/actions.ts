@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { projects, currencies, projectMembers, users } from '@/lib/db/schema';
 import { eq, and, isNotNull, isNull } from 'drizzle-orm';
@@ -21,6 +22,10 @@ export async function createProject(
   userId: string,
   input: CreateProjectInput
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createProjectSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -73,6 +78,10 @@ export async function updateProject(
   userId: string,
   input: UpdateProjectInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = updateProjectSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -99,6 +108,10 @@ export async function archiveProject(
   projectId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   await db
     .update(projects)
     .set({
@@ -119,6 +132,10 @@ export async function restoreProject(
   projectId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   await db
     .update(projects)
     .set({
@@ -166,6 +183,10 @@ export async function inviteMember(
   inviterId: string,
   input: InviteMemberInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(inviterId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = inviteMemberSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -245,6 +266,10 @@ export async function acceptInvitation(
   invitationId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar que la invitación exista y pertenezca al usuario
   const invitation = await db
     .select({ id: projectMembers.id, acceptedAt: projectMembers.acceptedAt })
@@ -286,6 +311,10 @@ export async function rejectInvitation(
   invitationId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar que la invitación exista y pertenezca al usuario
   const invitation = await db
     .select({ id: projectMembers.id, acceptedAt: projectMembers.acceptedAt })
@@ -321,6 +350,10 @@ export async function removeMember(
   memberId: string,
   ownerId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(ownerId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar que el solicitante sea owner
   const isOwner = await db
     .select({ id: projectMembers.id })
@@ -371,6 +404,10 @@ export async function searchUsersForInvite(
   query: string,
   currentUserId: string
 ): Promise<ActionResult<{ id: string; name: string | null; email: string; image: string | null }[]>> {
+  if (!(await isSessionUser(currentUserId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Importar la query dinámicamente para evitar imports circulares
   const { searchUsersByEmail } = await import('./queries');
 

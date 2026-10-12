@@ -6,6 +6,7 @@ import { getEntities } from '@/features/entities';
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject } from '@/features/projects/queries';
 import { AccountsList } from '@/features/accounts';
+import { getAccountFundsForUser } from '@/features/accounts/lib/funds';
 
 export default async function AccountsPage() {
   const session = await auth();
@@ -24,22 +25,18 @@ export default async function AccountsPage() {
     projectId = latestProject.id;
   }
 
-  const [accounts, summary, currencies, entities, debtBreakdown] = await Promise.all([
+  const [accounts, summary, currencies, entities, debtBreakdown, funds] = await Promise.all([
     getAccounts(projectId, session.user.id),
     getAccountsSummary(projectId, session.user.id),
     getAllCurrencies(),
     getEntities(),
     getAccountDebtBreakdown(projectId, session.user.id),
+    getAccountFundsForUser(projectId, session.user.id),
   ]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Cuentas</h1>
-        <p className="text-muted-foreground">
-          Administra tus cuentas bancarias, efectivo y tarjetas de crédito.
-        </p>
-      </div>
+    <div className="space-y-4">
+      <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Cuentas</h1>
 
       <AccountsList
         accounts={accounts}
@@ -49,6 +46,7 @@ export default async function AccountsPage() {
         currencies={currencies.map((c) => ({ id: c.id, code: c.code, name: c.name }))}
         entities={entities}
         debtBreakdown={debtBreakdown}
+        funds={funds}
       />
     </div>
   );

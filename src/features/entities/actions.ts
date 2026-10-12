@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { entities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -21,6 +22,10 @@ export async function createEntity(
   input: CreateEntityInput,
   imageFile?: string // base64 encoded image
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar que el usuario sea admin
   const admin = await isUserAdmin(userId);
   if (!admin) {
@@ -66,6 +71,10 @@ export async function updateEntity(
   input: UpdateEntityInput,
   imageFile?: string // base64 encoded image
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar que el usuario sea admin
   const admin = await isUserAdmin(userId);
   if (!admin) {
@@ -121,6 +130,10 @@ export async function deactivateEntity(
   entityId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const admin = await isUserAdmin(userId);
   if (!admin) {
     return { success: false, error: 'No tienes permisos para desactivar entidades' };
@@ -146,6 +159,10 @@ export async function activateEntity(
   entityId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const admin = await isUserAdmin(userId);
   if (!admin) {
     return { success: false, error: 'No tienes permisos para activar entidades' };
@@ -171,6 +188,10 @@ export async function deleteEntity(
   entityId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const admin = await isUserAdmin(userId);
   if (!admin) {
     return { success: false, error: 'No tienes permisos para eliminar entidades' };

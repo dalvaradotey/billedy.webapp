@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, type TooltipProps } from 'recharts';
 import { ChevronDown } from 'lucide-react';
 import {
@@ -27,7 +28,7 @@ interface CategoryDatum {
   percentage: number;
 }
 
-const FALLBACK_COLOR = '#94a3b8';
+const FALLBACK_COLOR = '#BEB5C7';
 const OTROS_COLOR = '#64748b';
 const MIN_PERCENTAGE = 3; // Categorías < 3% se agrupan en "Otros"
 const BAR_WIDTH_PER_CATEGORY = 56; // px por barra
@@ -47,7 +48,7 @@ export function TransactionChartsContent({
     for (const t of transactions) {
       const key = t.categoryName ?? 'Sin categoría';
       const existing = map.get(key);
-      const entry = existing ?? { name: key, color: t.categoryColor ?? FALLBACK_COLOR, income: 0, expense: 0 };
+      const entry = existing ?? { name: key, color: t.categoryColor ? pulseColor(t.categoryColor) : FALLBACK_COLOR, income: 0, expense: 0 };
       const amount = Math.abs(parseFloat(t.originalAmount));
       if (t.type === 'income') entry.income += amount;
       else entry.expense += amount;
@@ -194,7 +195,7 @@ export function TransactionChartsContent({
                   {pieData.map((d) => (
                     <div key={d.name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <div
-                        className="h-2.5 w-2.5 shrink-0 rounded-sm"
+                        className="h-2.5 w-2.5 shrink-0 rounded-lg"
                         style={{ backgroundColor: d.color }}
                       />
                       <span>{d.name} {d.percentage.toFixed(0)}%</span>
@@ -212,7 +213,7 @@ export function TransactionChartsContent({
                   <div className="flex" style={{ minWidth: Y_AXIS_WIDTH + barChartWidth }}>
                     {/* Sticky Y-axis */}
                     <div
-                      className="sticky left-0 z-10 shrink-0 bg-card dark:bg-slate-900"
+                      className="sticky left-0 z-10 shrink-0 bg-surface"
                       style={{ width: Y_AXIS_WIDTH }}
                     >
                       <BarChart
@@ -260,7 +261,7 @@ export function TransactionChartsContent({
                             if (!active || !payload?.length) return null;
                             const d = payload[0].payload as CategoryDatum;
                             return (
-                              <div className="rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-xl">
+                              <div className="rounded-2xl border bg-background px-2.5 py-1.5 text-xs">
                                 <p className="font-medium text-foreground">{d.name}</p>
                                 <p className="text-muted-foreground">
                                   {formatCurrency(d.value, defaultCurrency)} · {d.percentage.toFixed(1)}%
@@ -295,7 +296,7 @@ export function TransactionChartsContent({
                       <div key={d.name} className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2 min-w-0">
                           <div
-                            className="h-3 w-3 shrink-0 rounded-sm"
+                            className="h-3 w-3 shrink-0 rounded-lg"
                             style={{ backgroundColor: d.color }}
                           />
                           <span className="truncate">{d.name}</span>

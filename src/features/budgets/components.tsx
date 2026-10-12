@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -403,7 +404,7 @@ function SortableBudgetCard({ budget, userId, onEdit, isReorderMode, cycles }: S
         className={cn(
           cardStyles.base,
           'flex items-center gap-3 cursor-grab active:cursor-grabbing select-none',
-          isDragging && 'opacity-50 shadow-lg ring-2 ring-primary/20 z-10'
+          isDragging && 'opacity-50 ring-2 ring-primary/20 z-10'
         )}
         {...listeners}
       >
@@ -416,20 +417,20 @@ function SortableBudgetCard({ budget, userId, onEdit, isReorderMode, cycles }: S
         {budget.categoryColor && (
           <div
             className="w-3 h-3 rounded-full shrink-0"
-            style={{ backgroundColor: budget.categoryColor }}
+            style={{ backgroundColor: pulseColor(budget.categoryColor) }}
           />
         )}
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-base truncate">{budget.name}</p>
+          <p className="font-bold text-[15px] truncate">{budget.name}</p>
           {budget.categoryName && (
             <p className="text-sm text-muted-foreground truncate">{budget.categoryName}</p>
           )}
         </div>
 
         {/* Amount */}
-        <p className="text-lg font-bold tabular-nums text-foreground shrink-0">
+        <p className="num text-lg font-extrabold text-foreground shrink-0">
           {formatCurrency(budget.defaultAmount, budget.currency)}
         </p>
       </div>
@@ -529,22 +530,22 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
             <div
               className={cn(
                 'w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0 flex items-center justify-center',
-                isExpired ? 'bg-muted' : 'bg-blue-500/15'
+                isExpired ? 'bg-muted' : 'bg-sky-soft'
               )}
             >
               <Calendar className={cn(
                 'h-5 w-5 sm:h-4 sm:w-4',
-                isExpired ? 'text-muted-foreground' : 'text-blue-600 dark:text-blue-400'
+                isExpired ? 'text-muted-foreground' : 'text-sky'
               )} />
             </div>
           ) : budget.categoryColor ? (
             <div
               className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
-              style={{ backgroundColor: budget.categoryColor + '30' }}
+              style={{ backgroundColor: pulseColor(budget.categoryColor) + '30' }}
             >
               <div
                 className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: budget.categoryColor }}
+                style={{ backgroundColor: pulseColor(budget.categoryColor) }}
               />
             </div>
           ) : (
@@ -559,7 +560,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-base truncate">{budget.name}</p>
+                  <p className="font-bold text-[15px] truncate">{budget.name}</p>
                   {!budget.isActive && (
                     <Badge variant="secondary" className="text-xs flex-shrink-0">Inactivo</Badge>
                   )}
@@ -567,7 +568,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
                     <Badge variant="destructive" className="text-xs flex-shrink-0">Expirado</Badge>
                   )}
                   {isTemporary && !isExpired && days !== null && (
-                    <Badge variant="outline" className="text-xs flex-shrink-0 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                    <Badge variant="outline" className="text-xs flex-shrink-0 text-sky border-sky/30 dark:border-sky">
                       {days === 0 ? 'Último día' : days === 1 ? '1 día' : `${days} días`}
                     </Badge>
                   )}
@@ -583,7 +584,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
               </div>
 
               {/* Desktop: Amount */}
-              <p className="hidden sm:block text-2xl font-bold tabular-nums text-foreground shrink-0">
+              <p className="hidden sm:block num text-[22px] font-extrabold text-foreground shrink-0">
                 {formatCurrency(budget.defaultAmount, budget.currency)}
               </p>
 
@@ -613,7 +614,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
             </div>
 
             {/* Mobile: Amount below description */}
-            <p className="text-2xl font-bold tabular-nums text-foreground mt-1 sm:hidden">
+            <p className="num text-[22px] font-extrabold text-foreground mt-1 sm:hidden">
               {formatCurrency(budget.defaultAmount, budget.currency)}
             </p>
 
@@ -632,23 +633,23 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
                         disabled={isPending}
                         className={cn(
                           cardStyles.drawerAction,
-                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-surface-3'
                         )}
                       >
                         <div className={cn(
                           cardStyles.drawerActionIconBox,
-                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-surface-3'
                         )}>
                           <span className={cn(
                             '[&>svg]:h-5 [&>svg]:w-5',
-                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                            action.variant === 'destructive' ? 'text-coral-text' : 'text-muted-foreground'
                           )}>
                             {action.icon}
                           </span>
                         </div>
                         <span className={cn(
                           'text-base font-medium',
-                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                          action.variant === 'destructive' && 'text-coral-text'
                         )}>
                           {action.label}
                         </span>
@@ -656,7 +657,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
                     </DrawerClose>
                   ))}
                 </div>
-                <div className="px-4 pb-4 pt-2 border-t">
+                <div className="px-4 pb-4 pt-2 border-t border-line">
                   <DrawerClose asChild>
                     <button className={cardStyles.drawerCancelButton}>
                       Cancelar
@@ -690,7 +691,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-red-500 dark:text-red-400'
+                      ? 'text-coral-text'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}

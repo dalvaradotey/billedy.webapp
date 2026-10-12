@@ -157,8 +157,8 @@ export function TemplateCard({
   ];
 
   const netColor = netAmount >= 0
-    ? 'text-emerald-600 dark:text-emerald-400'
-    : 'text-red-600 dark:text-red-400';
+    ? 'text-jade'
+    : 'text-coral-text';
 
   return (
     <>
@@ -207,15 +207,15 @@ export function TemplateCard({
 
             {/* Desktop: Net amount */}
             <div className="text-right hidden sm:block shrink-0">
-              <p className={cn('text-2xl font-bold tabular-nums', netColor)}>
+              <p className={cn('num text-[22px] font-extrabold', netColor)}>
                 {formatCurrency(netAmount, baseCurrency)}
               </p>
               <p className="text-xs text-muted-foreground tabular-nums">
-                <span className="text-emerald-600 dark:text-emerald-400">
+                <span className="text-jade">
                   +{formatCurrency(template.totalIncome, baseCurrency)}
                 </span>
                 {' / '}
-                <span className="text-red-600 dark:text-red-400">
+                <span className="text-coral-text">
                   -{formatCurrency(template.totalExpense, baseCurrency)}
                 </span>
               </p>
@@ -248,11 +248,11 @@ export function TemplateCard({
 
           {/* Mobile: Compact totals row */}
           <div className="pl-8 flex items-center gap-2 text-sm sm:hidden">
-            <span className="text-emerald-600 dark:text-emerald-400 tabular-nums font-medium">
+            <span className="text-jade tabular-nums font-medium">
               +{formatCurrency(template.totalIncome, baseCurrency)}
             </span>
             <span className="text-muted-foreground/40">/</span>
-            <span className="text-red-600 dark:text-red-400 tabular-nums font-medium">
+            <span className="text-coral-text tabular-nums font-medium">
               -{formatCurrency(template.totalExpense, baseCurrency)}
             </span>
             <span className="text-muted-foreground/40">=</span>
@@ -276,23 +276,23 @@ export function TemplateCard({
                       disabled={isPending}
                       className={cn(
                         cardStyles.drawerAction,
-                        action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                        action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-surface-3'
                       )}
                     >
                       <div className={cn(
                         cardStyles.drawerActionIconBox,
-                        action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                        action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-surface-3'
                       )}>
                         <span className={cn(
                           '[&>svg]:h-5 [&>svg]:w-5',
-                          action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                          action.variant === 'destructive' ? 'text-coral-text' : 'text-muted-foreground'
                         )}>
                           {action.icon}
                         </span>
                       </div>
                       <span className={cn(
                         'text-base font-medium',
-                        action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                        action.variant === 'destructive' && 'text-coral-text'
                       )}>
                         {action.label}
                       </span>
@@ -300,7 +300,7 @@ export function TemplateCard({
                   </DrawerClose>
                 ))}
               </div>
-              <div className="px-4 pb-4 pt-2 border-t">
+              <div className="px-4 pb-4 pt-2 border-t border-line">
                 <DrawerClose asChild>
                   <button className={cardStyles.drawerCancelButton}>
                     Cancelar
@@ -333,7 +333,7 @@ export function TemplateCard({
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-red-500 dark:text-red-400'
+                      ? 'text-coral-text'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}

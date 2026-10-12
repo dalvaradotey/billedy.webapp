@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
+import { useState, useTransition, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -31,8 +31,17 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { SwitchCard } from '@/components/switch-card';
+import { Switch } from '@/components/ui/switch';
 import { CategorySelector } from '@/components/category-selector';
+import { NatureSelector } from './nature-selector';
+import { DescriptionField } from './description-field';
+import { CapImpactNotice } from './cap-impact-notice';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { fetchCardImpactData, type CardImpactData } from '@/features/billing-cycles/actions';
+import { fetchAccountFunds } from '@/features/accounts/fund-actions';
+import type { AccountFund } from '@/features/accounts/lib/funds';
+import { formatCurrency } from '@/lib/formatting';
+import { normalizeNature, type TransactionNature } from '../nature';
 import { CurrencyInput } from '@/components/currency-input';
 import { EntitySelector } from '@/components/entity-selector';
 import { AccountSelector } from '@/components/account-selector';
@@ -42,6 +51,8 @@ import {
   createTransaction,
   updateTransaction,
   createAccountTransfer,
+  fetchDescriptionSuggestions,
+  type DescriptionSuggestion,
 } from '../actions';
 import {
   createTransactionSchema,
@@ -134,7 +145,7 @@ export function TransactionDialogContent({
   const { onInvalid } = useFormValidation();
   const { showSuccess, triggerSuccess } = useSuccessAnimation({ onComplete: onSuccess });
   const [formMode, setFormMode] = useState<FormMode>('expense');
-  const [useManualDescription, setUseManualDescription] = useState(false);
+  const [useManualDescription, setUseManualDescription] = useState(!transaction?.entityId);
   const [showManualCategory, setShowManualCategory] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
@@ -154,7 +165,7 @@ export function TransactionDialogContent({
   }, [categories]);
 
   const handleCategoryCreated = (newCategory: { id: string; name: string; color: string }) => {
-    setLocalCategories((prev) => [...prev, { ...newCategory, projectId, isArchived: false, createdAt: new Date(), updatedAt: new Date() }]);
+    setLocalCategories((prev) => [...prev, { ...newCategory, projectId, isArchived: false, defaultNature: null, createdAt: new Date(), updatedAt: new Date() }]);
   };
 
   // Find default account
@@ -200,6 +211,8 @@ export function TransactionDialogContent({
         savingsGoalId: transaction.savingsGoalId ?? undefined,
         entityId: transaction.entityId ?? undefined,
         isPaid: transaction.isPaid,
+        nature: transaction.nature as TransactionNature,
+        accountFundId: transaction.accountFundId ?? null,
         notes: transaction.notes ?? '',
         accountId: transaction.accountId ?? defaultAccount?.id ?? '',
       };
@@ -215,7 +228,9 @@ export function TransactionDialogContent({
       budgetId: initialValues?.budgetId ?? undefined as string | undefined,
       savingsGoalId: undefined as string | undefined,
       entityId: undefined as string | undefined,
-      isPaid: false,
+      isPaid: true,
+      nature: 'own' as TransactionNature,
+      accountFundId: null as string | null,
       notes: '',
       accountId: initialValues?.accountId ?? defaultAccount?.id ?? '',
     };
@@ -239,7 +254,7 @@ export function TransactionDialogContent({
     setShowTransferAdvancedOptions(false);
     setTransferSavingsGoalId(undefined);
     // Reset manual description toggle
-    setUseManualDescription(false);
+    setUseManualDescription(!transaction?.entityId);
     // Reset manual category toggle - show budget selector if initialValues has budgetId
     setShowManualCategory(false);
     // Reset advanced options (expanded when editing, collapsed for new)
@@ -256,6 +271,24 @@ export function TransactionDialogContent({
 
   const activeCategories = localCategories.filter((c) => !c.isArchived);
 
+  // Naturaleza: se sugiere según la categoría, salvo que el usuario la haya elegido a mano
+  const natureTouched = useRef(false);
+  const watchedCategoryId = form.watch('categoryId');
+  const watchedNatureType = form.watch('type');
+  useEffect(() => {
+    natureTouched.current = !!transaction;
+  }, [transaction]);
+  useEffect(() => {
+    const currentNature = form.getValues('nature') ?? 'own';
+    if (!natureTouched.current) {
+      const category = localCategories.find((c) => c.id === watchedCategoryId);
+      const suggested = normalizeNature(category?.defaultNature, watchedNatureType);
+      if (suggested !== currentNature) form.setValue('nature', suggested);
+    } else if (normalizeNature(currentNature, watchedNatureType) !== currentNature) {
+      form.setValue('nature', 'own');
+    }
+  }, [watchedCategoryId, watchedNatureType, localCategories, form]);
+
   // Detectar tipo de cuenta seleccionada
   const watchedAccountId = form.watch('accountId');
   const watchedType = form.watch('type');
@@ -263,6 +296,66 @@ export function TransactionDialogContent({
   const watchedDescription = form.watch('description');
   const selectedAccount = accountsMap.get(watchedAccountId);
   const isCreditCardExpense = selectedAccount?.type === 'credit_card' && watchedType === 'expense';
+
+  // Techo de gasto propio en TC: se consulta al cargar un gasto propio nuevo con tarjeta
+  const watchedNature = form.watch('nature');
+  const isOwnCardExpense =
+    !transaction && isCreditCardExpense && normalizeNature(watchedNature, 'expense') === 'own';
+  const [cardImpact, setCardImpact] = useState<CardImpactData | null>(null);
+  const cardAvailable = cardImpact?.available ?? null;
+  const cardPlanRequested = useRef(false);
+  const [capConfirmData, setCapConfirmData] = useState<CreateTransactionInput | null>(null);
+  useEffect(() => {
+    if (!isOwnCardExpense || cardPlanRequested.current) return;
+    cardPlanRequested.current = true;
+    fetchCardImpactData(projectId, userId).then((result) => {
+      if (result.success && result.data) setCardImpact(result.data);
+    });
+  }, [isOwnCardExpense, projectId, userId]);
+
+  // Sugerencias de descripción (lo que ya usaste en el proyecto)
+  const [descriptionSuggestions, setDescriptionSuggestions] = useState<DescriptionSuggestion[]>([]);
+  useEffect(() => {
+    if (transaction) return;
+    let active = true;
+    fetchDescriptionSuggestions(projectId, userId).then((result) => {
+      if (active && result.success) setDescriptionSuggestions(result.data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [transaction, projectId, userId]);
+
+  const handlePickSuggestion = (s: DescriptionSuggestion) => {
+    form.setValue('description', s.description, { shouldValidate: true });
+    if (s.categoryId) form.setValue('categoryId', s.categoryId);
+    if (s.budgetId && budgets.some((b) => b.id === s.budgetId)) form.setValue('budgetId', s.budgetId);
+    if (s.accountId && accountsMap.get(s.accountId)) form.setValue('accountId', s.accountId);
+  };
+  // Fondos de la cuenta: un gasto se puede pagar con un fondo de la misma cuenta
+  const [projectFunds, setProjectFunds] = useState<AccountFund[] | null>(null);
+  const fundsRequested = useRef(false);
+  const watchedFundId = form.watch('accountFundId');
+  useEffect(() => {
+    if (fundsRequested.current || watchedType !== 'expense') return;
+    fundsRequested.current = true;
+    fetchAccountFunds(projectId, userId).then((result) => {
+      if (result.success) setProjectFunds(result.data);
+    });
+  }, [watchedType, projectId, userId]);
+  const accountFundsForSelected = useMemo(
+    () => (projectFunds ?? []).filter((f) => f.accountId === watchedAccountId),
+    [projectFunds, watchedAccountId]
+  );
+  useEffect(() => {
+    // Si cambia la cuenta o el tipo, el fondo elegido deja de aplicar
+    const current = form.getValues('accountFundId');
+    if (!current) return;
+    const stillValid =
+      watchedType === 'expense' && (projectFunds === null || accountFundsForSelected.some((f) => f.id === current));
+    if (!stillValid) form.setValue('accountFundId', null);
+  }, [watchedAccountId, watchedType, projectFunds, accountFundsForSelected, form]);
+
   const isProvisionAccount = selectedAccount?.type === 'pension' || selectedAccount?.type === 'unemployment' || selectedAccount?.type === 'savings';
 
   // Estado para saldo del proveedor (modo previsional)
@@ -320,7 +413,17 @@ export function TransactionDialogContent({
   }, [transferAmount, transferFromAccountId, transferToAccountId]);
 
   const onSubmit = (data: CreateTransactionInput) => {
+    // Pasarse del techo de gasto propio en TC requiere confirmación explícita
+    if (isOwnCardExpense && cardAvailable != null && data.originalAmount > cardAvailable && !capConfirmData) {
+      setCapConfirmData(data);
+      return;
+    }
+    submitTransaction(data);
+  };
+
+  const submitTransaction = (data: CreateTransactionInput) => {
     setError(null);
+    setCapConfirmData(null);
 
     // Inyectar campos previsionales si aplica
     if (isProvisionAccount && providerBalance != null) {
@@ -436,11 +539,28 @@ export function TransactionDialogContent({
   return (
     <DrawerContent>
       <SuccessOverlay show={showSuccess} />
+      <ConfirmDialog
+        open={capConfirmData != null}
+        onOpenChange={(open) => {
+          if (!open) setCapConfirmData(null);
+        }}
+        title="Te pasas del techo de TC"
+        description={
+          capConfirmData && cardAvailable != null
+            ? `Con este gasto superas tu techo de gasto propio en TC por ${formatCurrency(capConfirmData.originalAmount - cardAvailable)}. Si sigues así, tu ahorro del ciclo se ve afectado. ¿Guardar igual?`
+            : ''
+        }
+        confirmText="Guardar igual"
+        size="sm"
+        onConfirm={() => {
+          if (capConfirmData) submitTransaction(capConfirmData);
+        }}
+      />
       <div className="mx-auto w-full max-w-lg md:flex md:flex-col md:h-full">
         <DrawerHeader>
           <div className="md:flex md:items-center md:justify-between">
             <DrawerTitle>
-              {isEditing ? 'Editar transacción' : isTransferMode ? 'Nueva transferencia' : 'Nueva transacción'}
+              {isEditing ? 'Editar movimiento' : isTransferMode ? 'Nuevo traspaso' : 'Nuevo movimiento'}
             </DrawerTitle>
             {/* Progress indicator - desktop only */}
             {!isEditing && (
@@ -471,7 +591,7 @@ export function TransactionDialogContent({
               </TabsTrigger>
               <TabsTrigger value="transfer" className="flex-1 gap-2">
                 <ArrowLeftRight className="h-4 w-4" />
-                Transferencia
+                Traspaso
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -663,55 +783,6 @@ export function TransactionDialogContent({
               )}
             />
 
-            {/* Account */}
-            <FormField
-              control={form.control}
-              name="accountId"
-              render={({ field, fieldState }) => (
-                <FormItem data-field="accountId">
-                  <FormControl>
-                    <AccountSelector
-                      accounts={activeAccounts}
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value ?? '');
-                        // Limpiar saldo proveedor al cambiar cuenta
-                        setProviderBalance(undefined);
-                      }}
-                      label="Cuenta de cargo"
-                      searchPlaceholder="Buscar cuenta..."
-                      valid={!!field.value}
-                      invalid={!!fieldState.error}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Saldo proveedor - solo cuentas previsionales */}
-            {isProvisionAccount && (
-              <div className="space-y-2">
-                <CurrencyInput
-                  value={providerBalance}
-                  onChange={setProviderBalance}
-                  currency={defaultCurrency}
-                  placeholder="0"
-                  label="Saldo actual según proveedor"
-                  valid={providerBalance !== undefined && providerBalance >= 0}
-                />
-                {profitabilityPreview !== null && (
-                  <p className={cn(
-                    'text-xs font-medium px-1',
-                    profitabilityPreview > 0 ? 'text-emerald-500' : 'text-red-500'
-                  )}>
-                    Rentabilidad: {profitabilityPreview > 0 ? '+' : ''}
-                    {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(profitabilityPreview)}
-                  </p>
-                )}
-              </div>
-            )}
-
             {/* Entity or Manual Description toggle - ocultar para cuentas previsionales */}
             {!isProvisionAccount && (
               entities.length > 0 && !useManualDescription ? (
@@ -752,7 +823,7 @@ export function TransactionDialogContent({
                     onClick={() => setUseManualDescription(true)}
                   >
                     <Pencil className="mr-1.5 h-3 w-3" />
-                    Escribir tienda manualmente
+                    Escribir la descripción
                   </Button>
                 </div>
               ) : (
@@ -763,12 +834,13 @@ export function TransactionDialogContent({
                     render={({ field, fieldState }) => (
                       <FormItem data-field="description">
                         <FormControl>
-                          <FloatingLabelInput
-                            label="Descripción"
-                            value={field.value}
+                          <DescriptionField
+                            value={field.value ?? ''}
                             onChange={field.onChange}
                             onBlur={field.onBlur}
-                            valid={!!field.value}
+                            onPick={handlePickSuggestion}
+                            suggestions={descriptionSuggestions}
+                            type={watchedType}
                             invalid={!!fieldState.error}
                           />
                         </FormControl>
@@ -785,11 +857,173 @@ export function TransactionDialogContent({
                       onClick={() => setUseManualDescription(false)}
                     >
                       <Store className="mr-1.5 h-3 w-3" />
-                      Seleccionar tienda
+                      Elegir tienda del listado
                     </Button>
                   )}
                 </div>
               )
+            )}
+
+            {/* Account */}
+            <FormField
+              control={form.control}
+              name="accountId"
+              render={({ field, fieldState }) => (
+                <FormItem data-field="accountId">
+                  <FormControl>
+                    <AccountSelector
+                      accounts={activeAccounts}
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value ?? '');
+                        // Limpiar saldo proveedor al cambiar cuenta
+                        setProviderBalance(undefined);
+                      }}
+                      label="Cuenta de cargo"
+                      searchPlaceholder="Buscar cuenta..."
+                      valid={!!field.value}
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Naturaleza: separa lo propio de lo que se compensa */}
+            {!isProvisionAccount && (
+              <FormField
+                control={form.control}
+                name="nature"
+                render={({ field }) => (
+                  <FormItem data-field="nature">
+                    <NatureSelector
+                      type={watchedType}
+                      value={normalizeNature(field.value, watchedType)}
+                      onChange={(value) => {
+                        natureTouched.current = true;
+                        field.onChange(value);
+                      }}
+                    />
+                    {isOwnCardExpense && cardImpact && (
+                      <div className="pt-2">
+                        <CapImpactNotice
+                          data={cardImpact}
+                          amount={watchedAmount || 0}
+                          onNotMine={() => {
+                            natureTouched.current = true;
+                            field.onChange('external');
+                          }}
+                        />
+                      </div>
+                    )}
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Pagar con un fondo de la cuenta */}
+            {watchedType === 'expense' && accountFundsForSelected.length > 0 && (
+              <FormField
+                control={form.control}
+                name="accountFundId"
+                render={({ field }) => (
+                  <FormItem data-field="accountFundId">
+                    <p className="text-[13px] font-extrabold">¿Lo pagas con un fondo?</p>
+                    <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Fondo">
+                      {[{ id: null, name: 'Sin fondo', balance: null as number | null }, ...accountFundsForSelected].map((fund) => {
+                        const selected = (field.value ?? null) === fund.id;
+                        const previousAmount =
+                          transaction && transaction.accountFundId === fund.id ? parseFloat(transaction.originalAmount) : 0;
+                        const available = fund.balance != null ? fund.balance + previousAmount : null;
+                        const insufficient = available != null && (watchedAmount || 0) > available;
+                        return (
+                          <button
+                            key={fund.id ?? 'none'}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => field.onChange(fund.id)}
+                            className={cn(
+                              'min-h-[52px] rounded-2xl border px-3.5 py-2 text-left text-sm transition-colors',
+                              selected ? 'border-amber bg-amber-soft text-foreground' : 'border-line text-muted-foreground hover:bg-surface-2'
+                            )}
+                          >
+                            <span className="block truncate font-medium">{fund.name}</span>
+                            {available != null && (
+                              <span className={cn('text-[11px] tabular-nums', insufficient && 'text-coral-text')}>
+                                {formatCurrency(available)}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {watchedFundId && (
+                      <p className="text-xs text-muted-foreground">
+                        El gasto baja el saldo del fondo y no descuadra tu ciclo (esa plata ya estaba apartada).
+                      </p>
+                    )}
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Pagado: siempre visible y prendido por defecto (casi todo se registra ya pagado) */}
+            {!isProvisionAccount && (
+              <FormField
+                control={form.control}
+                name="isPaid"
+                render={({ field }) => (
+                  <FormItem data-field="isPaid">
+                    <label
+                      className={cn(
+                        'flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl pl-4 pr-3.5 transition-colors',
+                        field.value ? 'bg-jade-soft' : 'border border-line bg-background'
+                      )}
+                    >
+                      <span className="flex-1">
+                        <span className="block text-sm font-extrabold">Pagado</span>
+                        <span className={cn('text-xs', field.value ? 'text-jade-text' : 'text-muted-foreground')}>
+                          {field.value
+                            ? isCreditCardExpense
+                              ? 'ya quedó cargado en la tarjeta'
+                              : watchedType === 'income'
+                                ? 'ya llegó a la cuenta'
+                                : 'ya salió de la cuenta'
+                            : 'queda pendiente: cuenta como comprometido'}
+                        </span>
+                      </span>
+                      <FormControl>
+                        <Switch checked={field.value ?? false} onCheckedChange={field.onChange} aria-label="Pagado" />
+                      </FormControl>
+                    </label>
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Saldo proveedor - solo cuentas previsionales */}
+            {isProvisionAccount && (
+              <div className="space-y-2">
+                <CurrencyInput
+                  value={providerBalance}
+                  onChange={setProviderBalance}
+                  currency={defaultCurrency}
+                  placeholder="0"
+                  label="Saldo actual según proveedor"
+                  valid={providerBalance !== undefined && providerBalance >= 0}
+                />
+                {profitabilityPreview !== null && (
+                  <p className={cn(
+                    'text-xs font-medium px-1',
+                    profitabilityPreview > 0 ? 'text-jade' : 'text-coral'
+                  )}>
+                    Rentabilidad: {profitabilityPreview > 0 ? '+' : ''}
+                    {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(profitabilityPreview)}
+                  </p>
+                )}
+              </div>
             )}
 
             {/* Otras opciones toggle */}
@@ -956,11 +1190,10 @@ export function TransactionDialogContent({
                             <span
                               className={cn(
                                 "absolute left-3 top-1.5 text-xs flex items-center gap-1 pointer-events-none",
-                                hasValue ? "text-emerald-600" : hasError ? "text-destructive" : "text-muted-foreground"
+                                hasError ? "text-destructive" : "text-muted-foreground"
                               )}
                             >
                               Fecha
-                              {hasValue && <CheckCircle2 className="h-3.5 w-3.5" />}
                               {hasError && !hasValue && <XCircle className="h-3.5 w-3.5" />}
                             </span>
                             <Input
@@ -986,7 +1219,6 @@ export function TransactionDialogContent({
                               }}
                               className={cn(
                                 "h-14 pt-5 pb-1",
-                                hasValue && "ring-1 ring-emerald-500",
                                 hasError && "ring-1 ring-destructive"
                               )}
                             />
@@ -1020,27 +1252,6 @@ export function TransactionDialogContent({
                   )}
                 />
 
-                {/* isPaid switch - ocultar para cuentas previsionales (siempre pagado) */}
-                {!isProvisionAccount && (
-                <FormField
-                  control={form.control}
-                  name="isPaid"
-                  render={({ field }) => (
-                    <FormItem data-field="isPaid">
-                      <FormControl>
-                        <SwitchCard
-                          title="Pagado"
-                          description={isCreditCardExpense
-                            ? "Marca si este cargo ya se aplicó a la tarjeta"
-                            : "Marca si esta transacción ya fue pagada"}
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                )}
               </div>
             )}
 
@@ -1052,7 +1263,7 @@ export function TransactionDialogContent({
                   pendingText="Guardando..."
                   icon={isEditing ? <Check className="size-7" /> : <ArrowRight className="size-7" />}
                 >
-                  {isEditing ? 'Guardar cambios' : 'Crear transacción'}
+                  {isEditing ? 'Guardar cambios' : watchedType === 'income' ? 'Guardar ingreso' : 'Guardar gasto'}
                 </SubmitButton>
               </DrawerFooter>
               </form>

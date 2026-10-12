@@ -173,11 +173,11 @@ export function BillingCycleCard({
         <div className="flex items-start gap-3">
           {/* Status Icon */}
           {isOpen ? (
-            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+            <div className="flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-[13px] flex-shrink-0 bg-sky-soft text-sky dark:bg-sky-soft dark:text-sky">
               <Clock className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
           ) : (
-            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+            <div className="flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-[13px] flex-shrink-0 bg-jade-soft text-jade dark:bg-jade-soft dark:text-jade">
               <CheckCircle2 className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
           )}
@@ -188,7 +188,7 @@ export function BillingCycleCard({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-base truncate">{cycle.name}</p>
+                  <p className="font-bold text-[15px] truncate">{cycle.name}</p>
                   <Badge
                     variant={isOpen ? 'default' : 'secondary'}
                     className="shrink-0 text-[10px] px-1.5 py-0"
@@ -203,7 +203,7 @@ export function BillingCycleCard({
 
               {/* Desktop: Balance */}
               <div className="hidden sm:block text-right shrink-0">
-                <p className={cn('text-2xl font-bold tabular-nums', balanceColor(finalBalance))}>
+                <p className={cn('num text-[22px] font-extrabold', balanceColor(finalBalance))}>
                   {formatCurrency(finalBalance)}
                 </p>
                 <p className="text-[11px] text-muted-foreground">saldo final</p>
@@ -236,7 +236,7 @@ export function BillingCycleCard({
 
             {/* Mobile: Balance below description */}
             <p className="mt-1 sm:hidden">
-              <span className={cn('text-2xl font-bold tabular-nums', balanceColor(finalBalance))}>
+              <span className={cn('num text-[22px] font-extrabold', balanceColor(finalBalance))}>
                 {formatCurrency(finalBalance)}
               </span>
               <span className="ml-1.5 text-xs text-muted-foreground">saldo final</span>
@@ -257,23 +257,23 @@ export function BillingCycleCard({
                         disabled={isPending}
                         className={cn(
                           cardStyles.drawerAction,
-                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-surface-3'
                         )}
                       >
                         <div className={cn(
                           cardStyles.drawerActionIconBox,
-                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-surface-3'
                         )}>
                           <span className={cn(
                             '[&>svg]:h-5 [&>svg]:w-5',
-                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                            action.variant === 'destructive' ? 'text-coral-text' : 'text-muted-foreground'
                           )}>
                             {action.icon}
                           </span>
                         </div>
                         <span className={cn(
                           'text-base font-medium',
-                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                          action.variant === 'destructive' && 'text-coral-text'
                         )}>
                           {action.label}
                         </span>
@@ -281,7 +281,7 @@ export function BillingCycleCard({
                     </DrawerClose>
                   ))}
                 </div>
-                <div className="px-4 pb-4 pt-2 border-t">
+                <div className="px-4 pb-4 pt-2 border-t border-line">
                   <DrawerClose asChild>
                     <button className={cardStyles.drawerCancelButton}>
                       Cancelar
@@ -310,7 +310,7 @@ export function BillingCycleCard({
             </div>
             <div className="flex items-center gap-2.5">
               <Progress value={progressPercentage} className={cardStyles.progressBar} indicatorClassName={cardStyles.progressIndicator} />
-              <span className={cn('text-lg', cardStyles.progressPercentage)}>
+              <span className={cn('text-sm', cardStyles.progressPercentage)}>
                 {progressPercentage}%
               </span>
             </div>
@@ -338,7 +338,7 @@ export function BillingCycleCard({
             </span>
             <span className="flex shrink-0 items-center gap-1.5">
               {balance.warnings.length > 0 && (
-                <AlertTriangle className="h-4 w-4 text-amber-500" aria-label="Hay avisos" />
+                <AlertTriangle className="h-4 w-4 text-amber" aria-label="Hay avisos" />
               )}
               <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', showDetails && 'rotate-180')} />
             </span>
@@ -379,7 +379,7 @@ export function BillingCycleCard({
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-red-500 dark:text-red-400'
+                      ? 'text-coral-text'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}

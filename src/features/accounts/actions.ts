@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { accounts, transactions, projectMembers, categories } from '@/lib/db/schema';
 import { eq, and, sql, isNotNull } from 'drizzle-orm';
@@ -40,6 +41,10 @@ export async function createAccount(
   userId: string,
   input: CreateAccountInput
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createAccountSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -107,6 +112,10 @@ export async function updateAccount(
   userId: string,
   input: UpdateAccountInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = updateAccountSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -179,6 +188,10 @@ export async function archiveAccount(
   accountId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso mediante membresía al proyecto
   const existing = await db
     .select({ id: accounts.id })
@@ -218,6 +231,10 @@ export async function restoreAccount(
   accountId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso mediante membresía al proyecto
   const existing = await db
     .select({ id: accounts.id })
@@ -258,6 +275,10 @@ export async function deleteAccount(
   accountId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso mediante membresía al proyecto
   const existing = await db
     .select({ id: accounts.id })
@@ -300,6 +321,10 @@ export async function adjustAccountBalance(
   userId: string,
   newBalance: number
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso y obtener tipo de cuenta
   const existing = await db
     .select({ id: accounts.id, type: accounts.type })
@@ -356,42 +381,6 @@ export async function adjustAccountBalance(
 }
 
 /**
- * Update account balance (internal use for transactions)
- * Called when a transaction is created, updated, or deleted
- */
-export async function updateAccountBalance(
-  accountId: string,
-  amountDelta: number // Positive for income, negative for expense
-): Promise<void> {
-  const account = await db
-    .select({
-      currentBalance: accounts.currentBalance,
-      type: accounts.type,
-    })
-    .from(accounts)
-    .where(eq(accounts.id, accountId))
-    .limit(1);
-
-  if (!account[0]) return;
-
-  const currentBalance = parseFloat(account[0].currentBalance);
-
-  // Para tarjetas de crédito, invertir la lógica del delta:
-  // - Un gasto (delta negativo) debe AUMENTAR la deuda (sumar al balance)
-  // - Un pago/ingreso (delta positivo) debe DISMINUIR la deuda (restar del balance)
-  const adjustedDelta = account[0].type === 'credit_card' ? -amountDelta : amountDelta;
-  const newBalance = currentBalance + adjustedDelta;
-
-  await db
-    .update(accounts)
-    .set({ currentBalance: String(newBalance), updatedAt: new Date() })
-    .where(eq(accounts.id, accountId));
-
-  // No invalidamos caché aquí porque esta función es interna
-  // y se llama desde otras actions que ya invalidan
-}
-
-/**
  * Recalcula el balance de una cuenta basándose en:
  * - Saldo inicial
  * - Transacciones PAGADAS (isPaid = true)
@@ -402,6 +391,10 @@ export async function recalculateAccountBalance(
   accountId: string,
   userId: string
 ): Promise<ActionResult<{ newBalance: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso y obtener tipo de cuenta
   const account = await db
     .select({
@@ -470,6 +463,10 @@ export async function recalculateAllAccountBalances(
   projectId: string,
   userId: string
 ): Promise<ActionResult<{ updated: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar membresía
   const hasAccess = await verifyProjectMembership(projectId, userId);
   if (!hasAccess) {
@@ -513,6 +510,10 @@ export async function registerProvisionContribution(
     profitabilityCategoryId: string;
   }
 ): Promise<ActionResult<{ contributionId: string; adjustmentId?: string; adjustmentAmount: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso
   const hasAccess = await verifyProjectMembership(input.projectId, userId);
   if (!hasAccess) {

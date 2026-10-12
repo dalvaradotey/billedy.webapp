@@ -127,9 +127,8 @@ export function UserSearchSelector({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'w-full justify-between font-normal',
+            'w-full justify-between rounded-2xl bg-background font-normal hover:bg-surface-2',
             label ? 'h-14 py-1' : 'h-12',
-            valid && 'ring-1 ring-emerald-500',
             invalid && 'ring-1 ring-destructive'
           )}
           disabled={disabled}
@@ -140,11 +139,10 @@ export function UserSearchSelector({
                 className={cn(
                   'transition-all flex items-center gap-1',
                   value ? 'text-xs' : 'text-base',
-                  valid ? 'text-emerald-600' : invalid ? 'text-destructive' : 'text-muted-foreground'
+                  invalid ? 'text-destructive' : 'text-muted-foreground'
                 )}
               >
                 {label}
-                {valid && <CheckCircle2 className="h-3.5 w-3.5" />}
                 {invalid && <XCircle className="h-3.5 w-3.5" />}
               </span>
               {value && (

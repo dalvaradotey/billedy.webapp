@@ -29,10 +29,12 @@ import {
 import { CurrencyInput } from '@/components/currency-input';
 import { InstallmentSelector } from '@/components/installment-selector';
 import { Separator } from '@/components/ui/separator';
-import { SwitchCard } from '@/components/switch-card';
 import { EntitySelector } from '@/components/entity-selector';
 import { CategorySelector } from '@/components/category-selector';
 import { AccountSelector } from '@/components/account-selector';
+import { NatureSelector } from '@/features/transactions/components/nature-selector';
+import { EXPENSE_NATURES, normalizeNature } from '@/features/transactions/nature';
+import { fetchCyclePlanStatus } from '@/features/billing-cycles/actions';
 
 import { formatCurrency } from '@/lib/formatting';
 import { createCardPurchaseSchema, type CreateCardPurchaseInput } from '../schemas';
@@ -130,9 +132,21 @@ export function CreatePurchaseDialog({
       firstChargeDate: new Date(),
       chargedInstallments: 0,
       isExternalDebt: false,
+      nature: 'own',
       notes: '',
     },
   });
+
+  // Naturaleza sugerida por la categoría, salvo que el usuario la elija a mano
+  const [natureTouched, setNatureTouched] = useState(false);
+  const watchCategoryId = form.watch('categoryId');
+  useEffect(() => {
+    if (natureTouched) return;
+    const category = categories.find((c) => c.id === watchCategoryId);
+    const suggested = normalizeNature(category?.defaultNature, 'expense') as (typeof EXPENSE_NATURES)[number];
+    form.setValue('nature', suggested);
+    form.setValue('isExternalDebt', suggested === 'external');
+  }, [watchCategoryId, categories, natureTouched, form]);
 
   // Watch fields for conditional rendering
   const watchPurchaseDate = form.watch('purchaseDate');
@@ -153,6 +167,19 @@ export function CreatePurchaseDialog({
   const totalAmount = (watchOriginalAmount || 0) * interestMultiplier;
   const interestAmount = totalAmount - (watchOriginalAmount || 0);
   const installmentAmount = watchInstallments > 0 ? totalAmount / watchInstallments : 0;
+
+  // Impacto en el techo de gasto propio en TC (solo compras propias)
+  const watchNature = form.watch('nature');
+  const [cardAvailable, setCardAvailable] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchCyclePlanStatus(projectId, userId).then((result) => {
+      if (!cancelled && result.success && result.data) setCardAvailable(result.data.card.available);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, userId]);
 
   const calculatedChargedInstallments = calculateChargedInstallments(
     watchFirstChargeDate,
@@ -193,6 +220,7 @@ export function CreatePurchaseDialog({
       if (result.success) {
         toast.success('Compra registrada', { id: toastId });
         form.reset();
+        setNatureTouched(false);
         triggerSuccess();
       } else {
         const errorMessage = result.error || 'Error al crear la compra';
@@ -402,6 +430,26 @@ export function CreatePurchaseDialog({
               )}
             />
 
+            {/* Naturaleza: propio, de otra persona, reembolsable o del fondo */}
+            <FormField
+              control={form.control}
+              name="nature"
+              render={({ field }) => (
+                <FormItem data-field="nature">
+                  <NatureSelector
+                    type="expense"
+                    label="¿De quién es esta compra?"
+                    value={field.value ?? 'own'}
+                    onChange={(value) => {
+                      setNatureTouched(true);
+                      field.onChange(value);
+                      form.setValue('isExternalDebt', value === 'external');
+                    }}
+                  />
+                </FormItem>
+              )}
+            />
+
             {/* Amount */}
             <FormField
               control={form.control}
@@ -502,13 +550,26 @@ export function CreatePurchaseDialog({
                       {formatCurrency(installmentAmount)} x {watchInstallments}
                     </span>
                   </div>
+                  {(watchNature ?? 'own') === 'own' && cardAvailable != null && (
+                    <p
+                      className={`rounded-2xl px-3 py-2 text-xs ${
+                        cardAvailable - installmentAmount >= 0
+                          ? 'bg-background/60 text-muted-foreground'
+                          : 'bg-coral-soft text-coral'
+                      }`}
+                    >
+                      Suma {formatCurrency(installmentAmount)} a tu gasto propio en TC de cada ciclo durante{' '}
+                      {watchInstallments} {watchInstallments === 1 ? 'ciclo' : 'ciclos'}. Con la cuota de este ciclo tu
+                      disponible quedaría en {formatCurrency(cardAvailable - installmentAmount)}.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             )}
 
             {/* Charged Installments Notice */}
             {calculatedChargedInstallments > 0 && (
-              <div className="rounded-lg border p-3 bg-muted/50">
+              <div className="rounded-2xl border p-3 bg-muted/50">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">
                     Cuotas vencidas (se marcarán como pagadas)
@@ -549,24 +610,6 @@ export function CreatePurchaseDialog({
                     Ocultar
                   </Button>
                 </div>
-
-                {/* External Debt Switch */}
-                <FormField
-                  control={form.control}
-                  name="isExternalDebt"
-                  render={({ field }) => (
-                    <FormItem data-field="isExternalDebt">
-                      <FormControl>
-                        <SwitchCard
-                          title="Deuda externa (familiar/tercero)"
-                          description="Marca si compraste para alguien que te pagará las cuotas. No se contará en tu límite de endeudamiento."
-                          checked={field.value ?? false}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
 
                 {/* Notes */}
                 <FormField

@@ -172,10 +172,9 @@ export function CurrencyInput({
         <span className={cn(
           "absolute flex items-center gap-1 text-xs md:text-sm",
           isLarge ? "left-4 top-2 md:top-3" : "left-3 top-1",
-          valid ? "text-emerald-600" : invalid ? "text-destructive" : "text-muted-foreground"
+          invalid ? "text-destructive" : "text-muted-foreground"
         )}>
           {label}
-          {valid && <CheckCircle2 className="h-4 w-4" />}
           {invalid && <XCircle className="h-4 w-4" />}
         </span>
       )}
@@ -201,7 +200,6 @@ export function CurrencyInput({
             ? 'pl-10 md:pl-12 text-3xl md:text-4xl font-semibold text-center'
             : 'pl-7',
           label && isLarge ? 'h-20 md:h-24 pt-6 md:pt-7 pb-2' : isLarge ? 'h-16 md:h-20' : label ? 'h-14 pt-5 pb-1' : '',
-          valid && 'ring-1 ring-emerald-500',
           invalid && 'ring-1 ring-destructive',
           className
         )}

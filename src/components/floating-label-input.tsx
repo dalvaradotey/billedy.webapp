@@ -39,18 +39,16 @@ export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInpu
           className={cn(
             'absolute left-3 transition-all flex items-center gap-1 pointer-events-none',
             isActive ? 'top-1.5 text-xs' : 'top-1/2 -translate-y-1/2 text-base',
-            valid ? 'text-emerald-600' : hasError ? 'text-destructive' : 'text-muted-foreground'
+            hasError ? 'text-destructive' : 'text-muted-foreground'
           )}
         >
           {label}
-          {valid && <CheckCircle2 className="h-3.5 w-3.5" />}
           {hasError && !value && <XCircle className="h-3.5 w-3.5" />}
         </span>
         <Input
           ref={ref}
           className={cn(
-            'h-14 pt-5 pb-1',
-            valid && 'ring-1 ring-emerald-500',
+            'h-14 rounded-2xl pt-5 pb-1',
             hasError && 'ring-1 ring-destructive',
             className
           )}

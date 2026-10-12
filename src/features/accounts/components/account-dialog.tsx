@@ -463,7 +463,7 @@ export function AccountDialogContent({
                     <div className="space-y-3">
                       <Alert
                         variant="destructive"
-                        className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        className="border-amber/50 bg-amber-soft text-amber"
                       >
                         <AlertTriangle className="h-4 w-4" />
                         <AlertDescription className="text-sm">

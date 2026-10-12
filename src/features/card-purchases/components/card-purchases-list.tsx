@@ -151,7 +151,7 @@ export function CardPurchasesList({
       {hasPendingCharges && (
         <button
           onClick={handleChargeAll}
-          className="w-full flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400 transition-colors active:bg-amber-500/20"
+          className="w-full flex items-center gap-2 rounded-xl border border-amber/30 bg-amber-soft px-3 py-2.5 text-sm text-amber transition-colors active:bg-amber-soft"
         >
           <Receipt className="h-4 w-4 shrink-0" />
           <span className="font-medium">Hay cuotas pendientes de cobro</span>
@@ -173,12 +173,12 @@ export function CardPurchasesList({
 
       {/* Toolbar con filtros */}
       <PageToolbar label={`${filteredPurchases.length} compras`}>
-        <div className="inline-flex rounded-lg border bg-muted/50 p-0.5">
+        <div className="inline-flex rounded-full border border-line bg-background p-1">
           <button
             onClick={() => setShowActive(true)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-9 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors ${
               showActive
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'bg-cream text-cream-ink'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -187,9 +187,9 @@ export function CardPurchasesList({
           </button>
           <button
             onClick={() => setShowActive(false)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`min-h-9 rounded-full px-3.5 py-1.5 text-sm font-bold transition-colors ${
               !showActive
-                ? 'bg-background text-foreground shadow-sm'
+                ? 'bg-cream text-cream-ink'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >

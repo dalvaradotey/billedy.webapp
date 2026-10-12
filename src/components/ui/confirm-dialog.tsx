@@ -60,15 +60,15 @@ interface ConfirmDialogControlled extends ConfirmDialogBaseProps {
 type ConfirmDialogProps = ConfirmDialogWithTrigger | ConfirmDialogControlled;
 
 const iconVariantStyles = {
-  default: 'bg-muted text-muted-foreground',
-  destructive: 'bg-red-500/10 text-red-500 dark:text-red-400',
-  warning: 'bg-amber-500/10 text-amber-500 dark:text-amber-400',
-  info: 'bg-blue-500/10 text-blue-500 dark:text-blue-400',
+  default: 'bg-surface-3 text-muted-foreground',
+  destructive: 'bg-coral-soft text-coral',
+  warning: 'bg-amber-soft text-amber',
+  info: 'bg-sky-soft text-sky',
 };
 
 const buttonVariantStyles = {
   default: '',
-  destructive: '!bg-red-500/10 !text-red-500 dark:!text-red-400 hover:!bg-red-500/20',
+  destructive: '!bg-coral !text-coral-ink hover:!bg-coral/90',
 };
 
 /**

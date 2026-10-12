@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { transactions, projects, projectMembers, accounts, categories, cardPurchases } from '@/lib/db/schema';
 import { eq, and, isNotNull, sql, inArray } from 'drizzle-orm';
@@ -13,9 +14,9 @@ import type {
   SetHistoricallyPaidInput,
 } from '../schemas';
 import type { ActionResult } from '../types';
-import { updateAccountBalance } from '@/features/accounts/actions';
+import { updateAccountBalance } from '@/features/accounts/lib/balance';
 import { getUnpaidCreditCardTransactions } from '../queries';
-import { verifyProjectAccess } from './transaction-crud';
+import { verifyProjectAccess } from '../lib/access';
 
 /**
  * Paga múltiples transacciones de tarjeta de crédito mediante una transferencia
@@ -30,6 +31,10 @@ export async function payCreditCardTransactions(
   userId: string,
   input: PayCreditCardInput
 ): Promise<ActionResult<{ transferId: string; totalPaid: number; interestPaid?: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = payCreditCardSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -334,6 +339,10 @@ export async function fetchUnpaidCCTransactions(
   projectId: string,
   userId: string
 ) {
+  if (!(await isSessionUser(userId))) {
+    return [];
+  }
+
   return getUnpaidCreditCardTransactions(accountId, projectId, userId);
 }
 
@@ -345,6 +354,10 @@ export async function setTransactionsHistoricallyPaid(
   userId: string,
   input: SetHistoricallyPaidInput
 ): Promise<ActionResult<{ updatedCount: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = setHistoricallyPaidSchema.safeParse(input);
 
   if (!parsed.success) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { toast } from 'sonner';
 import { CreditCard, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ function TransactionSelector({
         </Button>
       </div>
 
-      <div className="rounded-lg border max-h-[300px] overflow-y-auto">
+      <div className="rounded-2xl border max-h-[300px] overflow-y-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -88,12 +89,12 @@ function TransactionSelector({
                   <div className="text-xs text-muted-foreground flex items-center gap-1">
                     <div
                       className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: t.categoryColor ?? undefined }}
+                      style={{ backgroundColor: pulseColor(t.categoryColor) }}
                     />
                     {t.categoryName}
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-medium text-red-600 dark:text-red-400">
+                <TableCell className="text-right font-medium text-coral-text">
                   {formatCurrency(t.baseAmount, t.baseCurrency)}
                 </TableCell>
               </TableRow>
@@ -257,7 +258,7 @@ export function PayCreditCardDialog({
           />
 
           {/* Total */}
-          <div className="rounded-lg border p-4 bg-muted/50">
+          <div className="rounded-2xl border p-4 bg-muted/50">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 Total a pagar ({selectedIds.size} transacciones)
@@ -450,7 +451,7 @@ export function PayCreditCardButton({
             />
 
             {/* Total */}
-            <div className="rounded-lg border p-4 bg-muted/50">
+            <div className="rounded-2xl border p-4 bg-muted/50">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
                   Total a pagar ({selectedIds.size} transacciones)

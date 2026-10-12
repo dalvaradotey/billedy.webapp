@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { budgets, projectMembers, transactions, categories, accounts, entities } from '@/lib/db/schema';
 import { eq, and, isNotNull, sql, gte, lte, desc } from 'drizzle-orm';
@@ -43,6 +44,10 @@ export async function createBudget(
   userId: string,
   input: CreateBudgetInput
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createBudgetSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -88,6 +93,10 @@ export async function updateBudget(
   userId: string,
   input: UpdateBudgetInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = updateBudgetSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -142,6 +151,10 @@ export async function deleteBudget(
   budgetId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar acceso
   const existing = await db
     .select({ projectId: budgets.projectId })
@@ -175,6 +188,10 @@ export async function toggleBudgetActive(
   userId: string,
   isActive: boolean
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   return updateBudget(budgetId, userId, { isActive });
 }
 
@@ -186,6 +203,10 @@ export async function reorderBudgets(
   userId: string,
   orderedIds: string[]
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const hasAccess = await verifyProjectAccess(projectId, userId);
   if (!hasAccess) {
     return { success: false, error: 'No tienes acceso a este proyecto' };
@@ -238,6 +259,10 @@ export async function fetchBudgetDetail(
     entityImageUrl: string | null;
   }[];
 }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Verificar que el presupuesto existe y el usuario tiene acceso
   const existing = await db
     .select({ projectId: budgets.projectId, defaultAmount: budgets.defaultAmount })

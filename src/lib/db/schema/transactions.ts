@@ -19,6 +19,8 @@ import {
   accounts,
   entities,
   categoryTypeEnum,
+  transactionNatureEnum,
+  accountFunds,
 } from './core';
 import { savingsGoals } from './savings';
 
@@ -151,6 +153,9 @@ export const transactions = pgTable('n1n4_transactions', {
   // Para compras en cuotas: indica si la cuota fue pagada antes de usar la app
   isHistoricallyPaid: boolean('is_historically_paid').default(false).notNull(),
   isReconciled: boolean('is_reconciled').default(false).notNull(),
+  nature: transactionNatureEnum('nature').default('own').notNull(),
+  // Gasto pagado con un fondo de la cuenta
+  accountFundId: uuid('account_fund_id').references(() => accountFunds.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
@@ -198,6 +203,7 @@ export const cardPurchases = pgTable('n1n4_card_purchases', {
   // Status
   isActive: boolean('is_active').default(true).notNull(),
   isExternalDebt: boolean('is_external_debt').default(false).notNull(), // For purchases made for others (family, etc.)
+  nature: transactionNatureEnum('nature').default('own').notNull(), // Las cuotas la heredan
   notes: text('notes'),
 
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
@@ -228,4 +234,29 @@ export const budgets = pgTable('n1n4_budgets', {
   sortOrder: integer('sort_order').default(10000).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// SETTLEMENTS (compensación de gastos que no son propios)
+// ============================================================================
+
+export const settlementKindEnum = pgEnum('settlement_kind', ['transaction', 'waived']);
+
+/**
+ * Cuánto de un gasto `external` / `reimbursable` / `fund` queda compensado y con qué.
+ * Permite compensaciones parciales y de muchos a muchos (un abono cubre varios
+ * gastos; un gasto se cubre con varios abonos). `waived` cierra una diferencia
+ * sin movimiento (redondeo, "lo asumió la otra persona").
+ */
+export const settlements = pgTable('n1n4_settlements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  expenseId: uuid('expense_id')
+    .notNull()
+    .references(() => transactions.id, { onDelete: 'cascade' }),
+  settlingTransactionId: uuid('settling_transaction_id').references(() => transactions.id, {
+    onDelete: 'cascade',
+  }),
+  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+  kind: settlementKindEnum('kind').notNull(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 });

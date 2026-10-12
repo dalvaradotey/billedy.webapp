@@ -6,6 +6,7 @@ import {
   boolean,
   integer,
   decimal,
+  date,
   pgEnum,
   unique,
 } from 'drizzle-orm/pg-core';
@@ -25,6 +26,19 @@ export const accountTypeEnum = pgEnum('account_type', [
   'unemployment',
 ]);
 export const projectRoleEnum = pgEnum('project_role', ['owner', 'editor', 'viewer']);
+
+/**
+ * Naturaleza de una transacción: separa lo propio de lo que se compensa.
+ * - expense: own | external (lo paga otra persona) | reimbursable | fund (sale del fondo de imprevistos)
+ * - income:  own | reimbursement (abono / devolución)
+ */
+export const transactionNatureEnum = pgEnum('transaction_nature', [
+  'own',
+  'external',
+  'reimbursable',
+  'fund',
+  'reimbursement',
+]);
 export const entityTypeEnum = pgEnum('entity_type', [
   'bank',
   'credit_card',
@@ -100,6 +114,10 @@ export const projects = pgTable('n1n4_projects', {
     precision: 15,
     scale: 2,
   }),
+  // Plan del ciclo: ahorro objetivo, techo de gasto propio en TC y cuenta del fondo de imprevistos
+  savingsTarget: decimal('savings_target', { precision: 15, scale: 2 }),
+  cardSpendingCap: decimal('card_spending_cap', { precision: 15, scale: 2 }),
+  contingencyAccountId: uuid('contingency_account_id'),
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
@@ -144,6 +162,7 @@ export const categories = pgTable('n1n4_categories', {
     .references(() => projects.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 100 }).notNull(),
   color: varchar('color', { length: 7 }).notNull(),
+  defaultNature: transactionNatureEnum('default_nature'),
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
@@ -206,4 +225,43 @@ export const transfers = pgTable('n1n4_transfers', {
   notes: varchar('notes', { length: 1000 }),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// ACCOUNT FUNDS (fondos dentro de una cuenta)
+// ============================================================================
+
+/**
+ * Divide el saldo de una cuenta en fondos que solo existen en la app.
+ * Saldo del fondo = movimientos (initial + allocate − release) − gastos pagados con el fondo.
+ * Libre de la cuenta = saldo de la cuenta − saldo de sus fondos.
+ */
+export const accountFunds = pgTable('n1n4_account_funds', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
+  accountId: uuid('account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  targetAmount: decimal('target_amount', { precision: 15, scale: 2 }),
+  isThirdParty: boolean('is_third_party').default(false).notNull(),
+  isArchived: boolean('is_archived').default(false).notNull(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+});
+
+export const fundMovementKindEnum = pgEnum('fund_movement_kind', ['initial', 'allocate', 'release']);
+
+export const fundMovements = pgTable('n1n4_fund_movements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fundId: uuid('fund_id')
+    .notNull()
+    .references(() => accountFunds.id, { onDelete: 'cascade' }),
+  kind: fundMovementKindEnum('kind').notNull(),
+  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+  date: date('date', { mode: 'date' }).notNull(),
+  notes: varchar('notes', { length: 500 }),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 });

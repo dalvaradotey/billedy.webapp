@@ -13,21 +13,21 @@ const TONES = {
     label: 'text-muted-foreground',
     value: 'text-foreground',
     divider: 'border-border',
-    positive: 'text-emerald-600 dark:text-emerald-400',
-    negative: 'text-red-600 dark:text-red-400',
+    positive: 'text-jade',
+    negative: 'text-coral',
     muted: 'text-muted-foreground',
     info: 'bg-muted/40 dark:bg-muted/20',
-    warning: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    warning: 'bg-amber-soft text-amber dark:text-amber-text',
   },
   dark: {
-    label: 'text-slate-400',
-    value: 'text-slate-100',
-    divider: 'border-slate-700',
-    positive: 'text-emerald-400',
-    negative: 'text-red-400',
-    muted: 'text-slate-500',
-    info: 'bg-slate-700/30',
-    warning: 'bg-amber-500/15 text-amber-300',
+    label: 'text-muted-foreground',
+    value: 'text-foreground',
+    divider: 'border-line-strong',
+    positive: 'text-jade',
+    negative: 'text-coral',
+    muted: 'text-muted-foreground',
+    info: 'bg-surface-3/30',
+    warning: 'bg-amber-soft text-amber-text',
   },
 } as const;
 
@@ -65,7 +65,10 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
       label: 'Pago TC',
       value: balance.cardPayment.real,
       sign: '−',
-      hint: pendingCardPayment > 0 ? `Falta pagar ${formatCurrency(pendingCardPayment)}` : undefined,
+      hint:
+        pendingCardPayment > 0
+          ? `Falta pagar ${formatCurrency(pendingCardPayment)}`
+          : paymentBreakdownText(balance),
     },
   ];
 
@@ -126,7 +129,7 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
         )}
       </dl>
 
-      <div className={cn('flex items-start gap-2 rounded-lg p-2.5 text-xs', t.info)}>
+      <div className={cn('flex items-start gap-2 rounded-2xl p-2.5 text-xs', t.info)}>
         <CreditCard className={cn('h-4 w-4 shrink-0', t.label)} />
         <p className={t.label}>
           Gastado con TC este ciclo:{' '}
@@ -146,7 +149,7 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
   );
 }
 
-function warningText(warning: CycleWarning): string {
+export function warningText(warning: CycleWarning): string {
   switch (warning.kind) {
     case 'overdue_pending':
       return warning.count === 1
@@ -158,7 +161,25 @@ function warningText(warning: CycleWarning): string {
       return `El pago de ${warning.cardName} (${formatCurrency(warning.paid)}) no calza con su estado de cuenta (${formatCurrency(warning.expected)}).`;
     case 'gap_before':
       return `Hay ${warning.days} ${warning.days === 1 ? 'día' : 'días'} sin ciclo antes de este.`;
+    case 'changed_since_close':
+      return `Cambió ${formatCurrency(warning.current - warning.closedAt)} desde el cierre (al cerrar: ${formatCurrency(warning.closedAt)}). Se editaron movimientos de este ciclo.`;
   }
+}
+
+/**
+ * "Propio $X · de otros $Y · …" para el pago TC (solo si no es todo propio).
+ */
+function paymentBreakdownText(balance: CycleBalance): string | undefined {
+  const b = balance.card.paymentBreakdown;
+  if (!b || balance.cardPayment.real === 0) return undefined;
+  const parts = [
+    b.external > 0 && `de otros ${formatCurrency(b.external)}`,
+    b.fund > 0 && `fondo ${formatCurrency(b.fund)}`,
+    b.reimbursable > 0 && `reembolsable ${formatCurrency(b.reimbursable)}`,
+    b.credits > 0 && `devoluciones −${formatCurrency(b.credits)}`,
+  ].filter(Boolean);
+  if (parts.length === 0) return undefined;
+  return [`propio ${formatCurrency(b.own)}`, ...parts].join(' · ');
 }
 
 export function CycleWarnings({ warnings, tone = 'light' }: { warnings: CycleWarning[]; tone?: Tone }) {
@@ -168,7 +189,7 @@ export function CycleWarnings({ warnings, tone = 'light' }: { warnings: CycleWar
   return (
     <ul className="space-y-1.5">
       {warnings.map((warning, index) => (
-        <li key={index} className={cn('flex items-start gap-2 rounded-lg p-2.5 text-xs', t.warning)}>
+        <li key={index} className={cn('flex items-start gap-2 rounded-2xl p-2.5 text-xs', t.warning)}>
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>{warningText(warning)}</span>
         </li>

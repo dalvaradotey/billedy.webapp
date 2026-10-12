@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { currencies, projects, projectMembers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -15,6 +16,10 @@ const MONTH_NAMES = [
  * - Crea un proyecto inicial con el mes actual
  */
 export async function runOnboarding(userId: string): Promise<{ success: boolean; projectId?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false };
+  }
+
   const needsOnboarding = await checkNeedsOnboarding(userId);
 
   if (!needsOnboarding) {

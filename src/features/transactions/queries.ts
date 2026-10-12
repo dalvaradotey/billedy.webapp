@@ -35,6 +35,10 @@ export async function getTransactions(
     conditions.push(eq(transactions.isPaid, filters.isPaid));
   }
 
+  if (filters.nature) {
+    conditions.push(eq(transactions.nature, filters.nature));
+  }
+
   if (filters.isReconciled !== undefined) {
     conditions.push(eq(transactions.isReconciled, filters.isReconciled));
   }
@@ -83,6 +87,8 @@ export async function getTransactions(
       paidByTransferId: transactions.paidByTransferId,
       isHistoricallyPaid: transactions.isHistoricallyPaid,
       isReconciled: transactions.isReconciled,
+      nature: transactions.nature,
+      accountFundId: transactions.accountFundId,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
@@ -138,6 +144,8 @@ export async function getTransactionById(
       paidByTransferId: transactions.paidByTransferId,
       isHistoricallyPaid: transactions.isHistoricallyPaid,
       isReconciled: transactions.isReconciled,
+      nature: transactions.nature,
+      accountFundId: transactions.accountFundId,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
@@ -287,6 +295,8 @@ export async function getRecentTransactions(
       paidByTransferId: transactions.paidByTransferId,
       isHistoricallyPaid: transactions.isHistoricallyPaid,
       isReconciled: transactions.isReconciled,
+      nature: transactions.nature,
+      accountFundId: transactions.accountFundId,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
@@ -368,6 +378,8 @@ export async function getUnpaidCreditCardTransactions(
       paidByTransferId: transactions.paidByTransferId,
       isHistoricallyPaid: transactions.isHistoricallyPaid,
       isReconciled: transactions.isReconciled,
+      nature: transactions.nature,
+      accountFundId: transactions.accountFundId,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,

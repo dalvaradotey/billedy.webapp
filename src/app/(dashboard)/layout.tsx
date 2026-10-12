@@ -14,7 +14,7 @@ import {
 import { isUserAdmin } from '@/features/entities';
 import { BottomNavActionProvider } from '@/components/layout/bottom-nav-context';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
-import { DesktopActionsFab } from '@/components/layout/desktop-actions-fab';
+import { AppSidebar } from '@/components/layout/app-sidebar';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -56,30 +56,36 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader
-        user={session.user}
-        projects={projects}
-        currentProjectId={currentProjectId}
-        currencies={currencies}
-        isAdmin={isAdmin}
-        members={members}
-        isOwner={isOwner}
-        pendingInvitations={pendingInvitations}
-      />
       <BottomNavActionProvider>
-        <main className="container mx-auto px-4 py-6 pb-20 md:pb-6">
-          {hasNoProjects ? (
-            <NoProjectsMessage userId={session.user.id} currencies={currencies} />
-          ) : (
-            children
-          )}
-        </main>
-        <MobileBottomNav
+        <AppSidebar
           user={session.user}
-          pendingInvitations={pendingInvitations}
+          projects={projects}
+          currentProjectId={currentProjectId}
+          currencies={currencies}
           isAdmin={isAdmin}
+          members={members}
+          isOwner={isOwner}
+          pendingInvitations={pendingInvitations}
         />
-        <DesktopActionsFab />
+        <div className="md:pl-[248px]">
+          <DashboardHeader
+            user={session.user}
+            projects={projects}
+            currentProjectId={currentProjectId}
+            currencies={currencies}
+            members={members}
+            isOwner={isOwner}
+            pendingInvitations={pendingInvitations}
+          />
+          <main className="mx-auto w-full max-w-[1200px] px-4 pb-28 pt-2 md:px-8 md:pb-10 md:pt-6">
+            {hasNoProjects ? (
+              <NoProjectsMessage userId={session.user.id} currencies={currencies} />
+            ) : (
+              children
+            )}
+          </main>
+        </div>
+        <MobileBottomNav user={session.user} isAdmin={isAdmin} />
       </BottomNavActionProvider>
     </div>
   );

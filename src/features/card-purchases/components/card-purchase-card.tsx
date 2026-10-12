@@ -20,12 +20,15 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
+import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, ResponsiveDrawer } from '@/components/ui/drawer';
+import { Button } from '@/components/ui/button';
+import { NatureSelector } from '@/features/transactions/components/nature-selector';
+import { NATURE_LABELS, type TransactionNature } from '@/features/transactions/nature';
 import { cn } from '@/lib/utils';
 import { cardStyles } from '@/components/card-styles';
 
 import { formatCurrency, formatDateLong } from '@/lib/formatting';
-import { chargeInstallment, archiveCardPurchase, deleteCardPurchase, regenerateInstallments } from '../actions';
+import { chargeInstallment, archiveCardPurchase, deleteCardPurchase, regenerateInstallments, updateCardPurchase } from '../actions';
 import type { CardPurchaseWithDetails } from '../types';
 
 interface CardPurchaseCardProps {
@@ -52,6 +55,8 @@ export function CardPurchaseCard({
   const [showActionsDrawer, setShowActionsDrawer] = useState(false);
   const [showInlineActions, setShowInlineActions] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showNatureDrawer, setShowNatureDrawer] = useState(false);
+  const [selectedNature, setSelectedNature] = useState<TransactionNature>(purchase.nature);
   const isMobile = useIsMobile();
 
   const hasInterest = parseFloat(purchase.interestAmount) > 0;
@@ -116,6 +121,23 @@ export function CardPurchaseCard({
     });
   };
 
+  const handleSaveNature = () => {
+    const toastId = toast.loading('Actualizando naturaleza...');
+    onMutationStart?.();
+    startTransition(async () => {
+      const result = await updateCardPurchase(purchase.id, userId, {
+        nature: selectedNature as 'own' | 'external' | 'reimbursable' | 'fund',
+      });
+      setShowNatureDrawer(false);
+      if (result.success) {
+        onMutationSuccess?.(toastId, 'Naturaleza actualizada en la compra y sus cuotas');
+        onUpdate();
+      } else {
+        onMutationError?.(toastId, result.error ?? 'Error al actualizar');
+      }
+    });
+  };
+
   // Build description line
   const descriptionParts: string[] = [];
   if (purchase.entityName) descriptionParts.push(purchase.entityName);
@@ -134,6 +156,16 @@ export function CardPurchaseCard({
           onClick: handleChargeInstallment,
         }]
       : []),
+    {
+      key: 'nature',
+      label: 'Cambiar naturaleza',
+      icon: <Users />,
+      onClick: () => {
+        setSelectedNature(purchase.nature);
+        setShowNatureDrawer(true);
+      },
+      closeOnClick: false,
+    },
     {
       key: 'regenerate',
       label: 'Regenerar cuotas',
@@ -178,7 +210,7 @@ export function CardPurchaseCard({
         <div className="flex items-start gap-3">
           {/* Icon */}
           {purchase.entityImageUrl ? (
-            <div className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-border">
+            <div className="w-11 h-11 sm:w-10 sm:h-10 rounded-[13px] overflow-hidden flex-shrink-0 bg-white p-0.5">
               <img
                 src={purchase.entityImageUrl}
                 alt={purchase.entityName ?? ''}
@@ -186,7 +218,7 @@ export function CardPurchaseCard({
               />
             </div>
           ) : (
-            <div className="p-3 sm:p-2.5 rounded-xl flex-shrink-0 bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400">
+            <div className="flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-[13px] flex-shrink-0 bg-amber-soft text-amber dark:bg-amber-soft dark:text-amber">
               <Store className="h-6 w-6 sm:h-5 sm:w-5" />
             </div>
           )}
@@ -197,11 +229,11 @@ export function CardPurchaseCard({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-base truncate">{purchase.description}</p>
-                  {purchase.isExternalDebt && (
-                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-500/15 text-blue-600 dark:text-blue-400 shrink-0">
+                  <p className="font-bold text-[15px] truncate">{purchase.description}</p>
+                  {purchase.nature !== 'own' && (
+                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-sky-soft text-sky shrink-0">
                       <Users className="h-3 w-3" />
-                      Externa
+                      {NATURE_LABELS[purchase.nature]}
                     </span>
                   )}
                   {!purchase.isActive && (
@@ -217,7 +249,7 @@ export function CardPurchaseCard({
               </div>
 
               {/* Desktop: Amount */}
-              <p className="hidden sm:block text-2xl font-bold tabular-nums text-foreground shrink-0">
+              <p className="hidden sm:block num text-[22px] font-extrabold text-foreground shrink-0">
                 {formatCurrency(parseFloat(purchase.installmentAmount))}
                 <span className="text-xs font-normal text-muted-foreground ml-1">
                   /mes
@@ -249,7 +281,7 @@ export function CardPurchaseCard({
             </div>
 
             {/* Mobile: Amount below description */}
-            <p className="text-2xl font-bold tabular-nums text-foreground mt-1 sm:hidden">
+            <p className="num text-[22px] font-extrabold text-foreground mt-1 sm:hidden">
               {formatCurrency(parseFloat(purchase.installmentAmount))}
               <span className="text-xs font-normal text-muted-foreground ml-1">
                 /mes
@@ -271,23 +303,23 @@ export function CardPurchaseCard({
                         disabled={isPending}
                         className={cn(
                           cardStyles.drawerAction,
-                          action.variant === 'destructive' ? 'active:bg-red-500/10' : 'active:bg-muted'
+                          action.variant === 'destructive' ? 'active:bg-coral-soft' : 'active:bg-surface-3'
                         )}
                       >
                         <div className={cn(
                           cardStyles.drawerActionIconBox,
-                          action.variant === 'destructive' ? 'bg-red-500/10' : 'bg-muted'
+                          action.variant === 'destructive' ? 'bg-coral-soft' : 'bg-surface-3'
                         )}>
                           <span className={cn(
                             '[&>svg]:h-5 [&>svg]:w-5',
-                            action.variant === 'destructive' ? 'text-red-500 dark:text-red-400' : 'text-muted-foreground'
+                            action.variant === 'destructive' ? 'text-coral-text' : 'text-muted-foreground'
                           )}>
                             {action.icon}
                           </span>
                         </div>
                         <span className={cn(
                           'text-base font-medium',
-                          action.variant === 'destructive' && 'text-red-500 dark:text-red-400'
+                          action.variant === 'destructive' && 'text-coral-text'
                         )}>
                           {action.label}
                         </span>
@@ -295,7 +327,7 @@ export function CardPurchaseCard({
                     </DrawerClose>
                   ))}
                 </div>
-                <div className="px-4 pb-4 pt-2 border-t">
+                <div className="px-4 pb-4 pt-2 border-t border-line">
                   <DrawerClose asChild>
                     <button className={cardStyles.drawerCancelButton}>
                       Cancelar
@@ -330,7 +362,7 @@ export function CardPurchaseCard({
               </div>
               <div className="flex items-center gap-2.5">
                 <Progress value={purchase.progressPercentage} className={cardStyles.progressBar} indicatorClassName={isCompleted ? cardStyles.progressIndicatorCompleted : cardStyles.progressIndicator} />
-                <span className={cn('text-lg', isCompleted ? cardStyles.progressPercentageCompleted : cardStyles.progressPercentage)}>
+                <span className={cn('text-sm', isCompleted ? cardStyles.progressPercentageCompleted : cardStyles.progressPercentage)}>
                   {Math.round(purchase.progressPercentage)}%
                 </span>
               </div>
@@ -355,7 +387,7 @@ export function CardPurchaseCard({
                     />
                   </div>
                 ) : (
-                  <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center shrink-0">
+                  <div className="w-5 h-5 rounded bg-sky-soft flex items-center justify-center shrink-0">
                     <CreditCard className="h-3 w-3 text-muted-foreground" />
                   </div>
                 )}
@@ -378,9 +410,9 @@ export function CardPurchaseCard({
                     <div>
                       <p className={cardStyles.detailsLabel}>Intereses</p>
                       {hasInterest ? (
-                        <p className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
+                        <p className="text-sm font-semibold tabular-nums text-coral-text">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
                       ) : (
-                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Sin interés</p>
+                        <p className="text-sm font-semibold text-jade">Sin interés</p>
                       )}
                     </div>
                   </div>
@@ -428,7 +460,7 @@ export function CardPurchaseCard({
                   <span className={cn(
                     '[&>svg]:h-5 [&>svg]:w-5',
                     action.variant === 'destructive'
-                      ? 'text-red-500 dark:text-red-400'
+                      ? 'text-coral-text'
                       : 'text-muted-foreground'
                   )}>
                     {action.icon}
@@ -482,7 +514,7 @@ export function CardPurchaseCard({
                   />
                 </div>
               ) : (
-                <div className="w-5 h-5 rounded bg-blue-500/15 flex items-center justify-center shrink-0">
+                <div className="w-5 h-5 rounded bg-sky-soft flex items-center justify-center shrink-0">
                   <CreditCard className="h-3 w-3 text-muted-foreground" />
                 </div>
               )}
@@ -505,9 +537,9 @@ export function CardPurchaseCard({
                   <div>
                     <p className={cardStyles.detailsLabel}>Intereses</p>
                     {hasInterest ? (
-                      <p className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
+                      <p className="text-sm font-semibold tabular-nums text-coral-text">{formatCurrency(parseFloat(purchase.interestAmount))}</p>
                     ) : (
-                      <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Sin interés</p>
+                      <p className="text-sm font-semibold text-jade">Sin interés</p>
                     )}
                   </div>
                 </div>
@@ -570,6 +602,26 @@ export function CardPurchaseCard({
         isPending={isPending}
         onConfirm={handleRegenerate}
       />
+
+      {/* Naturaleza */}
+      <ResponsiveDrawer open={showNatureDrawer} onOpenChange={setShowNatureDrawer}>
+        <DrawerContent>
+          <div className="mx-auto w-full max-w-lg">
+            <DrawerHeader>
+              <DrawerTitle>Naturaleza de la compra</DrawerTitle>
+              <DrawerDescription>Se aplica a la compra y a todas sus cuotas.</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-4">
+              <NatureSelector type="expense" label="¿De quién es esta compra?" value={selectedNature} onChange={setSelectedNature} />
+              <DrawerFooter className="px-0 pt-4">
+                <Button onClick={handleSaveNature} disabled={isPending || selectedNature === purchase.nature} className="w-full">
+                  {isPending ? 'Guardando...' : 'Guardar'}
+                </Button>
+              </DrawerFooter>
+            </div>
+          </div>
+        </DrawerContent>
+      </ResponsiveDrawer>
 
       {/* Delete Confirmation */}
       <ConfirmDialog

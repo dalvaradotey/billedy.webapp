@@ -23,6 +23,12 @@ export interface AccountsSummary {
   totalCreditBalance: number; // Sum of credit card balances (what you owe)
   totalProvisionBalance: number; // Sum of pension + unemployment balances
   netWorth: number; // totalDebitBalance - totalCreditBalance
+  /** Fondos propios dentro de cuentas */
+  fundsBalance?: number;
+  /** Plata de terceros en fondos (ya descontada de totalDebitBalance) */
+  thirdPartyBalance?: number;
+  /** Cuentas corrientes y efectivo menos sus fondos: lo que se puede gastar */
+  freeLiquidBalance?: number;
 }
 
 export interface AccountDebtBreakdown {

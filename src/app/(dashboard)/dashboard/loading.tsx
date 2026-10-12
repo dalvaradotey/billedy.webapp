@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from '@/components/page-skeleton';
+import { HomeSkeleton } from '@/components/pulse-skeletons';
 
 export default function Loading() {
-  return <DashboardSkeleton />;
+  return <HomeSkeleton />;
 }

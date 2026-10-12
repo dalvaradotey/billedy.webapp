@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { TRANSACTION_NATURES, type TransactionNature } from '@/features/transactions/nature';
 import { auth } from '@/lib/auth';
 import { getTransactions, getTransactionSummary } from '@/features/transactions/queries';
 import { getActiveCategories } from '@/features/categories/queries';
@@ -19,6 +20,7 @@ interface TransactionsPageProps {
     category?: string;
     paid?: string;
     reconciled?: string;
+    nature?: string;
     search?: string;
     startDate?: string;
     endDate?: string;
@@ -97,6 +99,10 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     filters.isPaid = false;
   }
 
+  if (params.nature && (TRANSACTION_NATURES as readonly string[]).includes(params.nature)) {
+    filters.nature = params.nature as TransactionNature;
+  }
+
   if (params.reconciled === 'true') {
     filters.isReconciled = true;
   } else if (params.reconciled === 'false') {
@@ -126,12 +132,10 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   const defaultCurrency = project?.currency ?? 'CLP';
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Transacciones</h1>
-        <p className="text-muted-foreground">
-          Administra tus ingresos y gastos del período.
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Movimientos</h1>
+        {selectedCycle && <span className="text-[13px] font-bold text-muted-foreground">{selectedCycle.name}</span>}
       </div>
 
       <TransactionList

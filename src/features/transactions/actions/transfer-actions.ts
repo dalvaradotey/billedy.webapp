@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { transactions, projects, projectMembers, accounts, categories } from '@/lib/db/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
@@ -13,8 +14,8 @@ import type {
   UpdateAccountTransferInput,
 } from '../schemas';
 import type { ActionResult } from '../types';
-import { updateAccountBalance } from '@/features/accounts/actions';
-import { verifyProjectAccess } from './transaction-crud';
+import { updateAccountBalance } from '@/features/accounts/lib/balance';
+import { verifyProjectAccess } from '../lib/access';
 
 /**
  * Crea una transferencia entre cuentas (genera 2 transacciones vinculadas)
@@ -23,6 +24,10 @@ export async function createAccountTransfer(
   userId: string,
   input: CreateAccountTransferInput
 ): Promise<ActionResult<{ id: string }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = createAccountTransferSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -162,6 +167,10 @@ export async function updateAccountTransfer(
   userId: string,
   input: UpdateAccountTransferInput
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   const parsed = updateAccountTransferSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -316,6 +325,10 @@ export async function deleteAccountTransfer(
   transactionId: string,
   userId: string
 ): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   // Obtener la transacción y su vinculada (identificada por linkedTransactionId)
   const existing = await db
     .select({

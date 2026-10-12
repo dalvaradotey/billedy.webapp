@@ -37,7 +37,19 @@ export type CycleWarning =
   | { kind: 'overdue_pending'; count: number; amount: number }
   | { kind: 'card_payment_missing'; cardName: string; expected: number }
   | { kind: 'card_payment_mismatch'; cardName: string; expected: number; paid: number }
-  | { kind: 'gap_before'; days: number };
+  | { kind: 'gap_before'; days: number }
+  | { kind: 'changed_since_close'; closedAt: number; current: number };
+
+/** Vista estado de cuenta separada por naturaleza (montos reales) */
+export type StatementBreakdown = {
+  own: number;
+  external: number;
+  reimbursable: number;
+  fund: number;
+  /** Devoluciones / abonos / ajustes en TC (restan) */
+  credits: number;
+  total: number;
+};
 
 export type CycleBalance = {
   income: Amounts;
@@ -59,9 +71,49 @@ export type CycleBalance = {
     upcomingStatementCommitted: number;
     /** Pago TC que falta hacer en este ciclo (factura del ciclo anterior) */
     pendingPayment: number;
+    /** Factura que viene (vista estado de cuenta de este ciclo) por naturaleza */
+    upcomingBreakdown: StatementBreakdown;
+    /** De qué se compone el pago TC de este ciclo (factura del ciclo anterior) */
+    paymentBreakdown: StatementBreakdown | null;
+    /** Gasto propio en TC del ciclo (base del techo) */
+    own: {
+      /** Ya cargado */
+      real: number;
+      /** Incluye ítems de plantilla aún no confirmados */
+      committed: number;
+      /** Parte que corresponde a cuotas */
+      installments: number;
+    };
   };
   warnings: CycleWarning[];
 };
+
+/** Cascada guardada al cerrar el ciclo (billing_cycles.closing_snapshot) */
+export type ClosingSnapshot = {
+  version: 1;
+  income: number;
+  reimbursements: number;
+  debitExpenses: number;
+  cardPayment: number;
+  balanceBeforeSavings: number;
+  savingsIn: number;
+  savingsOut: number;
+  finalBalance: number;
+};
+
+export function toClosingSnapshot(balance: CycleBalance): ClosingSnapshot {
+  return {
+    version: 1,
+    income: balance.income.real,
+    reimbursements: balance.reimbursements.real,
+    debitExpenses: balance.debitExpenses.real,
+    cardPayment: balance.cardPayment.real,
+    balanceBeforeSavings: balance.balanceBeforeSavings.real,
+    savingsIn: balance.savingsIn.real,
+    savingsOut: balance.savingsOut.real,
+    finalBalance: balance.finalBalance.real,
+  };
+}
 
 export type BalanceRange = DateRange & {
   status: 'open' | 'closed';
@@ -133,6 +185,43 @@ function statementByCard(rows: BucketRow[]): Map<string, { real: number; committ
     });
   }
   return result;
+}
+
+/**
+ * Vista estado de cuenta del ciclo (todas las tarjetas) separada por naturaleza.
+ */
+function statementBreakdown(rows: BucketRow[]): {
+  breakdown: StatementBreakdown;
+  own: { real: number; committed: number; installments: number };
+} {
+  const breakdown: StatementBreakdown = { own: 0, external: 0, reimbursable: 0, fund: 0, credits: 0, total: 0 };
+  const own = { real: 0, committed: 0, installments: 0 };
+
+  for (const row of rows) {
+    const isPurchase = row.bucket === 'card_spend' && row.inRange && !row.isInstallment;
+    const isWindowInstallment = row.bucket === 'card_spend' && !row.inRange && row.isInstallment;
+
+    if (row.bucket === 'card_credit' && row.inRange) {
+      breakdown.credits += row.total;
+      continue;
+    }
+    if (!isPurchase && !isWindowInstallment) continue;
+
+    const isReal = isWindowInstallment || row.isReal;
+    const isPendingTemplate = isPurchase && !row.isPaid;
+    const nature = row.nature === 'reimbursement' ? 'own' : row.nature;
+
+    if (isReal) breakdown[nature] += row.total;
+    if (nature === 'own') {
+      if (isReal) own.real += row.total;
+      if (isReal || isPendingTemplate) own.committed += row.total;
+      if (isWindowInstallment) own.installments += row.total;
+    }
+  }
+
+  breakdown.total =
+    breakdown.own + breakdown.external + breakdown.reimbursable + breakdown.fund - breakdown.credits;
+  return { breakdown, own };
 }
 
 /** Total pagado por tarjeta en el ciclo (un pago puede venir en varias partes) */
@@ -244,6 +333,10 @@ export function buildBalances(
     }
 
     const upcoming = [...statementByCard(rangeRows).values()];
+    const current = statementBreakdown(rangeRows);
+    const previousBreakdown = previous
+      ? statementBreakdown(rowsByKey.get(previous.key) ?? []).breakdown
+      : null;
 
     result.set(range.key, {
       income,
@@ -260,6 +353,9 @@ export function buildBalances(
         upcomingStatement: upcoming.reduce((acc, s) => acc + s.real, 0),
         upcomingStatementCommitted: upcoming.reduce((acc, s) => acc + s.committed, 0),
         pendingPayment,
+        upcomingBreakdown: current.breakdown,
+        paymentBreakdown: previousBreakdown,
+        own: current.own,
       },
       warnings,
     });

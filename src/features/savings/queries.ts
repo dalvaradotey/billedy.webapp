@@ -322,6 +322,8 @@ export async function getTransactionsBySavingsGoalId(
       paidByTransferId: transactions.paidByTransferId,
       isHistoricallyPaid: transactions.isHistoricallyPaid,
       isReconciled: transactions.isReconciled,
+      nature: transactions.nature,
+      accountFundId: transactions.accountFundId,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { usePageActions } from './bottom-nav-context';
 
 interface ActionsPopoverProps {
@@ -11,6 +12,7 @@ interface ActionsPopoverProps {
   align?: 'start' | 'center' | 'end';
 }
 
+/** Menú de "Registrar": muestra las acciones que la página actual registró. */
 export function ActionsPopover({
   children,
   side = 'top',
@@ -30,53 +32,38 @@ export function ActionsPopover({
         side={side}
         sideOffset={sideOffset}
         align={align}
-        className="w-auto min-w-[210px] p-0 rounded-2xl border-0 bg-transparent shadow-none overflow-visible"
+        className="w-auto min-w-[230px] rounded-[22px] border-line-strong bg-surface-2 p-1.5 shadow-[0_12px_32px_rgba(8,6,12,0.5)]"
       >
-        <div className="relative rounded-2xl overflow-hidden">
-          {/* Glass layers */}
-          <div className="absolute inset-0 bg-background/75 dark:bg-background/60 backdrop-blur-2xl backdrop-saturate-150" />
-          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.1] via-transparent to-transparent dark:from-white/[0.05]" />
-          <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/[0.06] dark:ring-white/[0.08]" />
-          {/* Top light refraction */}
-          <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/30 dark:via-white/15 to-transparent" />
-          {/* Ambient glow */}
-          <div className="absolute -inset-2 rounded-3xl bg-emerald-500/[0.04] dark:bg-emerald-500/[0.08] blur-xl -z-10" />
-
-          {/* Actions */}
-          <div className="relative p-1.5 space-y-0.5">
-            <p className="px-3.5 pt-2 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/60">
-              Acciones
-            </p>
-            {actions.map((action, index) => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={index}
-                  onClick={() => {
-                    if (action.disabled) return;
-                    setIsOpen(false);
-                    action.onClick();
-                  }}
-                  disabled={action.disabled}
-                  className={`flex items-center gap-3 w-full px-3.5 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                    action.disabled
-                      ? 'text-muted-foreground/40 cursor-not-allowed'
-                      : 'text-foreground/90 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-[0.97]'
-                  }`}
-                >
-                  <div className={`flex items-center justify-center h-8 w-8 rounded-lg ${
-                    action.disabled
-                      ? 'bg-muted/50'
-                      : 'bg-emerald-500/10 dark:bg-emerald-500/15'
-                  }`}>
-                    <Icon className={`h-4 w-4 ${action.disabled ? 'text-muted-foreground/40' : 'text-emerald-500'}`} />
-                  </div>
-                  {action.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <p className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-faint">Registrar</p>
+        {actions.map((action, index) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={index}
+              type="button"
+              onClick={() => {
+                if (action.disabled) return;
+                setIsOpen(false);
+                action.onClick();
+              }}
+              disabled={action.disabled}
+              className={cn(
+                'flex min-h-12 w-full items-center gap-3 rounded-2xl px-3 text-sm font-semibold transition-colors',
+                action.disabled ? 'cursor-not-allowed text-faint' : 'text-foreground hover:bg-surface-3'
+              )}
+            >
+              <span
+                className={cn(
+                  'flex h-8 w-8 items-center justify-center rounded-[10px]',
+                  action.disabled ? 'bg-surface-3 text-faint' : 'bg-jade-soft text-jade'
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </span>
+              {action.label}
+            </button>
+          );
+        })}
       </PopoverContent>
     </Popover>
   );

@@ -19,7 +19,6 @@ export function SubmitButton({
   type = 'submit',
   isPending,
   pendingText = 'Guardando...',
-  icon,
   children,
   onClick,
   disabled,
@@ -41,7 +40,6 @@ export function SubmitButton({
       ) : (
         <>
           {children}
-          {icon && <span className="absolute right-4">{icon}</span>}
         </>
       )}
     </Button>

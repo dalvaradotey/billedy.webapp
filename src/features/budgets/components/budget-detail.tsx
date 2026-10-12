@@ -200,13 +200,13 @@ export function BudgetDetail({
                 type="date"
                 value={customStartDate}
                 onChange={(e) => setCustomStartDate(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 rounded-xl border border-input bg-background px-3 text-sm"
               />
               <input
                 type="date"
                 value={customEndDate}
                 onChange={(e) => setCustomEndDate(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                className="h-9 rounded-xl border border-input bg-background px-3 text-sm"
               />
             </div>
           )}
@@ -249,7 +249,7 @@ export function BudgetDetail({
                   className={cardStyles.progressBar}
                   indicatorClassName={isOverBudget ? cardStyles.progressIndicatorDanger : cardStyles.progressIndicator}
                 />
-                <span className={cn('text-lg', isOverBudget ? cardStyles.progressPercentageDanger : cardStyles.progressPercentage)}>
+                <span className={cn('text-sm', isOverBudget ? cardStyles.progressPercentageDanger : cardStyles.progressPercentage)}>
                   {data.progressPercentage}%
                 </span>
               </div>
@@ -266,7 +266,7 @@ export function BudgetDetail({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar por descripción o entidad..."
-              className="h-9 w-full rounded-md border border-input bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground"
+              className="h-9 w-full rounded-xl border border-input bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground"
             />
             {searchQuery && (
               <button
@@ -333,7 +333,7 @@ export function BudgetDetail({
               {filteredTransactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className="flex items-center gap-2.5 py-2 -mx-1.5 px-1.5 rounded-md transition-colors hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                  className="flex items-center gap-2.5 py-2 -mx-1.5 px-1.5 rounded-xl transition-colors hover:bg-sky-soft"
                 >
                   {/* Fecha */}
                   <span className="text-xs text-muted-foreground whitespace-nowrap w-12 shrink-0">
@@ -363,7 +363,7 @@ export function BudgetDetail({
                     )}
                   </div>
                   {/* Monto */}
-                  <span className="text-sm font-semibold tabular-nums text-red-500 dark:text-red-400 shrink-0">
+                  <span className="text-sm font-semibold tabular-nums text-coral-text shrink-0">
                     -{formatCurrency(parseFloat(tx.baseAmount), currency)}
                   </span>
                 </div>

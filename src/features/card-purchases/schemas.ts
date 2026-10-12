@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { EXPENSE_NATURES } from '@/features/transactions/nature';
 
 export const createCardPurchaseSchema = z.object({
   userId: z.string().uuid('El usuario es requerido'),
@@ -19,6 +20,7 @@ export const createCardPurchaseSchema = z.object({
   chargedInstallments: z.number().int().min(0).optional().default(0),
 
   isExternalDebt: z.boolean().optional().default(false), // Deuda externa (familiares, etc.)
+  nature: z.enum(EXPENSE_NATURES).optional(), // Las cuotas la heredan
   notes: z.string().max(1000).optional().nullable(),
 });
 
@@ -29,6 +31,7 @@ export const updateCardPurchaseSchema = z.object({
   storeName: z.string().max(255).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   isActive: z.boolean().optional(),
+  nature: z.enum(EXPENSE_NATURES).optional(),
 });
 
 export type CreateCardPurchaseInput = z.infer<typeof createCardPurchaseSchema>;

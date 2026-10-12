@@ -149,7 +149,7 @@ function EntityCard({ entity, userId, onEdit }: EntityCardProps) {
     <Card className={!entity.isActive ? 'opacity-60' : ''}>
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+          <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-muted flex items-center justify-center overflow-hidden">
             {entity.imageUrl ? (
               <Image
                 src={entity.imageUrl}
@@ -298,7 +298,7 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
         <form onSubmit={handleSubmit} className="space-y-4 px-4 pb-4 max-h-[70vh] md:max-h-[calc(100vh-8rem)] overflow-y-auto">
         <div className="flex justify-center">
           <div
-            className="w-24 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden cursor-pointer border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 transition-colors"
+            className="w-24 h-24 rounded-2xl bg-muted flex items-center justify-center overflow-hidden cursor-pointer border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 transition-colors"
             onClick={() => fileInputRef.current?.click()}
           >
             {imagePreview ? (
@@ -340,7 +340,7 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
               aria-expanded={typeOpen}
               className={cn(
                 'w-full justify-between font-normal h-14 py-1',
-                type && 'ring-1 ring-emerald-500'
+                type && 'ring-1 ring-jade'
               )}
             >
               <div className="flex flex-col items-start gap-0.5 min-w-0">
@@ -348,7 +348,7 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
                   className={cn(
                     'transition-all flex items-center gap-1',
                     type ? 'text-xs' : 'text-base',
-                    type ? 'text-emerald-600' : 'text-muted-foreground'
+                    type ? 'text-jade' : 'text-muted-foreground'
                   )}
                 >
                   Tipo

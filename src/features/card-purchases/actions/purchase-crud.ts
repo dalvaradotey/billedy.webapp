@@ -1,5 +1,6 @@
 'use server';
 
+import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { db } from '@/lib/db';
 import {
@@ -13,7 +14,7 @@ import {
 import { eq, and, isNotNull, sql } from 'drizzle-orm';
 import { createCardPurchaseSchema, updateCardPurchaseSchema } from '../schemas';
 import type { CardPurchase } from '../types';
-import { updateAccountBalance } from '@/features/accounts/actions';
+import { updateAccountBalance } from '@/features/accounts/lib/balance';
 
 /**
  * Crea una nueva compra en cuotas
@@ -33,11 +34,18 @@ export async function createCardPurchase(data: {
   firstChargeDate: Date;
   chargedInstallments?: number;
   isExternalDebt?: boolean;
+  nature?: 'own' | 'external' | 'reimbursable' | 'fund';
   notes?: string | null;
 }): Promise<{ success: boolean; data?: CardPurchase; error?: string }> {
+  if (!(await isSessionUser(data.userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Validar datos
     const validated = createCardPurchaseSchema.parse(data);
+    // La naturaleza manda; is_external_debt se mantiene sincronizado por compatibilidad
+    const nature = validated.nature ?? (validated.isExternalDebt ? 'external' : 'own');
 
     // Verificar acceso al proyecto
     const hasAccess = await db
@@ -129,7 +137,8 @@ export async function createCardPurchase(data: {
         firstChargeDate: validated.firstChargeDate,
         chargedInstallments: validated.installments, // Todas las cuotas se crean de inmediato
         initialPaidInstallments,
-        isExternalDebt: validated.isExternalDebt || false,
+        isExternalDebt: nature === 'external',
+        nature,
         notes: validated.notes || null,
         isActive: true, // Activa mientras tenga cuotas pendientes de pago
       })
@@ -157,6 +166,7 @@ export async function createCardPurchase(data: {
           entityId: validated.entityId || null,
           cardPurchaseId: purchase.id,
           type: 'expense' as const,
+          nature,
           description: `${validated.description} - Cuota ${installmentNumber}/${validated.installments}`,
           originalAmount: installmentAmount.toFixed(2),
           originalCurrency: projectInfo.currencyCode,
@@ -203,8 +213,13 @@ export async function updateCardPurchase(
     description?: string;
     storeName?: string | null;
     notes?: string | null;
+    nature?: 'own' | 'external' | 'reimbursable' | 'fund';
   }
 ): Promise<{ success: boolean; data?: CardPurchase; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     const validated = updateCardPurchaseSchema.parse(data);
 
@@ -229,14 +244,28 @@ export async function updateCardPurchase(
       return { success: false, error: 'Compra no encontrada' };
     }
 
-    const [updated] = await db
-      .update(cardPurchases)
-      .set({
-        ...validated,
-        updatedAt: new Date(),
-      })
-      .where(eq(cardPurchases.id, purchaseId))
-      .returning();
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(cardPurchases)
+        .set({
+          ...validated,
+          ...(validated.nature ? { isExternalDebt: validated.nature === 'external' } : {}),
+          updatedAt: new Date(),
+        })
+        .where(eq(cardPurchases.id, purchaseId))
+        .returning();
+
+      // Las cuotas heredan la naturaleza de la compra
+      if (validated.nature) {
+        await tx
+          .update(transactions)
+          .set({ nature: validated.nature, updatedAt: new Date() })
+          .where(eq(transactions.cardPurchaseId, purchaseId));
+      }
+      return row;
+    });
+
+    if (validated.nature) invalidateRelatedCache('transactions');
 
     invalidateRelatedCache('cardPurchases');
 
@@ -257,6 +286,10 @@ export async function archiveCardPurchase(
   purchaseId: string,
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Verificar acceso
     const existing = await db
@@ -303,6 +336,10 @@ export async function deleteCardPurchase(
   purchaseId: string,
   userId: string
 ): Promise<{ success: boolean; deletedTransactions?: number; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Verificar acceso
     const existing = await db
@@ -351,6 +388,10 @@ export async function regenerateInstallments(
   purchaseId: string,
   userId: string
 ): Promise<{ success: boolean; regenerated?: number; error?: string }> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
   try {
     // Obtener la compra con verificación de acceso
     const [purchase] = await db
@@ -438,6 +479,7 @@ export async function regenerateInstallments(
         entityId: p.entityId,
         cardPurchaseId: p.id,
         type: 'expense' as const,
+        nature: p.nature,
         description: `${p.description} - Cuota ${installmentNumber}/${p.installments}`,
         originalAmount: installmentAmount.toFixed(2),
         originalCurrency: projectInfo.currencyCode,

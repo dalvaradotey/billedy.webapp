@@ -4,56 +4,56 @@
  */
 export const cardStyles = {
   // Card container
-  base: 'rounded-2xl bg-card dark:bg-slate-900 p-4 transition-colors active:bg-muted/50',
+  base: 'rounded-[22px] border border-line bg-surface p-4 transition-colors active:bg-surface-2',
   inactive: 'opacity-60',
 
   // Progress section — default (blue)
-  progressSection: 'rounded-xl bg-gradient-to-r from-blue-500/5 to-blue-500/10 dark:from-blue-500/10 dark:to-blue-500/20 p-3 ring-1 ring-blue-500/10',
-  progressBar: 'h-6 flex-1',
-  progressIndicator: 'bg-gradient-to-r from-blue-600 to-blue-400',
-  progressLabel: 'font-bold text-blue-700 dark:text-blue-300 tabular-nums',
-  progressSecondary: 'text-blue-600/60 dark:text-blue-400/60',
-  progressPercentage: 'font-bold tabular-nums text-blue-600 dark:text-blue-400 shrink-0',
+  progressSection: 'pt-1',
+  progressBar: 'h-2 flex-1',
+  progressIndicator: 'bg-sky',
+  progressLabel: 'num font-extrabold text-foreground',
+  progressSecondary: 'text-muted-foreground',
+  progressPercentage: 'num font-extrabold text-sky shrink-0',
 
   // Progress section — completed (green, se usa cuando llega al 100%)
-  progressSectionCompleted: 'rounded-xl bg-gradient-to-r from-emerald-500/5 to-emerald-500/10 dark:from-emerald-500/10 dark:to-emerald-500/20 p-3 ring-1 ring-emerald-500/10',
-  progressIndicatorCompleted: 'bg-gradient-to-r from-emerald-600 to-emerald-400',
-  progressLabelCompleted: 'font-bold text-emerald-700 dark:text-emerald-300 tabular-nums',
-  progressSecondaryCompleted: 'text-emerald-600/60 dark:text-emerald-400/60',
-  progressPercentageCompleted: 'font-bold tabular-nums text-emerald-600 dark:text-emerald-400 shrink-0',
+  progressSectionCompleted: 'pt-1',
+  progressIndicatorCompleted: 'bg-jade',
+  progressLabelCompleted: 'num font-extrabold text-jade-text',
+  progressSecondaryCompleted: 'text-muted-foreground',
+  progressPercentageCompleted: 'num font-extrabold text-jade shrink-0',
 
   // Progress section — danger (red, se usa cuando se excede el presupuesto)
-  progressSectionDanger: 'rounded-xl bg-gradient-to-r from-red-500/5 to-red-500/10 dark:from-red-500/10 dark:to-red-500/20 p-3 ring-1 ring-red-500/10',
-  progressIndicatorDanger: 'bg-gradient-to-r from-red-600 to-red-400',
-  progressLabelDanger: 'font-bold text-red-700 dark:text-red-300 tabular-nums',
-  progressSecondaryDanger: 'text-red-600/60 dark:text-red-400/60',
-  progressPercentageDanger: 'font-bold tabular-nums text-red-600 dark:text-red-400 shrink-0',
+  progressSectionDanger: 'pt-1',
+  progressIndicatorDanger: 'bg-coral',
+  progressLabelDanger: 'num font-extrabold text-coral-text',
+  progressSecondaryDanger: 'text-muted-foreground',
+  progressPercentageDanger: 'num font-extrabold text-coral shrink-0',
 
   // Collapsible details grid
-  detailsContainer: 'rounded-xl bg-muted/30 dark:bg-muted/20 p-3 space-y-3',
+  detailsContainer: 'rounded-2xl bg-background p-3 space-y-3',
   detailsLabel: 'text-[11px] text-muted-foreground mb-0.5',
-  detailsValue: 'text-sm font-semibold tabular-nums',
-  detailsDivider: 'border-t border-border/50',
+  detailsValue: 'num text-sm font-extrabold',
+  detailsDivider: 'border-t border-surface-3',
 
   // Actions button (three-dots)
-  actionsButton: 'flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 disabled:opacity-50 shrink-0 bg-slate-700/20 hover:bg-slate-700/40',
+  actionsButton: 'flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 disabled:opacity-50 shrink-0 bg-background hover:bg-surface-3',
 
   // Toggle button (ver detalle)
-  toggleButton: 'flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors',
+  toggleButton: 'flex min-h-10 -ml-1 items-center gap-1.5 rounded-full px-1 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors',
 
   // Entity/account chip
-  chipBase: 'flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-500/5 dark:bg-blue-500/10 ring-1 ring-blue-500/10',
+  chipBase: 'flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-background',
 
   // Desktop overlay grid (swap details ↔ actions)
   overlayGrid: 'hidden sm:grid [&>*]:col-start-1 [&>*]:row-start-1',
 
   // Inline action buttons (desktop)
   inlineActionsGrid: 'grid grid-cols-2 gap-3 w-full',
-  inlineActionDefault: 'bg-slate-700/30 hover:bg-slate-700/50 text-foreground',
-  inlineActionDestructive: 'bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400',
+  inlineActionDefault: 'bg-surface-3 hover:bg-line-strong text-foreground',
+  inlineActionDestructive: 'bg-coral-soft hover:bg-coral-soft/80 text-coral-text',
 
   // Mobile drawer action items
-  drawerAction: 'w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-colors disabled:opacity-50',
-  drawerActionIconBox: 'w-10 h-10 rounded-xl flex items-center justify-center',
+  drawerAction: 'w-full flex items-center gap-4 px-4 py-3 min-h-14 rounded-2xl transition-colors disabled:opacity-50',
+  drawerActionIconBox: 'w-10 h-10 rounded-[13px] flex items-center justify-center',
   drawerCancelButton: 'w-full py-3 text-base font-medium text-muted-foreground active:text-foreground transition-colors',
 } as const;

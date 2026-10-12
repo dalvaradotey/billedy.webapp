@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useTransition, useCallback } from 'react';
+import { pulseColor } from '@/lib/pulse-tone';
 import { toast } from 'sonner';
 import { Unlink, Receipt } from 'lucide-react';
 
@@ -94,7 +95,7 @@ export function SavingsGoalTransactions({
         {transactions.map((t) => (
           <div
             key={t.id}
-            className="flex items-center gap-3 py-2 px-1 rounded-lg group"
+            className="flex items-center gap-3 py-2 px-1 rounded-2xl group"
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2">
@@ -107,7 +108,7 @@ export function SavingsGoalTransactions({
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <div
                     className="h-1.5 w-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: t.categoryColor ?? undefined }}
+                    style={{ backgroundColor: pulseColor(t.categoryColor) }}
                   />
                   <span className="text-xs text-muted-foreground truncate">{t.categoryName}</span>
                 </div>
@@ -117,8 +118,8 @@ export function SavingsGoalTransactions({
               className={cn(
                 'text-sm font-semibold tabular-nums shrink-0',
                 t.type === 'income'
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-red-600 dark:text-red-400'
+                  ? 'text-jade'
+                  : 'text-coral'
               )}
             >
               {t.type === 'income' ? '+' : '-'}
@@ -130,7 +131,7 @@ export function SavingsGoalTransactions({
                 handleUnlink(t.id, t.description);
               }}
               disabled={isPending}
-              className="shrink-0 p-1.5 rounded-md text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+              className="shrink-0 p-1.5 rounded-xl text-muted-foreground/50 hover:text-coral hover:bg-coral-soft transition-colors disabled:opacity-50"
               title="Desvincular de esta meta"
             >
               <Unlink className="h-3.5 w-3.5" />

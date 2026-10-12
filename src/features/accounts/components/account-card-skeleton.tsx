@@ -1,27 +1,15 @@
 import { Skeleton } from '@/components/ui/skeleton';
-import { cardStyles } from '@/components/card-styles';
 
+/** Esqueleto de una cuenta: la tarjeta en el tono suave que tendrá. */
 export function AccountCardSkeleton() {
   return (
-    <div className={cardStyles.base}>
-      <div className="flex items-start gap-3">
-        <Skeleton className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="space-y-1.5">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-            {/* Desktop: Balance + actions button */}
-            <div className="hidden sm:flex items-center gap-3">
-              <Skeleton className="h-7 w-28" />
-              <Skeleton className="h-8 w-8 rounded-full" />
-            </div>
-          </div>
-          {/* Mobile: Balance */}
-          <Skeleton className="h-7 w-32 mt-1 sm:hidden" />
-        </div>
+    <div aria-hidden className="flex items-center gap-3 rounded-[22px] border border-line bg-surface p-3.5">
+      <Skeleton tone="coral" className="h-[30px] w-[46px] rounded-[7px]" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-3 w-32 rounded-full" />
+        <Skeleton tone="quiet" className="h-2.5 w-24 rounded-full" />
       </div>
+      <Skeleton className="h-3.5 w-20 rounded-full" />
     </div>
   );
 }

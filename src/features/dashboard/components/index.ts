@@ -1,4 +1,5 @@
 export { DashboardClientWrapper } from './client-wrapper';
-export { DashboardCycleBanner } from './cycle-banner';
-export { DashboardAccountsBanner } from './accounts-banner';
 export { DashboardBudgetsSection } from './budgets-section';
+export { PulseHome } from './pulse-home';
+export { CycleFlowCard, CycleHistoryCard } from './cycle-cards';
+export { DashboardAccountsStrip } from './accounts-strip';
