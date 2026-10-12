@@ -133,7 +133,7 @@ export const CARD_DESIGNS: CardDesign[] = [
   { id: 'fintual', label: 'Fintual', group: 'Por banco', kind: 'art', bg: 'bg-[#F7F8FC]', ink: 'text-[#14245C]', Art: () => <WavesArt color="#1E50E6" /> },
   { id: 'mercadopago', label: 'Mercado Pago', group: 'Por banco', kind: 'art', bg: 'bg-[#58C8EE]', ink: 'text-[#0A2A55]', Art: () => <WavesArt color="#0A2A55" /> },
   { id: 'afp-modelo', label: 'AFP', group: 'Por banco', kind: 'art', bg: 'bg-[#8FD08A]', ink: 'text-[#14301A]', Art: () => <LeavesArt color="#14301A" /> },
-  { id: 'afc', label: 'AFC · cesantía', group: 'Por banco', kind: 'art', bg: 'bg-jade', ink: 'text-jade-ink', Art: () => <LinesArt color="#0E2A22" /> },
+  { id: 'afc', label: 'AFC · cesantía', group: 'Por banco', kind: 'art', bg: 'bg-[#2F5BD8]', ink: 'text-[#EEF3FF]', Art: () => <LinesArt color="#BFD3FF" /> },
   { id: 'latam-gold', label: 'LATAM · plumas', group: 'Por banco', kind: 'art', bg: 'bg-[#1C1530]', ink: 'text-[#F2D9A6]', Art: () => <FeathersArt base="#5B3FD0" accent="#C94FA3" /> },
 
   plain('liso-jade', 'Jade', 'bg-jade', 'text-jade-ink', '#0E2A22'),
