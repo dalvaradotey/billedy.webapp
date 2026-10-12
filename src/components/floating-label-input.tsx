@@ -48,7 +48,7 @@ export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInpu
         <Input
           ref={ref}
           className={cn(
-            'h-14 pt-5 pb-1',
+            'h-14 rounded-2xl pt-5 pb-1',
             hasError && 'ring-1 ring-destructive',
             className
           )}

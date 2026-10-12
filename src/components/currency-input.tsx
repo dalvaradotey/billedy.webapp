@@ -175,7 +175,6 @@ export function CurrencyInput({
           invalid ? "text-destructive" : "text-muted-foreground"
         )}>
           {label}
-          {valid && <CheckCircle2 className="h-4 w-4" />}
           {invalid && <XCircle className="h-4 w-4" />}
         </span>
       )}

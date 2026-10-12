@@ -97,7 +97,7 @@ export function EntitySelector({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'w-full justify-between font-normal',
+            'w-full justify-between rounded-2xl bg-background font-normal hover:bg-surface-2',
             label ? 'h-14 py-1' : 'h-12',
             invalid && 'ring-1 ring-destructive'
           )}

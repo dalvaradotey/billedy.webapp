@@ -66,7 +66,7 @@ export const FloatingLabelDateInput = forwardRef<HTMLInputElement, FloatingLabel
           data-vaul-no-drag
           onClick={handleClick}
           className={cn(
-            'h-14 pt-5 pb-1',
+            'h-14 rounded-2xl pt-5 pb-1',
             hasError && 'ring-1 ring-destructive',
             className
           )}
