@@ -61,7 +61,7 @@ export function AppSidebar({
   const initials = user.name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col gap-3.5 border-r border-line bg-background px-[18px] py-5 md:flex">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col gap-3 border-r border-line bg-background px-[18px] py-5 md:flex">
       <div className="flex items-center justify-between px-1.5">
         <a href="/dashboard" aria-label="Ir al inicio">
           <BrandMark />
@@ -85,7 +85,7 @@ export function AppSidebar({
           members={members}
           isOwner={isOwner}
           onProjectChange={(projectId: string) => setCurrentProjectId(projectId)}
-          className="h-11 rounded-full border border-line bg-surface px-4"
+          className="h-10 rounded-full border border-line bg-surface px-4"
         />
       )}
 
@@ -94,7 +94,7 @@ export function AppSidebar({
           <button
             type="button"
             disabled={!hasActions}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-full bg-jade text-sm font-extrabold text-jade-ink transition-opacity disabled:opacity-40"
+            className="flex min-h-10 items-center justify-center gap-2 rounded-full bg-jade text-sm font-extrabold text-jade-ink transition-opacity disabled:opacity-40"
           >
             <Plus className={cn('h-5 w-5 transition-transform', isOpen && 'rotate-45')} strokeWidth={2.6} />
             Registrar
@@ -102,7 +102,7 @@ export function AppSidebar({
         )}
       </ActionsPopover>
 
-      <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto">
+      <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         <SidebarGroup items={PRIMARY_NAV} pathname={pathname} />
         <SidebarGroup items={SECONDARY_NAV} pathname={pathname} />
       </nav>
@@ -147,7 +147,7 @@ export function AppSidebar({
 
 function SidebarGroup({ items, pathname }: { items: NavItem[]; pathname: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[26px] border border-line-strong bg-surface-2 p-1.5">
+    <div className="flex flex-col gap-0.5 rounded-[24px] border border-line-strong bg-surface-2 p-1">
       {items.map((item) => {
         const active = isNavActive(pathname, item.href);
         const Icon = item.icon;
@@ -157,7 +157,7 @@ function SidebarGroup({ items, pathname }: { items: NavItem[]; pathname: string 
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'flex min-h-10 items-center gap-3 rounded-full px-3.5 text-sm transition-colors',
+              'flex min-h-9 items-center gap-3 rounded-full px-3.5 text-sm transition-colors',
               active
                 ? 'bg-jade-soft font-extrabold text-jade-text'
                 : 'font-semibold text-[#CFC6D6] hover:bg-surface-3 hover:text-foreground'
