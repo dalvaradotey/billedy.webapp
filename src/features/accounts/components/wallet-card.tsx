@@ -147,6 +147,34 @@ export function CardDesignPreview({ design, className }: { design: CardDesign; c
   );
 }
 
+/** Tarjeta chica con nombre y tipo, para elegir cuenta en un formulario. */
+export function AccountPickCard({ account, selected, onSelect }: { account: AccountWithEntity; selected: boolean; onSelect: () => void }) {
+  const design = cardDesignFor(account);
+  const isPhoto = design.kind === 'photo';
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={cn(
+        'relative flex h-[76px] w-[124px] flex-none snap-start flex-col justify-between overflow-hidden rounded-[14px] p-2.5 text-left transition-[opacity,box-shadow]',
+        design.bg,
+        design.ink,
+        selected ? 'ring-[3px] ring-cream' : 'opacity-60 hover:opacity-90'
+      )}
+    >
+      <CardBackground design={design} />
+      <span className={cn('relative line-clamp-2 text-[11px] font-extrabold leading-tight', isPhoto && 'self-start rounded-md bg-[#0E0C12]/75 px-1.5 py-0.5')}>
+        {account.name}
+      </span>
+      <span className={cn('relative text-[10px] font-bold tracking-[0.04em] opacity-80', isPhoto && 'self-start rounded-md bg-[#0E0C12]/75 px-1.5 py-0.5 opacity-100')}>
+        {accountKindLabel(account.type).replace('CUENTA ', '').replace('TARJETA DE CRÉDITO', 'TARJETA')}
+      </span>
+    </button>
+  );
+}
+
 /** Mini tarjeta para listas. */
 export function WalletChip({ account }: { account: AccountWithEntity }) {
   const design = cardDesignFor(account);

@@ -12,7 +12,8 @@ interface CurrencyInputProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  size?: 'default' | 'lg';
+  /** `hero`: monto protagonista, grande y centrado, sin caja */
+  size?: 'default' | 'lg' | 'hero';
   label?: string;
   valid?: boolean;
   invalid?: boolean;
@@ -165,6 +166,32 @@ export function CurrencyInput({
       setDisplayValue('');
     }
   };
+
+  if (size === 'hero') {
+    const shown = displayValue || placeholder;
+    return (
+      <label className={cn('flex flex-col items-center gap-0.5 py-1', className)}>
+        {label && <span className={cn('text-xs', invalid ? 'text-coral-text' : 'text-muted-foreground')}>{label}</span>}
+        <span className={cn('num flex max-w-full items-baseline justify-center font-extrabold leading-[1.05]', invalid ? 'text-coral-text' : 'text-foreground')}>
+          <span className={cn('text-[34px]', !displayValue && 'text-faint')}>{config.symbol}</span>
+          <input
+            ref={inputRef}
+            type="text"
+            inputMode="decimal"
+            value={displayValue}
+            onChange={handleChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            placeholder={placeholder}
+            disabled={disabled}
+            aria-invalid={invalid || undefined}
+            style={{ width: `${Math.max(1, shown.length) * 0.6 + 0.1}em` }}
+            className="min-w-0 max-w-full bg-transparent text-center !text-[52px] font-extrabold caret-jade outline-none placeholder:text-faint"
+          />
+        </span>
+      </label>
+    );
+  }
 
   return (
     <div className="relative">
