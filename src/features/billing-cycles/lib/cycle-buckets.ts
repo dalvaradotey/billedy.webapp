@@ -30,13 +30,6 @@ export type Bucket = (typeof BUCKETS)[number];
  */
 export const INSTALLMENT_WINDOW_DAYS = 16;
 
-/**
- * Abonos: `nature = 'reimbursement'`. Mientras los datos históricos no estén
- * marcados, se usa además esta heurística para los ingresos con naturaleza 'own'
- * (categoría Reembolsos/Externo o descripción "Abono…").
- */
-const REIMBURSEMENT_CATEGORIES = ['Reembolsos', 'Externo'];
-const REIMBURSEMENT_DESCRIPTION_PREFIX = 'abono%';
 
 export type DateRange = {
   key: string;
@@ -77,10 +70,6 @@ export function bucketAggregationQuery(
     ranges.map((r) => sql`(${r.key}::text, ${r.start}::date, ${r.end}::date)`),
     sql`, `
   );
-  const reimbursementCategories = sql.join(
-    REIMBURSEMENT_CATEGORIES.map((c) => sql`${c}`),
-    sql`, `
-  );
 
   return sql`
     with ranges(key, start_date, end_date) as (values ${rangeValues}),
@@ -96,12 +85,10 @@ export function bucketAggregationQuery(
         t.is_historically_paid,
         t.linked_transaction_id,
         t.card_purchase_id,
-        t.description,
         t.account_id,
         a.type::text as acc,
         x.account_id as contra_account_id,
-        xa.type::text as contra,
-        cat.name as cat
+        xa.type::text as contra
       from ranges r
       join n1n4_transactions t
         on t.project_id = ${projectId}
@@ -109,7 +96,6 @@ export function bucketAggregationQuery(
       join n1n4_accounts a on a.id = t.account_id
       left join n1n4_transactions x on x.id = t.linked_transaction_id
       left join n1n4_accounts xa on xa.id = x.account_id
-      left join n1n4_categories cat on cat.id = t.category_id
     ),
     b as (
       select
@@ -122,10 +108,7 @@ export function bucketAggregationQuery(
         base_amount,
         case
           when acc in ('checking', 'cash') and type = 'income' and linked_transaction_id is null
-               and (nature = 'reimbursement'
-                    or (nature = 'own'
-                        and (cat in (${reimbursementCategories})
-                             or ltrim(description) ilike ${REIMBURSEMENT_DESCRIPTION_PREFIX})))
+               and nature = 'reimbursement'
             then 'reimbursement'
           when acc in ('checking', 'cash') and type = 'income' and linked_transaction_id is null
             then 'income'
