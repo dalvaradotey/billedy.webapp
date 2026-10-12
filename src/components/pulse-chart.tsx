@@ -125,6 +125,8 @@ export function PulseChart({
   const tipW = 118;
   const tipX = tX - tipW - 10 < 0 ? tX + 10 : tX - tipW - 10;
   const tipY = Math.max(0, tY - 52);
+  // Si la burbuja de hoy tapa la etiqueta del techo, la etiqueta baja bajo la línea
+  const capLabelBelow = showTooltip && !pendingAmount && tipX < 150 && tipY < capY + 4 && tipY + 40 > capY - 18;
 
   return (
     <div ref={ref} className="w-full" style={{ height }}>
@@ -145,7 +147,7 @@ export function PulseChart({
             <>
               {variant === 'cap' && <rect x="0" y="0" width={W} height={Math.max(0, capY)} className="fill-coral" fillOpacity={0.06} />}
               <line x1="0" x2={W} y1={capY} y2={capY} className={st.capLine} strokeWidth={1.5} strokeDasharray="5 5" />
-              <text x="4" y={capY - 6} className={`${st.capText} text-[11px] font-extrabold`}>
+              <text x="4" y={capLabelBelow ? capY + 15 : capY - 6} className={`${st.capText} text-[11px] font-extrabold`}>
                 {st.capLabel} {formatCurrency(cap!)}
               </text>
               <line x1="0" y1={Y(baseline)} x2={W} y2={capY} stroke="#5E5568" strokeWidth={1.5} strokeDasharray="1 4" strokeLinecap="round" />
