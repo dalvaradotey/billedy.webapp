@@ -129,7 +129,7 @@ export const CARD_DESIGNS: CardDesign[] = [
 
   { id: 'santander-rojo', label: 'Santander', group: 'Por banco', kind: 'art', bg: 'bg-[#E3342A]', ink: 'text-[#2E0806]', Art: () => <RingsArt color="#2E0806" /> },
   { id: 'bancoestado', label: 'BancoEstado', group: 'Por banco', kind: 'art', bg: 'bg-[#1C1512]', ink: 'text-[#FFB067]', Art: () => <BandsArt color="#F07F1E" /> },
-  { id: 'fintual', label: 'Fintual', group: 'Por banco', kind: 'art', bg: 'bg-[#2F5BD8]', ink: 'text-[#EEF3FF]', Art: () => <WavesArt color="#BFD3FF" /> },
+  { id: 'fintual', label: 'Fintual', group: 'Por banco', kind: 'art', bg: 'bg-[#F7F8FC]', ink: 'text-[#14245C]', Art: () => <WavesArt color="#2F5BD8" /> },
   { id: 'mercadopago', label: 'Mercado Pago', group: 'Por banco', kind: 'art', bg: 'bg-[#58C8EE]', ink: 'text-[#0A2A55]', Art: () => <WavesArt color="#0A2A55" /> },
   { id: 'afp-modelo', label: 'AFP', group: 'Por banco', kind: 'art', bg: 'bg-[#8FD08A]', ink: 'text-[#14301A]', Art: () => <LeavesArt color="#14301A" /> },
   { id: 'afc', label: 'AFC · cesantía', group: 'Por banco', kind: 'art', bg: 'bg-jade', ink: 'text-jade-ink', Art: () => <LinesArt color="#0E2A22" /> },

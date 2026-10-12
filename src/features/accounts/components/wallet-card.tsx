@@ -30,7 +30,7 @@ function BankLogo({ src, name, size = 'md' }: { src: string; name: string; size?
   return (
     <span
       className={cn(
-        'flex shrink-0 items-center justify-center bg-white',
+        'flex shrink-0 items-center justify-center bg-white ring-1 ring-black/10',
         size === 'md' ? 'h-9 min-w-9 max-w-[84px] rounded-[10px] px-1.5' : 'h-[14px] min-w-[14px] max-w-[26px] rounded-[4px] px-0.5'
       )}
     >
@@ -87,7 +87,7 @@ export function WalletCard({ account, selected, onSelect, className }: WalletCar
         design.bg,
         design.ink,
         isPhoto ? 'p-2.5' : 'px-5 py-[18px]',
-        selected ? 'ring-2 ring-cream ring-offset-2 ring-offset-background' : 'opacity-90 hover:opacity-100',
+        selected ? 'ring-2 ring-cream ring-offset-2 ring-offset-background' : 'hover:brightness-105',
         account.isArchived && 'opacity-50',
         className
       )}
