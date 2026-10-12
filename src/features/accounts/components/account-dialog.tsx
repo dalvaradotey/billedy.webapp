@@ -32,6 +32,8 @@ import { createAccount, updateAccount, adjustAccountBalance } from '../actions';
 import { createAccountSchema, type CreateAccountInput } from '../schemas';
 import type { AccountWithEntity, AccountType } from '../types';
 import type { Entity } from '@/features/entities/types';
+import { CardDesignPicker } from './card-design-picker';
+import { getCardDesign, autoCardDesignId } from '../card-designs';
 
 interface AccountDialogContentProps {
   projectId: string;
@@ -80,6 +82,7 @@ export function AccountDialogContent({
         currency: account.currency,
         initialBalance: parseFloat(account.initialBalance),
         creditLimit: account.creditLimit ? parseFloat(account.creditLimit) : undefined,
+        cardDesign: account.cardDesign ?? null,
         isDefault: account.isDefault,
       };
     }
@@ -92,6 +95,7 @@ export function AccountDialogContent({
       currency: 'CLP',
       initialBalance: 0,
       creditLimit: undefined as number | undefined,
+      cardDesign: null as string | null,
       isDefault: false,
     };
   }, [account, projectId]);
@@ -126,6 +130,7 @@ export function AccountDialogContent({
             entityId: data.entityId || null,
             initialBalance: data.initialBalance,
             creditLimit: data.type === 'credit_card' ? data.creditLimit : null,
+            cardDesign: data.cardDesign ?? null,
             isDefault: data.isDefault,
           })
         : await createAccount(userId, data);
@@ -294,6 +299,28 @@ export function AccountDialogContent({
               )}
             />
           )}
+
+          {/* Diseño de la tarjeta en la billetera */}
+          <FormField
+            control={form.control}
+            name="cardDesign"
+            render={({ field }) => {
+              const entity = entities.find((e) => e.id === form.watch('entityId')) ?? null;
+              const auto = getCardDesign(
+                autoCardDesignId({
+                  name: form.watch('name') || '',
+                  type: watchType,
+                  bankName: form.watch('bankName') ?? null,
+                  entity,
+                })
+              )!;
+              return (
+                <FormItem data-field="cardDesign">
+                  <CardDesignPicker value={field.value} onChange={field.onChange} autoDesign={auto} />
+                </FormItem>
+              );
+            }}
+          />
 
           {/* Initial Balance - Solo al crear */}
           {!isEditing && (
