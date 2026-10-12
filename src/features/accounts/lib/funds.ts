@@ -65,6 +65,18 @@ export async function getAccountFunds(projectId: string, includeArchived = false
   }));
 }
 
+/**
+ * Fondos del proyecto verificando que el usuario sea miembro aceptado
+ * (el projectId puede venir de una cookie).
+ */
+export async function getAccountFundsForUser(projectId: string, userId: string): Promise<AccountFund[]> {
+  const [member] = (await db.execute(sql`
+    select 1 from n1n4_project_members
+    where project_id = ${projectId} and user_id = ${userId} and accepted_at is not null
+    limit 1`)) as unknown as Row[];
+  return member ? getAccountFunds(projectId) : [];
+}
+
 export async function getFundTotals(projectId: string): Promise<FundTotals> {
   const [funds, accountRows] = await Promise.all([
     getAccountFunds(projectId),

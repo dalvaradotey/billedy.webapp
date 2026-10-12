@@ -6,6 +6,7 @@ import { getEntities } from '@/features/entities';
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject } from '@/features/projects/queries';
 import { AccountsList } from '@/features/accounts';
+import { getAccountFundsForUser } from '@/features/accounts/lib/funds';
 
 export default async function AccountsPage() {
   const session = await auth();
@@ -24,12 +25,13 @@ export default async function AccountsPage() {
     projectId = latestProject.id;
   }
 
-  const [accounts, summary, currencies, entities, debtBreakdown] = await Promise.all([
+  const [accounts, summary, currencies, entities, debtBreakdown, funds] = await Promise.all([
     getAccounts(projectId, session.user.id),
     getAccountsSummary(projectId, session.user.id),
     getAllCurrencies(),
     getEntities(),
     getAccountDebtBreakdown(projectId, session.user.id),
+    getAccountFundsForUser(projectId, session.user.id),
   ]);
 
   return (
@@ -49,6 +51,7 @@ export default async function AccountsPage() {
         currencies={currencies.map((c) => ({ id: c.id, code: c.code, name: c.name }))}
         entities={entities}
         debtBreakdown={debtBreakdown}
+        funds={funds}
       />
     </div>
   );

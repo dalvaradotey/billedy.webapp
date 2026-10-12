@@ -24,11 +24,17 @@ import { archiveAccount, restoreAccount, deleteAccount } from '../actions';
 import type { AccountWithEntity, AccountType, AccountDebtBreakdown } from '../types';
 import { ACCOUNT_TYPE_LABELS } from '../types';
 import { AccountTypeIcon } from './account-type-icon';
+import { AccountFundsSection } from './account-funds';
+import type { AccountFund } from '../lib/funds';
 
 interface AccountCardProps {
   account: AccountWithEntity;
   userId: string;
   debtBreakdown?: AccountDebtBreakdown;
+  /** Fondos de esta cuenta (si se pasa projectId, se muestra la sección de fondos) */
+  projectId?: string;
+  funds?: AccountFund[];
+  fundMoveTargets?: Array<{ id: string; name: string }>;
   onEdit: () => void;
   onMutationStart?: () => void;
   onMutationSuccess?: (toastId: string | number, message: string) => void;
@@ -39,6 +45,9 @@ export function AccountCard({
   account,
   userId,
   debtBreakdown,
+  projectId,
+  funds = [],
+  fundMoveTargets = [],
   onEdit,
   onMutationStart,
   onMutationSuccess,
@@ -318,6 +327,18 @@ export function AccountCard({
             </Drawer>
           </div>
         </div>
+
+        {/* Fondos dentro de la cuenta */}
+        {projectId && !isCredit && !account.isArchived && (
+          <AccountFundsSection
+            projectId={projectId}
+            userId={userId}
+            accountId={account.id}
+            accountBalance={balance}
+            funds={funds}
+            moveTargets={fundMoveTargets}
+          />
+        )}
 
         {/* Desktop: Inline actions */}
         {showInlineActions && (

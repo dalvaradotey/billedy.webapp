@@ -36,6 +36,8 @@ import { CategorySelector } from '@/components/category-selector';
 import { NatureSelector } from './nature-selector';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { fetchCyclePlanStatus } from '@/features/billing-cycles/actions';
+import { fetchAccountFunds } from '@/features/accounts/fund-actions';
+import type { AccountFund } from '@/features/accounts/lib/funds';
 import { formatCurrency } from '@/lib/formatting';
 import { normalizeNature, type TransactionNature } from '../nature';
 import { CurrencyInput } from '@/components/currency-input';
@@ -206,6 +208,7 @@ export function TransactionDialogContent({
         entityId: transaction.entityId ?? undefined,
         isPaid: transaction.isPaid,
         nature: transaction.nature as TransactionNature,
+        accountFundId: transaction.accountFundId ?? null,
         notes: transaction.notes ?? '',
         accountId: transaction.accountId ?? defaultAccount?.id ?? '',
       };
@@ -223,6 +226,7 @@ export function TransactionDialogContent({
       entityId: undefined as string | undefined,
       isPaid: false,
       nature: 'own' as TransactionNature,
+      accountFundId: null as string | null,
       notes: '',
       accountId: initialValues?.accountId ?? defaultAccount?.id ?? '',
     };
@@ -303,6 +307,30 @@ export function TransactionDialogContent({
       if (result.success && result.data) setCardAvailable(result.data.card.available);
     });
   }, [isOwnCardExpense, projectId, userId]);
+  // Fondos de la cuenta: un gasto se puede pagar con un fondo de la misma cuenta
+  const [projectFunds, setProjectFunds] = useState<AccountFund[] | null>(null);
+  const fundsRequested = useRef(false);
+  const watchedFundId = form.watch('accountFundId');
+  useEffect(() => {
+    if (fundsRequested.current || watchedType !== 'expense') return;
+    fundsRequested.current = true;
+    fetchAccountFunds(projectId, userId).then((result) => {
+      if (result.success) setProjectFunds(result.data);
+    });
+  }, [watchedType, projectId, userId]);
+  const accountFundsForSelected = useMemo(
+    () => (projectFunds ?? []).filter((f) => f.accountId === watchedAccountId),
+    [projectFunds, watchedAccountId]
+  );
+  useEffect(() => {
+    // Si cambia la cuenta o el tipo, el fondo elegido deja de aplicar
+    const current = form.getValues('accountFundId');
+    if (!current) return;
+    const stillValid =
+      watchedType === 'expense' && (projectFunds === null || accountFundsForSelected.some((f) => f.id === current));
+    if (!stillValid) form.setValue('accountFundId', null);
+  }, [watchedAccountId, watchedType, projectFunds, accountFundsForSelected, form]);
+
   const cardRemainingAfter =
     isOwnCardExpense && cardAvailable != null ? cardAvailable - (watchedAmount || 0) : null;
   const isProvisionAccount = selectedAccount?.type === 'pension' || selectedAccount?.type === 'unemployment' || selectedAccount?.type === 'savings';
@@ -785,6 +813,53 @@ export function TransactionDialogContent({
                         {cardRemainingAfter >= 0
                           ? `Con este gasto te quedan ${formatCurrency(cardRemainingAfter)} del techo de TC.`
                           : `Con este gasto te pasas del techo de TC por ${formatCurrency(-cardRemainingAfter)}.`}
+                      </p>
+                    )}
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Pagar con un fondo de la cuenta */}
+            {watchedType === 'expense' && accountFundsForSelected.length > 0 && (
+              <FormField
+                control={form.control}
+                name="accountFundId"
+                render={({ field }) => (
+                  <FormItem data-field="accountFundId">
+                    <p className="text-sm font-medium text-muted-foreground">¿Lo pagas con un fondo?</p>
+                    <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Fondo">
+                      {[{ id: null, name: 'Sin fondo', balance: null as number | null }, ...accountFundsForSelected].map((fund) => {
+                        const selected = (field.value ?? null) === fund.id;
+                        const previousAmount =
+                          transaction && transaction.accountFundId === fund.id ? parseFloat(transaction.originalAmount) : 0;
+                        const available = fund.balance != null ? fund.balance + previousAmount : null;
+                        const insufficient = available != null && (watchedAmount || 0) > available;
+                        return (
+                          <button
+                            key={fund.id ?? 'none'}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => field.onChange(fund.id)}
+                            className={cn(
+                              'min-h-11 rounded-xl border px-3 py-2 text-left text-sm transition-colors',
+                              selected ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-muted'
+                            )}
+                          >
+                            <span className="block truncate font-medium">{fund.name}</span>
+                            {available != null && (
+                              <span className={cn('text-[11px] tabular-nums', insufficient && 'text-red-600 dark:text-red-400')}>
+                                {formatCurrency(available)}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {watchedFundId && (
+                      <p className="text-xs text-muted-foreground">
+                        El gasto baja el saldo del fondo y no descuadra tu ciclo (esa plata ya estaba apartada).
                       </p>
                     )}
                   </FormItem>

@@ -17,6 +17,7 @@ import { recalculateAllAccountBalances } from '../actions';
 import { AccountCard } from './account-card';
 import { AccountCardSkeleton } from './account-card-skeleton';
 import { AccountDialogContent } from './account-dialog';
+import type { AccountFund } from '../lib/funds';
 
 interface AccountsListProps {
   accounts: AccountWithEntity[];
@@ -26,6 +27,7 @@ interface AccountsListProps {
   currencies: { id: string; code: string; name: string }[];
   entities: Entity[];
   debtBreakdown?: Record<string, AccountDebtBreakdown>;
+  funds?: AccountFund[];
 }
 
 export function AccountsList({
@@ -36,6 +38,7 @@ export function AccountsList({
   currencies,
   entities,
   debtBreakdown,
+  funds = [],
 }: AccountsListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<AccountWithEntity | null>(null);
@@ -153,7 +156,11 @@ export function AccountsList({
         <SummaryCard
           title="Disponible"
           value={formatCurrency(summary.totalDebitBalance)}
-          subtitle="Cuentas de débito"
+          subtitle={
+            summary.fundsBalance || summary.thirdPartyBalance
+              ? `Libre en corrientes ${formatCurrency(summary.freeLiquidBalance ?? 0)}`
+              : 'Cuentas de débito'
+          }
           icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
           variant="success"
         />
@@ -232,6 +239,11 @@ export function AccountsList({
                 account={account}
                 userId={userId}
                 debtBreakdown={debtBreakdown?.[account.id]}
+                projectId={projectId}
+                funds={funds.filter((f) => f.accountId === account.id)}
+                fundMoveTargets={accounts
+                  .filter((a) => a.id !== account.id && a.type !== 'credit_card' && !a.isArchived)
+                  .map((a) => ({ id: a.id, name: a.name }))}
                 onEdit={() => handleEdit(account)}
                 onMutationStart={onMutationStart}
                 onMutationSuccess={onMutationSuccess}

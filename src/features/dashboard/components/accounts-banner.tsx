@@ -50,6 +50,11 @@ export function DashboardAccountsBanner() {
               value={accountsSummary.totalDebitBalance}
               className="text-emerald-400 font-bold"
             />
+            {(accountsSummary.fundsBalance || accountsSummary.thirdPartyBalance) ? (
+              <p className="text-[11px] text-slate-500">
+                Libre en corrientes {formatCurrency(accountsSummary.freeLiquidBalance ?? 0)}
+              </p>
+            ) : null}
           </div>
           <div className="text-right">
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1 justify-end">
@@ -124,6 +129,11 @@ export function DashboardAccountsBanner() {
               value={accountsSummary.totalDebitBalance}
               className="text-emerald-400 font-bold"
             />
+            {(accountsSummary.fundsBalance || accountsSummary.thirdPartyBalance) ? (
+              <p className="text-[11px] text-slate-500">
+                Libre en corrientes {formatCurrency(accountsSummary.freeLiquidBalance ?? 0)}
+              </p>
+            ) : null}
           </div>
           <div>
             <p className="text-slate-500 text-xs mb-0.5 flex items-center gap-1">

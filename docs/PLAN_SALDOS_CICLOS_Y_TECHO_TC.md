@@ -433,3 +433,23 @@ Las diferencias pequeñas vienen de ajustes "Diferencia TC" e intereses. El veri
 - Externo: $51.632.
 
 Proyección: comprometido $266.162 + variable $572.223 × 31/16 ≈ **$1.375.000**.
+
+
+## 13. Fondos dentro de cuentas (agregado el 2026-10-12)
+
+**Necesidad:** dividir el saldo de una cuenta (corriente o de ahorro) en fondos que solo existen en la app, porque el banco no lo permite. Ejemplo: Santander $3.748.786 = dental $1.400.000 + campo $400.000 + maquinaria $800.000 + libre $1.148.786.
+
+**Modelo** (migración 0016):
+- `n1n4_account_funds`: nombre, meta opcional y la marca `is_third_party`.
+- `n1n4_fund_movements`: `initial`, `allocate` y `release`.
+- `transactions.account_fund_id`: gasto pagado con el fondo.
+
+**Reglas:**
+- **Saldo del fondo** = inicial + apartado − liberado − gastos pagados con el fondo.
+- **Libre de la cuenta** = saldo − fondos.
+- **En cuentas corrientes:** apartar cuenta como **aporte de ahorro** del ciclo y liberar como retiro.
+- **En cuentas de ahorro:** el fondo es solo una etiqueta, porque esa plata ya contó como ahorro al entrar.
+- **Pagar con un fondo:** el gasto queda **compensado** en el ciclo. Solo aplica a gastos de la misma cuenta y requiere saldo suficiente en el fondo.
+- **Saldo inicial:** registra plata ya apartada y no cuenta como ahorro del ciclo.
+- **Fondos de terceros** (por ejemplo, la plata de la abuelita): se ven, pero no cuentan como tuyos. Se descuentan del disponible y del patrimonio, y apartar o liberar no es ahorro.
+- **Mover un fondo a otra cuenta** solo reasigna la cuenta del fondo. La transferencia del banco se registra aparte, y una transferencia entre cuentas corrientes no afecta el saldo del ciclo.
