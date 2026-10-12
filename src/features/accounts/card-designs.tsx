@@ -35,7 +35,8 @@ function BandsArt({ color }: { color: string }) {
   );
 }
 
-function WavesArt({ color }: { color: string }) {
+function WavesArt({ color, colors, opacity }: { color?: string; colors?: string[]; opacity?: number }) {
+  const palette = colors ?? [color ?? '#000'];
   return (
     <svg aria-hidden viewBox="0 0 300 189" preserveAspectRatio="xMidYMid slice" className={svgBox}>
       {[0, 1, 2, 3, 4].map((i) => (
@@ -43,8 +44,8 @@ function WavesArt({ color }: { color: string }) {
           key={i}
           d={`M-10 ${70 + i * 24} C 60 ${40 + i * 24}, 120 ${110 + i * 24}, 190 ${70 + i * 24} S 300 ${40 + i * 24}, 320 ${80 + i * 24}`}
           fill="none"
-          stroke={color}
-          strokeOpacity={0.12 + i * 0.05}
+          stroke={palette[i % palette.length]}
+          strokeOpacity={opacity ?? 0.12 + i * 0.05}
           strokeWidth={10}
         />
       ))}
@@ -129,7 +130,7 @@ export const CARD_DESIGNS: CardDesign[] = [
 
   { id: 'santander-rojo', label: 'Santander', group: 'Por banco', kind: 'art', bg: 'bg-[#E3342A]', ink: 'text-[#2E0806]', Art: () => <RingsArt color="#2E0806" /> },
   { id: 'bancoestado', label: 'BancoEstado', group: 'Por banco', kind: 'art', bg: 'bg-[#1C1512]', ink: 'text-[#FFB067]', Art: () => <BandsArt color="#F07F1E" /> },
-  { id: 'fintual', label: 'Fintual', group: 'Por banco', kind: 'art', bg: 'bg-[#F7F8FC]', ink: 'text-[#14245C]', Art: () => <WavesArt color="#2F5BD8" /> },
+  { id: 'fintual', label: 'Fintual', group: 'Por banco', kind: 'art', bg: 'bg-[#F7F8FC]', ink: 'text-[#14245C]', Art: () => <WavesArt colors={['#1E50E6', '#3FB6F2']} opacity={0.4} /> },
   { id: 'mercadopago', label: 'Mercado Pago', group: 'Por banco', kind: 'art', bg: 'bg-[#58C8EE]', ink: 'text-[#0A2A55]', Art: () => <WavesArt color="#0A2A55" /> },
   { id: 'afp-modelo', label: 'AFP', group: 'Por banco', kind: 'art', bg: 'bg-[#8FD08A]', ink: 'text-[#14301A]', Art: () => <LeavesArt color="#14301A" /> },
   { id: 'afc', label: 'AFC · cesantía', group: 'Por banco', kind: 'art', bg: 'bg-jade', ink: 'text-jade-ink', Art: () => <LinesArt color="#0E2A22" /> },
