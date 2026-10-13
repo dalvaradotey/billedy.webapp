@@ -36,7 +36,7 @@ async function call<T = unknown>(method: string, body: Record<string, unknown>):
 const keyboard = (k?: InlineKeyboard) => (k ? { reply_markup: { inline_keyboard: k } } : {});
 
 export function sendMessage(chatId: number, text: string, k?: InlineKeyboard) {
-  return call('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...keyboard(k) });
+  return call<{ message_id: number }>('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', ...keyboard(k) });
 }
 
 export function editMessage(chatId: number, messageId: number, text: string, k?: InlineKeyboard) {

@@ -35,6 +35,8 @@ export type ParsedExpense = {
   accountId: string;
   /** YYYY-MM-DD */
   date: string;
+  /** El mensaje traía detalle (comercio o descripción), no solo el monto */
+  hasDetail: boolean;
 };
 
 export type ParseResult = { ok: true; data: ParsedExpense } | { ok: false; error: string };
@@ -243,6 +245,7 @@ export function parseExpenseMessage(text: string, ctx: ParseContext): ParseResul
       categoryId: budget?.categoryId ?? prev?.categoryId ?? null,
       accountId: finalAccount.id,
       date: date.toISOString().slice(0, 10),
+      hasDetail: Boolean(entity || leftover),
     },
   };
 }
