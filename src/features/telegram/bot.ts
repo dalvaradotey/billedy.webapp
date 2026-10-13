@@ -19,6 +19,78 @@ type Link = typeof telegramLinks.$inferSelect;
 
 /** Un borrador pendiente vence a las 24 h; deshacer se permite durante 24 h */
 const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+/** Si el bot preguntó el detalle, el siguiente mensaje sin monto se toma como respuesta */
+const DETAIL_WAIT_MS = 30 * 60 * 1000;
+
+/**
+ * Borrador con el paso de la conversación:
+ * - detail: solo vino el monto, se pregunta "¿qué fue?"
+ * - budget: vino el detalle pero no el presupuesto, se ofrece elegirlo
+ * - confirm: resumen con Guardar
+ */
+type DraftPayload = ParsedExpense & {
+  step?: 'detail' | 'budget' | 'confirm';
+  /** Ya se preguntó el presupuesto (aunque se haya elegido "Sin presupuesto") */
+  budgetAsked?: boolean;
+  /** Mensaje con la pregunta del detalle, para quitarle los botones al responder */
+  promptMessageId?: number;
+};
+
+const nextStep = (d: DraftPayload): NonNullable<DraftPayload['step']> =>
+  !d.hasDetail && !d.budgetId && d.step !== 'budget' && !d.budgetAsked
+    ? 'detail'
+    : d.type === 'expense' && !d.budgetId && !d.budgetAsked
+      ? 'budget'
+      : 'confirm';
+
+const budgetKeyboard = (draftId: string, ctx: ParseContext, extra: InlineKeyboard): InlineKeyboard => {
+  const options = [
+    ...ctx.budgets.map((b, i) => ({ text: b.name, callback_data: `sb:${draftId}:${i}` })),
+    { text: 'Sin presupuesto', callback_data: `sb:${draftId}:-1` },
+  ];
+  const rows: InlineKeyboard = [];
+  for (let i = 0; i < options.length; i += 2) rows.push(options.slice(i, i + 2));
+  return [...rows, ...extra];
+};
+
+/** Texto y botones del paso actual del borrador */
+function stepView(draftId: string, d: DraftPayload, ctx: ParseContext): { text: string; keyboard: InlineKeyboard } {
+  const step = nextStep(d);
+  if (step === 'detail') {
+    return {
+      text: `<b>${d.type === 'income' ? '+' : '−'}${formatCurrency(d.amount)}</b> · ¿Qué fue?\nEscríbeme el detalle, por ejemplo <code>lider</code> o <code>almuerzo</code>. También puedes agregar el presupuesto.`,
+      keyboard: [[
+        { text: 'Sin detalle', callback_data: `nd:${draftId}` },
+        { text: '✖️ Cancelar', callback_data: `c:${draftId}` },
+      ]],
+    };
+  }
+  if (step === 'budget') {
+    return {
+      text: `${summary(d, ctx)}\n\n¿Lo asocio a un presupuesto?`,
+      keyboard: budgetKeyboard(draftId, ctx, [[{ text: '✖️ Cancelar', callback_data: `c:${draftId}` }]]),
+    };
+  }
+  return { text: summary(d, ctx), keyboard: confirmKeyboard(draftId, d.type) };
+}
+
+/** Borrador que espera el detalle (el último, si no venció) */
+async function findAwaitingDetail(linkId: string) {
+  const [draft] = await db
+    .select()
+    .from(telegramDrafts)
+    .where(
+      and(
+        eq(telegramDrafts.linkId, linkId),
+        eq(telegramDrafts.status, 'pending'),
+        gte(telegramDrafts.createdAt, new Date(Date.now() - DETAIL_WAIT_MS)),
+        sql`${telegramDrafts.payload}->>'step' = 'detail'`
+      )
+    )
+    .orderBy(desc(telegramDrafts.createdAt))
+    .limit(1);
+  return draft ?? null;
+}
 
 const HELP = [
   '<b>Cómo registrar un gasto</b>',
@@ -211,13 +283,51 @@ async function handleText(chatId: number, text: string) {
 
   const ctx = await loadContext(link.projectId);
   const parsed = parseExpenseMessage(trimmed, ctx);
+  const awaiting = await findAwaitingDetail(link.id);
+
+  // Respuesta a "¿Qué fue?": un mensaje sin monto completa el borrador que esperaba el detalle
+  if (awaiting && !parsed.ok) {
+    const prev = awaiting.payload as DraftPayload;
+    const re = parseExpenseMessage(`${prev.type === 'income' ? '+' : ''}${prev.amount} ${trimmed}`, ctx);
+    if (!re.ok) return sendMessage(chatId, esc(re.error));
+    const next: DraftPayload = { ...re.data, date: prev.date, step: undefined };
+    next.step = nextStep(next);
+    if (prev.promptMessageId) {
+      await editMessage(chatId, prev.promptMessageId, `<b>${formatCurrency(prev.amount)}</b> · ${esc(trimmed)}`);
+    }
+    const view = stepView(awaiting.id, next, ctx);
+    const sent = await sendMessage(chatId, view.text, view.keyboard);
+    await db
+      .update(telegramDrafts)
+      .set({ payload: { ...next, promptMessageId: sent?.message_id }, updatedAt: new Date() })
+      .where(eq(telegramDrafts.id, awaiting.id));
+    return;
+  }
   if (!parsed.ok) return sendMessage(chatId, esc(parsed.error));
 
+  // Un monto nuevo deja de lado la pregunta anterior
+  if (awaiting) {
+    await db.update(telegramDrafts).set({ status: 'cancelled', updatedAt: new Date() }).where(eq(telegramDrafts.id, awaiting.id));
+    const prev = awaiting.payload as DraftPayload;
+    if (prev.promptMessageId) {
+      await editMessage(chatId, prev.promptMessageId, `<s>${formatCurrency(prev.amount)}</s> · reemplazado por el siguiente`);
+    }
+  }
+
+  const payload: DraftPayload = { ...parsed.data };
+  payload.step = nextStep(payload);
   const [draft] = await db
     .insert(telegramDrafts)
-    .values({ linkId: link.id, payload: parsed.data })
+    .values({ linkId: link.id, payload })
     .returning({ id: telegramDrafts.id });
-  await sendMessage(chatId, summary(parsed.data, ctx), confirmKeyboard(draft.id, parsed.data.type));
+  const view = stepView(draft.id, payload, ctx);
+  const sent = await sendMessage(chatId, view.text, view.keyboard);
+  if (sent && payload.step === 'detail') {
+    await db
+      .update(telegramDrafts)
+      .set({ payload: { ...payload, promptMessageId: sent.message_id } })
+      .where(eq(telegramDrafts.id, draft.id));
+  }
 }
 
 async function sendCap(chatId: number, link: Link) {
@@ -301,7 +411,7 @@ async function handleCallback(cb: NonNullable<TelegramUpdate['callback_query']>)
     .limit(1);
   if (!draft) return answerCallback(cb.id, 'No encontré ese movimiento');
 
-  const data = draft.payload as ParsedExpense;
+  const data = draft.payload as DraftPayload;
   const expired = Date.now() - draft.createdAt.getTime() > DRAFT_TTL_MS;
 
   // Deshacer un guardado
@@ -329,31 +439,46 @@ async function handleCallback(cb: NonNullable<TelegramUpdate['callback_query']>)
     return answerCallback(cb.id);
   }
 
+  // Sin detalle: sigue al presupuesto (o a confirmar)
+  if (action === 'nd') {
+    const next: DraftPayload = { ...data, hasDetail: true, step: 'budget' };
+    next.step = nextStep(next);
+    await db.update(telegramDrafts).set({ payload: next, updatedAt: new Date() }).where(eq(telegramDrafts.id, draft.id));
+    const view = stepView(draft.id, next, ctx);
+    await editMessage(chatId, messageId, view.text, view.keyboard);
+    return answerCallback(cb.id);
+  }
+
   // Elegir cuenta o presupuesto: muestra la lista; al elegir, actualiza el borrador
   const spendable = ctx.accounts.filter((a) => ['checking', 'cash', 'credit_card'].includes(a.type));
   if (action === 'a' || action === 'b') {
-    const options =
-      action === 'a'
-        ? spendable.map((a, i) => ({ text: a.name, callback_data: `sa:${draft.id}:${i}` }))
-        : [
-            ...ctx.budgets.map((b, i) => ({ text: b.name, callback_data: `sb:${draft.id}:${i}` })),
-            { text: 'Sin presupuesto', callback_data: `sb:${draft.id}:-1` },
-          ];
-    const rows: InlineKeyboard = [];
-    for (let i = 0; i < options.length; i += 2) rows.push(options.slice(i, i + 2));
-    rows.push([{ text: '← Volver', callback_data: `r:${draft.id}` }]);
+    const back: InlineKeyboard = [[{ text: '← Volver', callback_data: `r:${draft.id}` }]];
+    let rows: InlineKeyboard;
+    if (action === 'a') {
+      const options = spendable.map((a, i) => ({ text: a.name, callback_data: `sa:${draft.id}:${i}` }));
+      rows = [];
+      for (let i = 0; i < options.length; i += 2) rows.push(options.slice(i, i + 2));
+      rows.push(...back);
+    } else {
+      rows = budgetKeyboard(draft.id, ctx, back);
+    }
     await editMessage(chatId, messageId, `${summary(data, ctx)}\n\n${action === 'a' ? '¿Con qué cuenta?' : '¿Qué presupuesto?'}`, rows);
     return answerCallback(cb.id);
   }
 
-  let next = data;
+  let next: DraftPayload = data;
   if (action === 'sa') {
     const account = spendable[Number(arg)];
     if (account) next = { ...data, accountId: account.id };
   } else if (action === 'sb') {
     const budget = Number(arg) >= 0 ? ctx.budgets[Number(arg)] : null;
+    // Sin detalle, el gasto toma el nombre del presupuesto ("Pellet Estufa" en vez de "Gasto")
+    const genericName = data.description === 'Gasto' || data.description === 'Ingreso';
     next = {
       ...data,
+      budgetAsked: true,
+      step: 'confirm',
+      description: genericName && budget ? budget.name : data.description,
       budgetId: budget?.id ?? null,
       categoryId: budget?.categoryId ?? data.categoryId,
       // Si el presupuesto tiene cuenta asignada, se usa esa
