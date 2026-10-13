@@ -23,6 +23,9 @@ export * from './billing-cycles';
 // Telegram
 export * from './telegram';
 
+// Estados de cuenta de TC
+export * from './statements';
+
 // ============================================================================
 // RELATIONS
 // ============================================================================

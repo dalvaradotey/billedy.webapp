@@ -10,6 +10,7 @@ import {
   CalendarClock,
   Tags,
   Send,
+  FileCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -34,6 +35,7 @@ export const SECONDARY_NAV: NavItem[] = [
   { href: '/dashboard/credits', label: 'Créditos', icon: Receipt },
   { href: '/dashboard/templates', label: 'Plantillas', icon: FileText },
   { href: '/dashboard/cycles', label: 'Ciclos', icon: CalendarClock },
+  { href: '/dashboard/statements', label: 'Conciliar TC', icon: FileCheck },
   { href: '/dashboard/categories', label: 'Categorías', icon: Tags },
   { href: '/dashboard/telegram', label: 'Telegram', icon: Send },
 ];
