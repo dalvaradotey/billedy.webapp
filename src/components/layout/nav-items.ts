@@ -9,6 +9,7 @@ import {
   FileText,
   CalendarClock,
   Tags,
+  Send,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -34,6 +35,7 @@ export const SECONDARY_NAV: NavItem[] = [
   { href: '/dashboard/templates', label: 'Plantillas', icon: FileText },
   { href: '/dashboard/cycles', label: 'Ciclos', icon: CalendarClock },
   { href: '/dashboard/categories', label: 'Categorías', icon: Tags },
+  { href: '/dashboard/telegram', label: 'Telegram', icon: Send },
 ];
 
 export function isNavActive(pathname: string, href: string) {
