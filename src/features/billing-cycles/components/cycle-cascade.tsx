@@ -49,11 +49,13 @@ interface CycleCascadeProps {
 
 /**
  * Cascada de caja del ciclo:
- * Ingresos + Abonos − Débito − Pago TC = Saldo antes de ahorro − Ahorro = Saldo final
+ * Ingresos + Abonos − Débito − Pago TC = Saldo antes de ahorro − Ahorro − Provisiones = Saldo final
  */
 export function CycleCascade({ balance, isOpen, tone = 'light', animated }: CycleCascadeProps) {
   const t = TONES[tone];
   const savingsNet = balance.savingsIn.real - balance.savingsOut.real;
+  const provisionsNet = balance.provisionsIn.real - balance.provisionsOut.real;
+  const hasProvisions = balance.provisionsIn.real > 0 || balance.provisionsOut.real > 0;
   const pendingCardPayment = balance.card.pendingPayment;
   const hasPendingItems = isOpen && balance.finalBalance.projected !== balance.finalBalance.real;
 
@@ -111,6 +113,23 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
             <Amount value={Math.abs(savingsNet)} animated={animated} />
           </dd>
         </div>
+
+        {hasProvisions && (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className={t.label}>
+              Provisiones
+              <span className={cn('block text-[11px]', t.muted)}>
+                {balance.provisionsOut.real > 0
+                  ? `Apartado para gastos que vienen, neto de lo usado (${formatCurrency(balance.provisionsOut.real)})`
+                  : 'Apartado para gastos que vienen'}
+              </span>
+            </dt>
+            <dd className={cn('font-medium', t.value)}>
+              {provisionsNet > 0 ? '−' : provisionsNet < 0 ? '+' : ''}
+              <Amount value={Math.abs(provisionsNet)} animated={animated} />
+            </dd>
+          </div>
+        )}
 
         <div className={cn('flex items-baseline justify-between gap-3 border-t pt-1.5', t.divider)}>
           <dt className={cn('font-semibold', t.value)}>Saldo final</dt>

@@ -297,7 +297,7 @@ export async function getCycleDailySeries(
       union all
       select m.date,
         case when m.kind = 'allocate' then -m.amount else m.amount end as cash,
-        case when m.kind = 'allocate' then m.amount else -m.amount end as savings
+        case when f.is_provision then 0 when m.kind = 'allocate' then m.amount else -m.amount end as savings
       from n1n4_fund_movements m
       join n1n4_account_funds f on f.id = m.fund_id
       join n1n4_accounts a on a.id = f.account_id
@@ -307,8 +307,9 @@ export async function getCycleDailySeries(
         and m.kind in ('allocate', 'release')
         and m.date between ${start}::date and ${until}::date
       union all
-      select t.date, t.base_amount as cash, -t.base_amount as savings
+      select t.date, t.base_amount as cash, case when f.is_provision then 0 else -t.base_amount end as savings
       from n1n4_transactions t
+      join n1n4_account_funds f on f.id = t.account_fund_id
       join n1n4_accounts a on a.id = t.account_id
       where t.project_id = ${projectId}
         and t.account_fund_id is not null

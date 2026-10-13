@@ -17,6 +17,8 @@ export type AccountFund = {
   balance: number;
   targetAmount: number | null;
   isThirdParty: boolean;
+  /** Para gastos que vienen: apartar baja lo libre pero no cuenta como ahorro */
+  isProvision: boolean;
   isArchived: boolean;
 };
 
@@ -37,7 +39,7 @@ export async function getAccountFunds(projectId: string, includeArchived = false
   const rows = (await db.execute(sql`
     select
       f.id, f.account_id, a.name as account_name, a.type::text as account_type,
-      f.name, f.target_amount, f.is_third_party, f.is_archived,
+      f.name, f.target_amount, f.is_third_party, f.is_provision, f.is_archived,
       coalesce((
         select sum(case when m.kind = 'release' then -m.amount else m.amount end)
         from n1n4_fund_movements m where m.fund_id = f.id
@@ -61,6 +63,7 @@ export async function getAccountFunds(projectId: string, includeArchived = false
     balance: num(r.balance),
     targetAmount: r.target_amount != null ? num(r.target_amount) : null,
     isThirdParty: Boolean(r.is_third_party),
+    isProvision: Boolean(r.is_provision),
     isArchived: Boolean(r.is_archived),
   }));
 }
