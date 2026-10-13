@@ -20,6 +20,9 @@ export * from './templates';
 // Billing Cycles
 export * from './billing-cycles';
 
+// Telegram
+export * from './telegram';
+
 // ============================================================================
 // RELATIONS
 // ============================================================================

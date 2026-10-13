@@ -27,7 +27,7 @@
  * ```
  */
 
-import { unstable_cache, updateTag } from 'next/cache';
+import { unstable_cache, updateTag, revalidateTag } from 'next/cache';
 
 /**
  * Tags de caché por feature
@@ -169,4 +169,14 @@ export function invalidateRelatedCache(
 ): void {
   const tags = RELATED_TAGS[feature];
   invalidateCache(...tags);
+}
+
+/**
+ * Igual que invalidateRelatedCache, pero para route handlers (p. ej. el webhook
+ * de Telegram), donde updateTag no está disponible: expira los tags al tiro.
+ */
+export function expireRelatedCache(feature: keyof typeof RELATED_TAGS): void {
+  for (const tag of RELATED_TAGS[feature]) {
+    revalidateTag(tag, { expire: 0 });
+  }
 }
