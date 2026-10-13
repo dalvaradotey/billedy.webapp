@@ -59,6 +59,10 @@ export type CycleBalance = {
   balanceBeforeSavings: Amounts;
   savingsIn: Amounts;
   savingsOut: Amounts;
+  /** Apartado a provisiones (gastos que vienen): baja lo libre, no es ahorro */
+  provisionsIn: Amounts;
+  /** Liberado de provisiones o gastado con ellas */
+  provisionsOut: Amounts;
   finalBalance: Amounts;
   card: {
     /** Gasto en TC del ciclo, ya cargado (se paga el próximo ciclo) */
@@ -268,6 +272,8 @@ export function buildBalances(
     const debitExpenses = cashLine(rangeRows, 'debit_expense', isOpen);
     const savingsIn = cashLine(rangeRows, 'savings_in', isOpen);
     const savingsOut = cashLine(rangeRows, 'savings_out', isOpen);
+    const provisionsIn = cashLine(rangeRows, 'provision_in', isOpen);
+    const provisionsOut = cashLine(rangeRows, 'provision_out', isOpen);
     const paidCardPayment = cashLine(rangeRows, 'card_payment', isOpen);
 
     const payments = paymentsByCard(rangeRows);
@@ -307,7 +313,13 @@ export function buildBalances(
       [debitExpenses, -1],
       [cardPayment, -1]
     );
-    const finalBalance = combine([balanceBeforeSavings, 1], [savingsIn, -1], [savingsOut, 1]);
+    const finalBalance = combine(
+      [balanceBeforeSavings, 1],
+      [savingsIn, -1],
+      [savingsOut, 1],
+      [provisionsIn, -1],
+      [provisionsOut, 1]
+    );
 
     if (!isOpen) {
       const overdue = (r: BucketRow) =>
@@ -346,6 +358,8 @@ export function buildBalances(
       balanceBeforeSavings,
       savingsIn,
       savingsOut,
+      provisionsIn,
+      provisionsOut,
       finalBalance,
       card: {
         spent: sum(rangeRows, (r) => r.bucket === 'card_spend' && r.inRange && r.isReal),

@@ -249,6 +249,8 @@ export const accountFunds = pgTable('n1n4_account_funds', {
   name: varchar('name', { length: 255 }).notNull(),
   targetAmount: decimal('target_amount', { precision: 15, scale: 2 }),
   isThirdParty: boolean('is_third_party').default(false).notNull(),
+  // Provisión: para gastos que vienen; apartar baja lo libre pero no es ahorro
+  isProvision: boolean('is_provision').default(false).notNull(),
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),

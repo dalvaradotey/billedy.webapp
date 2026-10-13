@@ -20,6 +20,7 @@ const createFundSchema = z.object({
   initialAmount: z.number().int().nonnegative().optional(),
   targetAmount: z.number().int().positive().nullable().optional(),
   isThirdParty: z.boolean().optional(),
+  isProvision: z.boolean().optional(),
 });
 
 export type CreateFundInput = z.infer<typeof createFundSchema>;
@@ -101,6 +102,8 @@ export async function createFund(userId: string, input: CreateFundInput): Promis
         name: data.name,
         targetAmount: data.targetAmount != null ? String(data.targetAmount) : null,
         isThirdParty: data.isThirdParty ?? false,
+        // Una provisión es tuya: no puede ser de terceros a la vez
+        isProvision: !data.isThirdParty && (data.isProvision ?? false),
       })
       .returning({ id: accountFunds.id });
     if (initial > 0) {
@@ -179,18 +182,20 @@ export async function releaseFromFund(
 }
 
 /**
- * Cambia nombre o meta del fondo.
+ * Cambia nombre, meta o si es provisión. Pasar a provisión (o volver) reclasifica
+ * sus movimientos en los ciclos: se calculan en vivo.
  */
 export async function updateFund(
   userId: string,
   fundId: string,
-  input: { name?: string; targetAmount?: number | null }
+  input: { name?: string; targetAmount?: number | null; isProvision?: boolean }
 ): Promise<ActionResult> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
   const parsed = z
     .object({
       name: z.string().trim().min(1, 'El nombre es requerido').max(255).optional(),
       targetAmount: z.number().int().positive().nullable().optional(),
+      isProvision: z.boolean().optional(),
     })
     .safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
@@ -205,6 +210,7 @@ export async function updateFund(
       ...(parsed.data.targetAmount !== undefined
         ? { targetAmount: parsed.data.targetAmount != null ? String(parsed.data.targetAmount) : null }
         : {}),
+      ...(parsed.data.isProvision !== undefined && !fund.isThirdParty ? { isProvision: parsed.data.isProvision } : {}),
       updatedAt: new Date(),
     })
     .where(eq(accountFunds.id, fundId));

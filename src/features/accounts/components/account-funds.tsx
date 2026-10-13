@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, ArrowDownToLine, ArrowUpFromLine, Pencil, MoveRight, Archive, Users, PiggyBank } from 'lucide-react';
+import { Plus, ArrowDownToLine, ArrowUpFromLine, Pencil, MoveRight, Archive, Users, PiggyBank, CalendarClock } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,6 +80,7 @@ export function AccountFundsSection({
   const [amount, setAmount] = useState<number | undefined>(undefined);
   const [target, setTarget] = useState<number | undefined>(undefined);
   const [isThirdParty, setIsThirdParty] = useState(false);
+  const [isProvision, setIsProvision] = useState(false);
   const [notes, setNotes] = useState('');
   const [moveTo, setMoveTo] = useState<string | null>(null);
 
@@ -92,6 +93,7 @@ export function AccountFundsSection({
     setTarget(next.kind === 'edit' ? (next.fund.targetAmount ?? undefined) : undefined);
     setAmount(undefined);
     setIsThirdParty(false);
+    setIsProvision(next.kind === 'edit' ? next.fund.isProvision : false);
     setNotes('');
     setMoveTo(null);
     setMode(next);
@@ -117,11 +119,11 @@ export function AccountFundsSection({
       case 'create':
         return run(
           'Creando fondo...',
-          () => createFund(userId, { projectId, accountId, name, initialAmount: amount, targetAmount: target ?? null, isThirdParty }),
+          () => createFund(userId, { projectId, accountId, name, initialAmount: amount, targetAmount: target ?? null, isThirdParty, isProvision: !isThirdParty && isProvision }),
           'Fondo creado'
         );
       case 'edit':
-        return run('Guardando...', () => updateFund(userId, mode.fund.id, { name, targetAmount: target ?? null }), 'Fondo actualizado');
+        return run('Guardando...', () => updateFund(userId, mode.fund.id, { name, targetAmount: target ?? null, isProvision }), 'Fondo actualizado');
       case 'allocate':
         return run('Apartando...', () => allocateToFund(userId, mode.fund.id, amount ?? 0, notes), `Apartaste ${formatCurrency(amount ?? 0)}`);
       case 'release':
@@ -183,16 +185,25 @@ export function AccountFundsSection({
                       className="flex min-h-14 w-full items-center gap-3 rounded-2xl bg-surface px-3 text-left transition-colors hover:bg-surface-2"
                     >
                       <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', tone.soft, tone.text)}>
-                        {fund.isThirdParty ? <Users className="h-[18px] w-[18px]" /> : <PiggyBank className="h-[18px] w-[18px]" />}
+                        {fund.isThirdParty ? (
+                          <Users className="h-[18px] w-[18px]" />
+                        ) : fund.isProvision ? (
+                          <CalendarClock className="h-[18px] w-[18px]" />
+                        ) : (
+                          <PiggyBank className="h-[18px] w-[18px]" />
+                        )}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-bold">{fund.name}</span>
                         <span className="block text-[11px] text-muted-foreground">
                           {fund.isThirdParty
                             ? 'de terceros · no cuenta como tuyo'
-                            : percent != null
-                              ? `${percent}% de ${formatCurrency(fund.targetAmount!)}`
-                              : 'sin meta'}
+                            : [
+                                fund.isProvision && 'provisión',
+                                percent != null ? `${percent}% de ${formatCurrency(fund.targetAmount!)}` : 'sin meta',
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
                         </span>
                         {percent != null && (
                           <span aria-hidden className="mt-1 block h-1 rounded-full bg-surface-3">
@@ -244,14 +255,14 @@ export function AccountFundsSection({
                 <DrawerDescription>
                   Saldo {formatCurrency(actionsFund.balance)}
                   {actionsFund.targetAmount ? ` de ${formatCurrency(actionsFund.targetAmount)}` : ''}
-                  {actionsFund.isThirdParty ? ' · de terceros' : ''}
+                  {actionsFund.isThirdParty ? ' · de terceros' : actionsFund.isProvision ? ' · provisión' : ''}
                 </DrawerDescription>
               </DrawerHeader>
               <div className="px-2 pb-2">
                 {[
                   { key: 'allocate', label: 'Apartar', icon: <ArrowDownToLine />, onClick: () => open({ kind: 'allocate', fund: actionsFund }) },
                   { key: 'release', label: 'Liberar', icon: <ArrowUpFromLine />, onClick: () => open({ kind: 'release', fund: actionsFund }) },
-                  { key: 'edit', label: 'Editar nombre o meta', icon: <Pencil />, onClick: () => open({ kind: 'edit', fund: actionsFund }) },
+                  { key: 'edit', label: 'Editar fondo', icon: <Pencil />, onClick: () => open({ kind: 'edit', fund: actionsFund }) },
                   ...(moveTargets.length > 0
                     ? [{ key: 'move', label: 'Mover a otra cuenta', icon: <MoveRight />, onClick: () => open({ kind: 'move', fund: actionsFund }) }]
                     : []),
@@ -318,7 +329,15 @@ export function AccountFundsSection({
                       </div>
                     )}
                     <CurrencyInput value={target} onChange={setTarget} label="Meta (opcional)" placeholder="0" />
-                    {mode.kind === 'create' && (
+                    {!(mode.kind === 'create' ? isThirdParty : mode.fund.isThirdParty) && (
+                      <SwitchCard
+                        title="Provisión"
+                        description="Para gastos que ya sabes que vienen (viajes, contribuciones, mantenciones). Apartar baja tu plata libre, pero no suma a la meta de ahorro."
+                        checked={isProvision}
+                        onCheckedChange={setIsProvision}
+                      />
+                    )}
+                    {mode.kind === 'create' && !isProvision && (
                       <SwitchCard
                         title="Dinero de terceros"
                         description="Plata de otra persona guardada en tu cuenta. Se ve, pero no cuenta como tuya ni como ahorro."
@@ -340,7 +359,9 @@ export function AccountFundsSection({
                     />
                     {mode.kind === 'allocate' && !mode.fund.isThirdParty && (
                       <p className="text-xs text-muted-foreground">
-                        En una cuenta corriente, apartar cuenta como ahorro del ciclo.
+                        {mode.fund.isProvision
+                          ? 'Es una provisión: baja tu plata libre del ciclo, pero no suma a la meta de ahorro.'
+                          : 'En una cuenta corriente, apartar cuenta como ahorro del ciclo.'}
                       </p>
                     )}
                   </>

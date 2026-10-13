@@ -15,6 +15,8 @@ export const BUCKETS = [
   'card_payment', // pago de TC (enlazado a la TC)
   'savings_in', // aporte a cuenta de ahorro (enlazado)
   'savings_out', // retiro desde cuenta de ahorro (enlazado)
+  'provision_in', // apartar a una provisión (fondo para gastos que vienen)
+  'provision_out', // liberar una provisión o pagar con ella
   'card_spend', // gasto en TC (informativo: se paga el próximo ciclo)
   'card_credit', // devolución / abono / ajuste en TC (informativo)
   'ignored', // contrapartes de enlaces y movimientos internos de ahorro
@@ -150,11 +152,15 @@ export function bucketAggregationQuery(
     group by key, bucket, nature, card_account_id, in_range, is_installment, is_paid, is_real
 
     -- Fondos dentro de cuentas corrientes: apartar = aporte de ahorro, liberar = retiro.
+    -- Las provisiones van aparte: bajan lo libre igual, pero no son ahorro.
     -- Los fondos de terceros no son tu ahorro; en cuentas de ahorro el fondo es solo una etiqueta.
     union all
     select
       r.key,
-      case when m.kind = 'allocate' then 'savings_in' else 'savings_out' end as bucket,
+      case
+        when f.is_provision then case when m.kind = 'allocate' then 'provision_in' else 'provision_out' end
+        else case when m.kind = 'allocate' then 'savings_in' else 'savings_out' end
+      end as bucket,
       'own' as nature,
       null as card_account_id,
       true as in_range,
@@ -171,13 +177,13 @@ export function bucketAggregationQuery(
       and not f.is_third_party
       and a.type in ('checking', 'cash')
       and m.kind in ('allocate', 'release')
-    group by r.key, m.kind
+    group by r.key, m.kind, f.is_provision
 
     -- Gasto pagado con un fondo: se compensa (la plata se apartó antes, o no es tuya)
     union all
     select
       r.key,
-      'savings_out' as bucket,
+      case when f.is_provision then 'provision_out' else 'savings_out' end as bucket,
       'own' as nature,
       null as card_account_id,
       true as in_range,
@@ -192,9 +198,10 @@ export function bucketAggregationQuery(
      and t.date between r.start_date and r.end_date
      and t.account_fund_id is not null
      and t.type = 'expense'
+    join n1n4_account_funds f on f.id = t.account_fund_id
     join n1n4_accounts a on a.id = t.account_id
     where a.type in ('checking', 'cash')
-    group by r.key, t.is_paid
+    group by r.key, t.is_paid, f.is_provision
   `;
 }
 
