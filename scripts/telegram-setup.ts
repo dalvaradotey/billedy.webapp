@@ -26,33 +26,40 @@ async function call(method: string, body: Record<string, unknown> = {}) {
   return json.result;
 }
 
-const base = process.argv[2]?.replace(/\/$/, '');
+async function main() {
+  const base = process.argv[2]?.replace(/\/$/, '');
 
-const me = await call('getMe');
-console.log(`Bot: @${me.username}`);
+  const me = await call('getMe');
+  console.log(`Bot: @${me.username}`);
 
-if (base) {
-  const url = `${base}/api/telegram/webhook`;
-  await call('setWebhook', {
-    url,
-    secret_token: secret,
-    allowed_updates: ['message', 'callback_query'],
-    drop_pending_updates: true,
+  if (base) {
+    const url = `${base}/api/telegram/webhook`;
+    await call('setWebhook', {
+      url,
+      secret_token: secret,
+      allowed_updates: ['message', 'callback_query'],
+      drop_pending_updates: true,
+    });
+    await call('setMyCommands', {
+      commands: [
+        { command: 'techo', description: 'Disponible en la tarjeta' },
+        { command: 'hoy', description: 'Lo registrado hoy' },
+        { command: 'deshacer', description: 'Borra el último guardado' },
+        { command: 'ayuda', description: 'Cómo escribir un gasto' },
+      ],
+    });
+    console.log(`✅ Webhook: ${url}`);
+  }
+
+  const info = await call('getWebhookInfo');
+  console.log({
+    url: info.url || '(sin webhook)',
+    pendientes: info.pending_update_count,
+    ultimoError: info.last_error_message ?? null,
   });
-  await call('setMyCommands', {
-    commands: [
-      { command: 'techo', description: 'Disponible en la tarjeta' },
-      { command: 'hoy', description: 'Lo registrado hoy' },
-      { command: 'deshacer', description: 'Borra el último guardado' },
-      { command: 'ayuda', description: 'Cómo escribir un gasto' },
-    ],
-  });
-  console.log(`✅ Webhook: ${url}`);
 }
 
-const info = await call('getWebhookInfo');
-console.log({
-  url: info.url || '(sin webhook)',
-  pendientes: info.pending_update_count,
-  ultimoError: info.last_error_message ?? null,
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
 });

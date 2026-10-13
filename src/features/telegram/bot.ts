@@ -54,8 +54,12 @@ async function getLinkByChat(chatId: number): Promise<Link | null> {
   return member ? link : null;
 }
 
-async function loadContext(projectId: string): Promise<ParseContext> {
+/** Fechas como texto: el driver no serializa Date dentro de sql`` */
+const isoDate = (d: Date | string) => (typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10));
+
+export async function loadContext(projectId: string): Promise<ParseContext> {
   const today = getToday();
+  const todayIso = isoDate(today);
   const [budgetRows, accountRows, entityRows, previousRows] = await Promise.all([
     db
       .select({ id: budgets.id, name: budgets.name, categoryId: budgets.categoryId, defaultAccountId: budgets.defaultAccountId })
@@ -64,7 +68,7 @@ async function loadContext(projectId: string): Promise<ParseContext> {
         and(
           eq(budgets.projectId, projectId),
           eq(budgets.isActive, true),
-          sql`(${budgets.startDate} is null or (${budgets.startDate} <= ${today} and ${budgets.endDate} >= ${today}))`
+          sql`(${budgets.startDate} is null or (${budgets.startDate} <= ${todayIso}::date and ${budgets.endDate} >= ${todayIso}::date))`
         )
       )
       // Orden estable: los botones de elegir presupuesto o cuenta usan la posición
@@ -142,8 +146,8 @@ async function afterSaveNote(link: Link, data: ParsedExpense, ctx: ParseContext)
         coalesce((
           select sum(t.base_amount) from n1n4_transactions t
           where t.budget_id = b.id and t.type = 'expense'
-            and t.date >= coalesce(b.start_date, ${open.startDate}::date)
-            and t.date <= coalesce(b.end_date, ${open.endDate}::date)
+            and t.date >= coalesce(b.start_date, ${isoDate(open.startDate)}::date)
+            and t.date <= coalesce(b.end_date, ${isoDate(open.endDate)}::date)
         ), 0) as spent
       from n1n4_budgets b where b.id = ${data.budgetId}`)) as unknown as Record<string, string>[];
     if (row) {
