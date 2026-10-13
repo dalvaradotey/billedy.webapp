@@ -268,7 +268,7 @@ export function AccountsList({
 
           {/* Carrusel (móvil) */}
           <section aria-label="Tus cuentas" className="-mx-4 md:hidden">
-            <ScrollRow className="flex snap-x snap-mandatory gap-3 px-4 pb-1">
+            <ScrollRow className="flex snap-x snap-mandatory gap-3 px-4 py-1.5">
               {ordered.filter((a) => !a.isArchived).map((account) => (
                 <div key={account.id} className="w-[300px] flex-none snap-center">
                   <WalletCard account={account} selected={selected?.id === account.id} onSelect={() => setSelectedId(account.id)} />
