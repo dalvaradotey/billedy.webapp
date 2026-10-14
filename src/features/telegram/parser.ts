@@ -18,6 +18,8 @@ export type ParsePrevious = { description: string; budgetId: string | null; cate
 
 export type ParseContext = {
   budgets: ParseBudget[];
+  /** Categorías activas del proyecto (para elegir en el bot; el intérprete no las usa) */
+  categories: { id: string; name: string; frequent: boolean }[];
   accounts: ParseAccount[];
   entities: ParseEntity[];
   previous: ParsePrevious[];

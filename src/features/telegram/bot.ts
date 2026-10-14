@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, gte, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { accounts, budgets, entities, projectMembers, telegramDrafts, telegramLinks, transactions } from '@/lib/db/schema';
+import { accounts, budgets, categories, entities, projectMembers, telegramDrafts, telegramLinks, transactions } from '@/lib/db/schema';
 import { expireRelatedCache } from '@/lib/cache';
 import { formatCurrency, getToday } from '@/lib/formatting';
 import { insertTransaction, removeTransaction } from '@/features/transactions/lib/write-transaction';
@@ -26,12 +26,15 @@ const DETAIL_WAIT_MS = 30 * 60 * 1000;
  * Borrador con el paso de la conversación:
  * - detail: solo vino el monto, se pregunta "¿qué fue?"
  * - budget: vino el detalle pero no el presupuesto, se ofrece elegirlo
+ * - category: sin presupuesto ni categoría, se ofrece elegir una categoría
  * - confirm: resumen con Guardar
  */
 type DraftPayload = ParsedExpense & {
-  step?: 'detail' | 'budget' | 'confirm';
+  step?: 'detail' | 'budget' | 'category' | 'confirm';
   /** Ya se preguntó el presupuesto (aunque se haya elegido "Sin presupuesto") */
   budgetAsked?: boolean;
+  /** Ya se preguntó la categoría (aunque se haya elegido "Sin categoría") */
+  categoryAsked?: boolean;
   /** Mensaje con la pregunta del detalle, para quitarle los botones al responder */
   promptMessageId?: number;
 };
@@ -41,7 +44,23 @@ const nextStep = (d: DraftPayload): NonNullable<DraftPayload['step']> =>
     ? 'detail'
     : d.type === 'expense' && !d.budgetId && !d.budgetAsked
       ? 'budget'
-      : 'confirm';
+      : d.type === 'expense' && !d.budgetId && !d.categoryId && !d.categoryAsked
+        ? 'category'
+        : 'confirm';
+
+/** Categorías como botones: primero las que usas en gastos; "Ver todas" muestra el resto */
+const categoryKeyboard = (draftId: string, ctx: ParseContext, extra: InlineKeyboard, showAll = false): InlineKeyboard => {
+  const listed = ctx.categories.map((c, i) => ({ c, i })).filter(({ c }) => showAll || c.frequent);
+  const options = [
+    // La posición es la de la lista completa, para que el botón apunte a la categoría correcta
+    ...listed.map(({ c, i }) => ({ text: c.name, callback_data: `sc:${draftId}:${i}` })),
+    { text: 'Sin categoría', callback_data: `sc:${draftId}:-1` },
+  ];
+  const rows: InlineKeyboard = [];
+  for (let i = 0; i < options.length; i += 2) rows.push(options.slice(i, i + 2));
+  if (!showAll && listed.length < ctx.categories.length) rows.push([{ text: 'Ver todas', callback_data: `ka:${draftId}` }]);
+  return [...rows, ...extra];
+};
 
 const budgetKeyboard = (draftId: string, ctx: ParseContext, extra: InlineKeyboard): InlineKeyboard => {
   const options = [
@@ -69,6 +88,12 @@ function stepView(draftId: string, d: DraftPayload, ctx: ParseContext): { text: 
     return {
       text: `${summary(d, ctx)}\n\n¿Lo asocio a un presupuesto?`,
       keyboard: budgetKeyboard(draftId, ctx, [[{ text: '✖️ Cancelar', callback_data: `c:${draftId}` }]]),
+    };
+  }
+  if (step === 'category') {
+    return {
+      text: `${summary(d, ctx)}\n\n¿Le pongo una categoría?`,
+      keyboard: categoryKeyboard(draftId, ctx, [[{ text: '✖️ Cancelar', callback_data: `c:${draftId}` }]]),
     };
   }
   return { text: summary(d, ctx), keyboard: confirmKeyboard(draftId, d.type) };
@@ -132,7 +157,7 @@ const isoDate = (d: Date | string) => (typeof d === 'string' ? d.slice(0, 10) : 
 export async function loadContext(projectId: string): Promise<ParseContext> {
   const today = getToday();
   const todayIso = isoDate(today);
-  const [budgetRows, accountRows, entityRows, previousRows] = await Promise.all([
+  const [budgetRows, accountRows, entityRows, previousRows, categoryRows] = await Promise.all([
     db
       .select({ id: budgets.id, name: budgets.name, categoryId: budgets.categoryId, defaultAccountId: budgets.defaultAccountId })
       .from(budgets)
@@ -151,7 +176,7 @@ export async function loadContext(projectId: string): Promise<ParseContext> {
         name: accounts.name,
         type: accounts.type,
         isDefault: accounts.isDefault,
-        usage: sql<number>`(select count(*) from n1n4_transactions t where t.account_id = ${accounts.id} and t.date > now() - interval '90 days')::int`,
+        usage: sql<number>`(select count(*) from n1n4_transactions t where t.account_id = n1n4_accounts.id and t.date > now() - interval '90 days')::int`,
       })
       .from(accounts)
       .where(and(eq(accounts.projectId, projectId), eq(accounts.isArchived, false)))
@@ -162,10 +187,37 @@ export async function loadContext(projectId: string): Promise<ParseContext> {
       from n1n4_transactions
       where project_id = ${projectId} and linked_transaction_id is null
       order by lower(description), date desc`) as unknown as Promise<Record<string, string | null>[]>,
+    // Orden estable: los botones de elegir categoría usan la posición
+    db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        // Veces usada en gastos comunes los últimos 6 meses (sin traspasos, cuotas ni créditos)
+        uses: sql<number>`(
+          select count(*) from n1n4_transactions t
+          where t.category_id = n1n4_categories.id and t.type = 'expense'
+            and t.linked_transaction_id is null and t.card_purchase_id is null and t.credit_id is null
+            and t.date > now() - interval '180 days'
+        )::int`,
+      })
+      .from(categories)
+      .where(and(eq(categories.projectId, projectId), eq(categories.isArchived, false)))
+      .orderBy(asc(categories.name), asc(categories.id)),
   ]);
 
   return {
     budgets: budgetRows,
+    // Las 12 más usadas se muestran primero; el resto queda en "Ver todas"
+    categories: (() => {
+      const top = new Set(
+        [...categoryRows]
+          .filter((c) => Number(c.uses) > 0)
+          .sort((a, b) => Number(b.uses) - Number(a.uses))
+          .slice(0, 12)
+          .map((c) => c.id)
+      );
+      return categoryRows.map((c) => ({ id: c.id, name: c.name, frequent: top.has(c.id) }));
+    })(),
     accounts: accountRows.map((a) => ({ ...a, type: String(a.type), usage: Number(a.usage) })),
     entities: entityRows,
     previous: previousRows.map((r) => ({
@@ -188,10 +240,13 @@ const shortDate = (iso: string) => {
 function summary(data: ParsedExpense, ctx: ParseContext): string {
   const account = ctx.accounts.find((a) => a.id === data.accountId);
   const budget = ctx.budgets.find((b) => b.id === data.budgetId);
+  const category = ctx.categories.find((c) => c.id === data.categoryId);
   const sign = data.type === 'income' ? '+' : '−';
+  // Con presupuesto se muestra el presupuesto; sin él, la categoría si la tiene
+  const group = budget ? esc(budget.name) : category ? `🏷️ ${esc(category.name)}` : data.type === 'income' ? 'Ingreso' : 'Sin presupuesto';
   return [
     `<b>${sign}${formatCurrency(data.amount)}</b> · ${esc(data.description)}`,
-    `${data.type === 'income' ? 'Ingreso' : budget ? esc(budget.name) : 'Sin presupuesto'} · ${esc(account?.name ?? '—')} · ${shortDate(data.date)}`,
+    `${group} · ${esc(account?.name ?? '—')} · ${shortDate(data.date)}`,
   ].join('\n');
 }
 
@@ -200,6 +255,9 @@ const confirmKeyboard = (draftId: string, type: ParsedExpense['type']): InlineKe
   [
     { text: '💳 Cuenta', callback_data: `a:${draftId}` },
     ...(type === 'expense' ? [{ text: '📂 Presupuesto', callback_data: `b:${draftId}` }] : []),
+  ],
+  [
+    { text: '🏷️ Categoría', callback_data: `k:${draftId}` },
     { text: '✖️ Cancelar', callback_data: `c:${draftId}` },
   ],
 ];
@@ -451,6 +509,12 @@ async function handleCallback(cb: NonNullable<TelegramUpdate['callback_query']>)
 
   // Elegir cuenta o presupuesto: muestra la lista; al elegir, actualiza el borrador
   const spendable = ctx.accounts.filter((a) => ['checking', 'cash', 'credit_card'].includes(a.type));
+  if (action === 'k' || action === 'ka') {
+    const back: InlineKeyboard = [[{ text: '← Volver', callback_data: `r:${draft.id}` }]];
+    await editMessage(chatId, messageId, `${summary(data, ctx)}\n\n¿Qué categoría?`, categoryKeyboard(draft.id, ctx, back, action === 'ka'));
+    return answerCallback(cb.id);
+  }
+
   if (action === 'a' || action === 'b') {
     const back: InlineKeyboard = [[{ text: '← Volver', callback_data: `r:${draft.id}` }]];
     let rows: InlineKeyboard;
@@ -477,20 +541,25 @@ async function handleCallback(cb: NonNullable<TelegramUpdate['callback_query']>)
     next = {
       ...data,
       budgetAsked: true,
-      step: 'confirm',
       description: genericName && budget ? budget.name : data.description,
       budgetId: budget?.id ?? null,
       categoryId: budget?.categoryId ?? data.categoryId,
       // Si el presupuesto tiene cuenta asignada, se usa esa
       accountId: budget?.defaultAccountId ?? data.accountId,
     };
+  } else if (action === 'sc') {
+    const category = Number(arg) >= 0 ? ctx.categories[Number(arg)] : null;
+    next = { ...data, categoryAsked: true, categoryId: category?.id ?? null };
   }
   if (next !== data) {
+    next = { ...next, step: nextStep(next) };
     await db.update(telegramDrafts).set({ payload: next, updatedAt: new Date() }).where(eq(telegramDrafts.id, draft.id));
   }
 
-  if (action === 'sa' || action === 'sb' || action === 'r') {
-    await editMessage(chatId, messageId, summary(next, ctx), confirmKeyboard(draft.id, next.type));
+  if (action === 'sa' || action === 'sb' || action === 'sc' || action === 'r') {
+    // Elegir presupuesto puede llevar a ofrecer la categoría; el resto vuelve al resumen
+    const view = action === 'sb' ? stepView(draft.id, next, ctx) : { text: summary(next, ctx), keyboard: confirmKeyboard(draft.id, next.type) };
+    await editMessage(chatId, messageId, view.text, view.keyboard);
     return answerCallback(cb.id);
   }
 
