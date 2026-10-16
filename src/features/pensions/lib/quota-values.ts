@@ -39,15 +39,17 @@ export async function fetchAfpQuotaValues(year: number, fund: string): Promise<Q
   const columns = header
     .map((name, i) => ({ name: name.toUpperCase(), i }))
     .filter((c) => (AFP_PROVIDERS as readonly string[]).includes(c.name));
-  const values: QuotaValue[] = [];
+  // El archivo trae valores "confirmados" y después "disponibles" (los días más
+  // recientes); se solapan, así que queda uno por día: el último que aparece
+  const byKey = new Map<string, QuotaValue>();
   for (const row of rows) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(row[0])) continue;
     for (const c of columns) {
       const value = chileanNumber(row[c.i] ?? '');
-      if (value > 0) values.push({ provider: c.name, fund, date: row[0], value });
+      if (value > 0) byKey.set(`${c.name}:${row[0]}`, { provider: c.name, fund, date: row[0], value });
     }
   }
-  return values;
+  return [...byKey.values()];
 }
 
 /** Valores del fondo de la Cuenta Individual de Cesantía en un año. */

@@ -52,11 +52,20 @@ async function pensionAccounts(): Promise<PensionAccount[]> {
   }));
 }
 
-/** Descarga el año en curso de los fondos que usan las cuentas y lo guarda. */
-export async function syncQuotaValues(): Promise<{ saved: number; funds: string[] }> {
+/**
+ * Descarga el año en curso de los fondos que usan las cuentas (con institución y
+ * fondo, tengan o no cuotas todavía) más los que se pidan, y lo guarda.
+ */
+export async function syncQuotaValues(extra: { provider: string; fund: string }[] = []): Promise<{ saved: number; funds: string[] }> {
   const year = getToday().getUTCFullYear();
   const needed = new Map<string, { provider: string; fund: string }>();
-  for (const a of await pensionAccounts()) needed.set(`${a.provider}:${a.fund}`, { provider: a.provider, fund: a.fund });
+  const configured = await db
+    .select({ provider: accounts.pensionProvider, fund: accounts.pensionFund })
+    .from(accounts)
+    .where(and(isNotNull(accounts.pensionProvider), isNotNull(accounts.pensionFund), eq(accounts.isArchived, false)));
+  for (const a of [...configured, ...extra]) {
+    if (a.provider && a.fund) needed.set(`${a.provider}:${a.fund}`, { provider: a.provider, fund: a.fund });
+  }
 
   const values: QuotaValue[] = [];
   const afpFunds = new Set([...needed.values()].filter((n) => n.provider !== AFC_PROVIDER).map((n) => n.fund));
