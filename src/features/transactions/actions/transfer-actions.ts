@@ -94,61 +94,66 @@ export async function createAccountTransfer(
   const amount = String(parsed.data.amount);
   const description = parsed.data.description || 'Transferencia entre cuentas';
 
-  // Crear transacción de salida (expense en cuenta origen)
-  // Usa el entityId de la cuenta origen
-  const [outTransaction] = await db
-    .insert(transactions)
-    .values({
-      userId,
-      projectId: parsed.data.projectId,
-      categoryId: transferCategoryId,
-      accountId: parsed.data.fromAccountId,
-      entityId: fromAccount[0].entityId,
-      type: 'expense',
-      nature: parsed.data.isThirdParty ? 'external' : 'own',
-      description: `${description} → ${toAccount[0].name}`,
-      notes: parsed.data.notes,
-      date: parsed.data.date,
-      isPaid: true,
-      originalAmount: amount,
-      originalCurrency: project[0].currency,
-      baseAmount: amount,
-      baseCurrency: project[0].currency,
-      exchangeRate: '1',
-    })
-    .returning({ id: transactions.id });
+  // Las dos patas del traspaso se guardan juntas: si una falla, no queda ninguna suelta
+  const outTransactionId = await db.transaction(async (tx) => {
+    // Crear transacción de salida (expense en cuenta origen)
+    // Usa el entityId de la cuenta origen
+    const [outTransaction] = await tx
+      .insert(transactions)
+      .values({
+        userId,
+        projectId: parsed.data.projectId,
+        categoryId: transferCategoryId,
+        accountId: parsed.data.fromAccountId,
+        entityId: fromAccount[0].entityId,
+        type: 'expense',
+        nature: parsed.data.isThirdParty ? 'external' : 'own',
+        description: `${description} → ${toAccount[0].name}`,
+        notes: parsed.data.notes,
+        date: parsed.data.date,
+        isPaid: true,
+        originalAmount: amount,
+        originalCurrency: project[0].currency,
+        baseAmount: amount,
+        baseCurrency: project[0].currency,
+        exchangeRate: '1',
+      })
+      .returning({ id: transactions.id });
 
-  // Crear transacción de entrada (income en cuenta destino)
-  // Usa el entityId de la cuenta destino
-  const [inTransaction] = await db
-    .insert(transactions)
-    .values({
-      userId,
-      projectId: parsed.data.projectId,
-      categoryId: transferCategoryId,
-      accountId: parsed.data.toAccountId,
-      entityId: toAccount[0].entityId,
-      type: 'income',
-      nature: parsed.data.isThirdParty ? 'external' : 'own',
-      description: `${description} ← ${fromAccount[0].name}`,
-      notes: parsed.data.notes,
-      date: parsed.data.date,
-      isPaid: true,
-      originalAmount: amount,
-      originalCurrency: project[0].currency,
-      baseAmount: amount,
-      baseCurrency: project[0].currency,
-      exchangeRate: '1',
-      linkedTransactionId: outTransaction.id,
-      savingsGoalId: parsed.data.savingsGoalId ?? null,
-    })
-    .returning({ id: transactions.id });
+    // Crear transacción de entrada (income en cuenta destino)
+    // Usa el entityId de la cuenta destino
+    const [inTransaction] = await tx
+      .insert(transactions)
+      .values({
+        userId,
+        projectId: parsed.data.projectId,
+        categoryId: transferCategoryId,
+        accountId: parsed.data.toAccountId,
+        entityId: toAccount[0].entityId,
+        type: 'income',
+        nature: parsed.data.isThirdParty ? 'external' : 'own',
+        description: `${description} ← ${fromAccount[0].name}`,
+        notes: parsed.data.notes,
+        date: parsed.data.date,
+        isPaid: true,
+        originalAmount: amount,
+        originalCurrency: project[0].currency,
+        baseAmount: amount,
+        baseCurrency: project[0].currency,
+        exchangeRate: '1',
+        linkedTransactionId: outTransaction.id,
+        savingsGoalId: parsed.data.savingsGoalId ?? null,
+      })
+      .returning({ id: transactions.id });
 
-  // Actualizar la transacción de salida con el linkedTransactionId
-  await db
-    .update(transactions)
-    .set({ linkedTransactionId: inTransaction.id })
-    .where(eq(transactions.id, outTransaction.id));
+    // Actualizar la transacción de salida con el linkedTransactionId
+    await tx
+      .update(transactions)
+      .set({ linkedTransactionId: inTransaction.id })
+      .where(eq(transactions.id, outTransaction.id));
+
+    return outTransaction.id;
+  });
 
   // Actualizar balances (restar de origen, sumar a destino)
   const amountNum = parseFloat(amount);
@@ -158,7 +163,7 @@ export async function createAccountTransfer(
   invalidateRelatedCache('transactions');
   invalidateRelatedCache('savings');
 
-  return { success: true, data: { id: outTransaction.id } };
+  return { success: true, data: { id: outTransactionId } };
 }
 
 /**
