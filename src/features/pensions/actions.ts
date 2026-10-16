@@ -1,14 +1,18 @@
 'use server';
 
-import { and, desc, eq, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, lte } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { accounts, quotaValues } from '@/lib/db/schema';
+import { accounts, pensionContributions, quotaValues } from '@/lib/db/schema';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { verifyProjectAccess } from '@/features/transactions/lib/access';
 import { AFC_FUND, AFC_PROVIDER, AFP_FUNDS, AFP_PROVIDERS } from './lib/quota-values';
 import { latestQuotaValue, revaluePensionAccounts, syncQuotaValues } from './lib/sync';
+import { expectedContributions, saveContribution, type ExpectedContribution } from './lib/contributions';
+import { parseAfcDocument } from './lib/afc-documents';
+import { pdfToLines } from '@/features/statements/lib/pdf-lines';
+import { getToday } from '@/lib/formatting';
 
 type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string };
 
@@ -18,6 +22,9 @@ export type PensionStatus = {
   quotaCount: number | null;
   quotaCountDate: string | null;
   quote: { date: string; value: number } | null;
+  /** Últimas cotizaciones registradas (más reciente primero) */
+  recent: { period: string; paidDate: string | null; amount: number; taxableIncome: number | null; applied: boolean }[];
+  expected: ExpectedContribution[];
 };
 
 async function accountForUser(accountId: string, userId: string) {
@@ -33,6 +40,16 @@ export async function fetchPensionStatus(userId: string, accountId: string): Pro
   const account = await accountForUser(accountId, userId);
   if (!account) return { success: false, error: 'Cuenta no encontrada' };
   const quote = account.pensionProvider && account.pensionFund ? await latestQuotaValue(account.pensionProvider, account.pensionFund) : null;
+  const history = await db
+    .select()
+    .from(pensionContributions)
+    .where(eq(pensionContributions.accountId, accountId))
+    .orderBy(asc(pensionContributions.period));
+  const expected = expectedContributions(
+    account,
+    history.map((h) => ({ period: h.period, amount: Number(h.amount) })),
+    getToday().toISOString().slice(0, 10)
+  );
   return {
     success: true,
     data: {
@@ -41,6 +58,17 @@ export async function fetchPensionStatus(userId: string, accountId: string): Pro
       quotaCount: account.quotaCount != null ? Number(account.quotaCount) : null,
       quotaCountDate: account.quotaCountDate,
       quote,
+      recent: history
+        .slice(-6)
+        .reverse()
+        .map((h) => ({
+          period: h.period,
+          paidDate: h.paidDate,
+          amount: Number(h.amount),
+          taxableIncome: h.taxableIncome != null ? Number(h.taxableIncome) : null,
+          applied: h.applied,
+        })),
+      expected,
     },
   };
 }
@@ -149,4 +177,95 @@ export async function refreshPensionValues(userId: string, accountId: string): P
   }
   invalidateRelatedCache('accounts');
   return { success: true, data: undefined };
+}
+
+const confirmSchema = z.object({
+  period: z.string().regex(/^\d{4}-\d{2}-01$/),
+  amount: z.number().int().positive(),
+  paidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+/** Confirma a mano una cotización acreditada: suma sus cuotas y el aporte */
+export async function confirmContribution(
+  userId: string,
+  accountId: string,
+  input: z.infer<typeof confirmSchema>
+): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
+  const parsed = confirmSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Datos inválidos' };
+  const account = await accountForUser(accountId, userId);
+  if (!account) return { success: false, error: 'Cuenta no encontrada' };
+  if (!account.quotaCountDate) return { success: false, error: 'Configura primero las cuotas de la cuenta' };
+  const { period, amount, paidDate } = parsed.data;
+  await saveContribution(account, { period, amount, paidDate, quotas: null, taxableIncome: null, employerRut: null }, 'manual');
+  invalidateRelatedCache('accounts');
+  return { success: true, data: undefined };
+}
+
+export type ImportSummary = {
+  kind: 'certificado' | 'cartola';
+  periods: number;
+  applied: number;
+  history: number;
+  /** La cartola era más nueva que las cuotas configuradas y las corrigió */
+  quotasUpdated: { from: number; to: number; date: string } | null;
+};
+
+/**
+ * Importa un documento de AFC (cartola de movimientos o certificado de
+ * cotizaciones). Lo anterior a las cuotas configuradas queda como historial.
+ */
+export async function importPensionDocument(
+  userId: string,
+  accountId: string,
+  formData: FormData
+): Promise<ActionResult<ImportSummary>> {
+  if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
+  let account = await accountForUser(accountId, userId);
+  if (!account) return { success: false, error: 'Cuenta no encontrada' };
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size > 5 * 1024 * 1024) return { success: false, error: 'Sube el PDF (máximo 5 MB)' };
+
+  let doc;
+  try {
+    doc = parseAfcDocument(await pdfToLines(new Uint8Array(await file.arrayBuffer())));
+  } catch {
+    return { success: false, error: 'No pude leer el PDF' };
+  }
+  if (!doc) return { success: false, error: 'No reconozco este documento. Sube la cartola de movimientos o el certificado de cotizaciones de AFC.' };
+  if (account.pensionProvider !== AFC_PROVIDER) return { success: false, error: 'Este documento es de AFC; súbelo en la cuenta de cesantía.' };
+
+  // Cartola más nueva que las cuotas configuradas: sus cuotas al cierre son las exactas
+  let quotasUpdated: ImportSummary['quotasUpdated'] = null;
+  if (doc.kind === 'cartola' && doc.closing && (!account.quotaCountDate || doc.closing.date > account.quotaCountDate)) {
+    // Lo ya aplicado después del cierre de la cartola no está en ese saldo: se vuelve a sumar
+    const later = await db
+      .select({ quotas: pensionContributions.quotas, paidDate: pensionContributions.paidDate })
+      .from(pensionContributions)
+      .where(and(eq(pensionContributions.accountId, accountId), eq(pensionContributions.applied, true)));
+    const laterQuotas = later
+      .filter((c) => c.paidDate && c.paidDate > doc.closing!.date)
+      .reduce((acc, c) => acc + Number(c.quotas ?? 0), 0);
+    const total = Math.round((doc.closing.quotas + laterQuotas) * 10000) / 10000;
+    quotasUpdated = { from: Number(account.quotaCount ?? 0), to: total, date: doc.closing.date };
+    await db
+      .update(accounts)
+      .set({ quotaCount: String(total), quotaCountDate: doc.closing.date, updatedAt: new Date() })
+      .where(eq(accounts.id, accountId));
+    account = (await accountForUser(accountId, userId))!;
+  }
+
+  let applied = 0;
+  let history = 0;
+  for (const c of doc.contributions) {
+    const result = await saveContribution(account, c, doc.kind === 'cartola' ? 'afc_cartola' : 'afc_certificado');
+    if (result === 'applied') applied++;
+    if (result === 'history') history++;
+    if (result === 'applied') account = (await accountForUser(accountId, userId))!;
+  }
+
+  if (quotasUpdated) await revaluePensionAccounts();
+  invalidateRelatedCache('accounts');
+  return { success: true, data: { kind: doc.kind, periods: doc.contributions.length, applied, history, quotasUpdated } };
 }

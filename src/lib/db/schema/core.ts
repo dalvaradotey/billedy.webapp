@@ -287,3 +287,28 @@ export const quotaValues = pgTable(
   },
   (t) => [primaryKey({ columns: [t.provider, t.fund, t.date] })]
 );
+
+/** Cotizaciones de AFP / AFC por cuenta: historial y aportes que suman cuotas */
+export const pensionContributions = pgTable(
+  'n1n4_pension_contributions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    period: date('period').notNull(),
+    paidDate: date('paid_date'),
+    taxableIncome: decimal('taxable_income', { precision: 15, scale: 2 }),
+    amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+    quotas: decimal('quotas', { precision: 18, scale: 4 }),
+    employerRut: varchar('employer_rut', { length: 20 }),
+    source: varchar('source', { length: 30 }).notNull(),
+    applied: boolean('applied').default(false).notNull(),
+    transactionId: uuid('transaction_id'),
+    createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.accountId, t.period)]
+);
