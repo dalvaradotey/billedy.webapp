@@ -87,10 +87,9 @@ export async function configurePensionQuotas(
 
   let quotaCount = parsed.data.quotaCount;
   try {
-    if (quotaCount == null) {
-      await db.update(accounts).set({ quotaCount: '1' }).where(eq(accounts.id, accountId)); // para que la sincronización incluya el fondo
-    }
-    await syncQuotaValues();
+    // El fondo que se está configurando se descarga aunque la cuenta aún no tenga cuotas
+    const synced = await syncQuotaValues([{ provider, fund }]);
+    if (synced.saved === 0) throw new Error('sin valores');
   } catch {
     return { success: false, error: 'No pude leer el valor cuota público. Intenta de nuevo en un rato.' };
   }
