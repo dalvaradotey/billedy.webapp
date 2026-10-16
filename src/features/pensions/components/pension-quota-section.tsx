@@ -1,15 +1,22 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { LineChart, RefreshCw } from 'lucide-react';
+import { Check, FileUp, LineChart, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/currency-input';
 import { DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, ResponsiveDrawer } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
 import { appDateString, formatCurrency } from '@/lib/formatting';
-import { configurePensionQuotas, fetchPensionStatus, refreshPensionValues, type PensionStatus } from '../actions';
+import {
+  configurePensionQuotas,
+  confirmContribution,
+  fetchPensionStatus,
+  importPensionDocument,
+  refreshPensionValues,
+  type PensionStatus,
+} from '../actions';
 import { AFC_FUND, AFC_PROVIDER, AFP_FUNDS, AFP_PROVIDERS } from '../lib/quota-values';
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -25,6 +32,14 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const shortDate = (iso: string) => `${parseInt(iso.slice(8, 10), 10)} ${MONTHS[parseInt(iso.slice(5, 7), 10) - 1]}`;
+const MONTHS_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const periodName = (p: string) => `${MONTHS_LONG[parseInt(p.slice(5, 7), 10) - 1]} ${p.slice(0, 4)}`;
+const STATUS: Record<string, { label: string; className: string }> = {
+  upcoming: { label: 'por llegar', className: 'bg-surface-3 text-muted-foreground' },
+  due: { label: 'debería llegar', className: 'bg-amber-soft text-amber-text' },
+  late: { label: 'atrasada', className: 'bg-coral-soft text-coral-text' },
+};
+
 const quotas = (n: number) => new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(n);
 
 /**
@@ -62,6 +77,56 @@ export function PensionQuotaSection({ userId, accountId, accountType }: PensionQ
   const [quotaInput, setQuotaInput] = useState('');
   const [balance, setBalance] = useState<number | undefined>(undefined);
   const [date, setDate] = useState(appDateString(new Date()));
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [confirming, setConfirming] = useState<{ period: string; amount: number | undefined; paidDate: string } | null>(null);
+
+  const reload = async () => {
+    const fresh = await fetchPensionStatus(userId, accountId);
+    if (fresh.success) setStatus(fresh.data);
+    router.refresh();
+  };
+
+  const importFile = (file: File) => {
+    const form = new FormData();
+    form.set('file', file);
+    startTransition(async () => {
+      const result = await importPensionDocument(userId, accountId, form);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      const d = result.data;
+      toast.success(
+        [
+          `${d.kind === 'cartola' ? 'Cartola' : 'Certificado'}: ${d.periods} meses`,
+          d.applied ? `${d.applied} sumadas a la cuenta` : null,
+          d.history ? `${d.history} al historial` : null,
+          d.quotasUpdated ? `cuotas corregidas a ${quotas(d.quotasUpdated.to)}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      );
+      await reload();
+    });
+  };
+
+  const confirm = () => {
+    if (!confirming?.amount) return;
+    startTransition(async () => {
+      const result = await confirmContribution(userId, accountId, {
+        period: confirming.period,
+        amount: confirming.amount!,
+        paidDate: confirming.paidDate,
+      });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`Cotización de ${periodName(confirming.period)} sumada`);
+      setConfirming(null);
+      await reload();
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -152,9 +217,103 @@ export function PensionQuotaSection({ userId, accountId, accountType }: PensionQ
           </p>
         </div>
       )}
-      <button type="button" onClick={openForm} className="mt-2 min-h-9 text-xs font-bold text-jade">
-        {configured ? 'Editar cuotas' : 'Configurar'}
-      </button>
+      {configured && (status.expected.length > 0 || status.recent.length > 0) && (
+        <div className="mt-3 border-t border-surface-3 pt-3">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-faint">Cotizaciones</p>
+          <ul className="mt-1.5 space-y-1.5">
+            {status.expected.map((e) => (
+              <li key={e.period} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-bold capitalize">{periodName(e.period)}</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {e.amount ? `~${formatCurrency(e.amount)} · ` : ''}entre el {shortDate(e.windowStart)} y el {shortDate(e.windowEnd)}
+                  </span>
+                </span>
+                <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold', STATUS[e.status].className)}>
+                  {STATUS[e.status].label}
+                </span>
+                {e.status !== 'upcoming' && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirming({ period: e.period, amount: e.amount ?? undefined, paidDate: appDateString(new Date()) })}
+                    className="min-h-8 shrink-0 rounded-full bg-jade-soft px-2.5 text-[11px] font-bold text-jade-text"
+                  >
+                    Llegó
+                  </button>
+                )}
+              </li>
+            ))}
+            {status.recent.slice(0, 3).map((r) => (
+              <li key={r.period} className="flex items-center gap-2">
+                <Check className="h-3.5 w-3.5 shrink-0 text-jade" />
+                <span className="min-w-0 flex-1 truncate text-[13px] capitalize">{periodName(r.period)}</span>
+                <span className="num shrink-0 text-[13px] font-bold">{formatCurrency(r.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-4">
+        <button type="button" onClick={openForm} className="min-h-9 text-xs font-bold text-jade">
+          {configured ? 'Editar cuotas' : 'Configurar'}
+        </button>
+        {configured && status.provider === AFC_PROVIDER && (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={isPending}
+            className="flex min-h-9 items-center gap-1 text-xs font-bold text-jade"
+          >
+            <FileUp className="h-3.5 w-3.5" />
+            Importar cartola o certificado
+          </button>
+        )}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) importFile(file);
+          e.target.value = '';
+        }}
+      />
+
+      <ResponsiveDrawer open={!!confirming} onOpenChange={(o) => !o && setConfirming(null)}>
+        <DrawerContent>
+          {confirming && (
+            <div className="mx-auto w-full max-w-lg">
+              <DrawerHeader>
+                <DrawerTitle className="capitalize">Cotización de {periodName(confirming.period)}</DrawerTitle>
+                <DrawerDescription>Lo que se abonó a tu cuenta; suma sus cuotas con el valor cuota del día.</DrawerDescription>
+              </DrawerHeader>
+              <div className="space-y-4 px-4 pb-6">
+                <CurrencyInput
+                  value={confirming.amount}
+                  onChange={(v) => setConfirming((c) => (c ? { ...c, amount: v } : c))}
+                  label="Monto abonado"
+                  placeholder="0"
+                />
+                <label className="block">
+                  <span className="mb-1 block text-xs font-bold text-muted-foreground">Fecha en que se abonó</span>
+                  <input
+                    type="date"
+                    value={confirming.paidDate}
+                    onChange={(e) => setConfirming((c) => (c ? { ...c, paidDate: e.target.value } : c))}
+                    className="h-12 w-full rounded-xl border border-line bg-background px-3 text-sm outline-none focus:border-jade"
+                  />
+                </label>
+                <Button variant="cta" className="w-full" disabled={isPending || !confirming.amount} onClick={confirm}>
+                  Sumar a la cuenta
+                </Button>
+              </div>
+            </div>
+          )}
+        </DrawerContent>
+      </ResponsiveDrawer>
 
       <ResponsiveDrawer open={open} onOpenChange={setOpen}>
         <DrawerContent>
