@@ -5,7 +5,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import {
-  NATURE_DESCRIPTIONS,
+  natureDescription,
   NATURE_LABELS,
   naturesForType,
   type TransactionNature,
@@ -89,7 +89,7 @@ export function NatureSelector({
                   <span aria-hidden className={cn('h-2.5 w-2.5 shrink-0 rounded-full', NATURE_DOTS[nature])} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-bold">{NATURE_LABELS[nature]}</span>
-                    <span className="block text-[11px] leading-snug text-muted-foreground">{NATURE_DESCRIPTIONS[nature]}</span>
+                    <span className="block text-[11px] leading-snug text-muted-foreground">{natureDescription(nature, type)}</span>
                   </span>
                   {selected && <Check className="h-4 w-4 shrink-0 text-jade" strokeWidth={3} />}
                 </button>

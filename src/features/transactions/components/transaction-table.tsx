@@ -416,6 +416,8 @@ export function TransactionTable({
       // que entra a una tarjeta (diferencias, devoluciones) tampoco es ingreso
       if (t.linkedTransactionId) continue;
       if (t.type === 'income' && accountsMap.get(t.accountId ?? '')?.type === 'credit_card') continue;
+      // La plata de otra persona que entra no es ingreso tuyo
+      if (t.type === 'income' && t.nature === 'external') continue;
       if (t.type === 'income') g.income += amount;
       if (t.type === 'expense') g.spent += amount;
     }

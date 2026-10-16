@@ -281,6 +281,8 @@ export async function getCycleDailySeries(
     moves as (
       select date,
         case
+          -- Plata de otra persona (ingreso o traspaso de terceros): no cuenta
+          when nature = 'external' and (type = 'income' or linked_transaction_id is not null) then 0
           when type = 'income' and linked_transaction_id is null then base_amount
           when type = 'expense' and linked_transaction_id is null then -base_amount
           when type = 'expense' and contra = 'credit_card' then -base_amount
@@ -289,6 +291,7 @@ export async function getCycleDailySeries(
           else 0
         end as cash,
         case
+          when nature = 'external' then 0
           when type = 'expense' and contra in ('savings', 'pension', 'unemployment') then base_amount
           when type = 'income' and contra in ('savings', 'pension', 'unemployment') then -base_amount
           else 0

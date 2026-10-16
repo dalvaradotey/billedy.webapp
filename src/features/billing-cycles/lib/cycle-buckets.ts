@@ -112,6 +112,9 @@ export function bucketAggregationQuery(
           when acc in ('checking', 'cash') and type = 'income' and linked_transaction_id is null
                and nature = 'reimbursement'
             then 'reimbursement'
+          -- Plata de otra persona que entra (o un traspaso de esa plata): no es tuya ni es ahorro
+          when acc in ('checking', 'cash') and nature = 'external' and (type = 'income' or linked_transaction_id is not null)
+            then 'ignored'
           when acc in ('checking', 'cash') and type = 'income' and linked_transaction_id is null
             then 'income'
           when acc in ('checking', 'cash') and type = 'expense' and linked_transaction_id is null
