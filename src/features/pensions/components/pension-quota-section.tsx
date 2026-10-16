@@ -27,6 +27,17 @@ const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', '
 const shortDate = (iso: string) => `${parseInt(iso.slice(8, 10), 10)} ${MONTHS[parseInt(iso.slice(5, 7), 10) - 1]}`;
 const quotas = (n: number) => new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(n);
 
+/**
+ * Cuotas escritas a mano: "566,17", "1.234,5" o "566.17". Con coma, los puntos
+ * son miles; sin coma, un punto seguido de 1 a 4 dígitos al final es decimal.
+ */
+function parseQuotaInput(raw: string): number {
+  const s = raw.trim().replace(/\s/g, '');
+  if (s.includes(',')) return Number(s.replace(/\./g, '').replace(',', '.'));
+  if (/^\d+\.\d{1,4}$/.test(s)) return Number(s);
+  return Number(s.replace(/\./g, ''));
+}
+
 interface PensionQuotaSectionProps {
   userId: string;
   accountId: string;
@@ -70,7 +81,7 @@ export function PensionQuotaSection({ userId, accountId, accountType }: PensionQ
   };
 
   const save = () => {
-    const quotaCount = mode === 'quotas' ? Number(quotaInput.replace(/\./g, '').replace(',', '.')) : null;
+    const quotaCount = mode === 'quotas' ? parseQuotaInput(quotaInput) : null;
     startTransition(async () => {
       const result = await configurePensionQuotas(userId, accountId, {
         provider,
