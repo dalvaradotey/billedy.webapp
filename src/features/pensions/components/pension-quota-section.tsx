@@ -18,6 +18,7 @@ import {
   type PensionStatus,
 } from '../actions';
 import { AFC_FUND, AFC_PROVIDER, AFP_FUNDS, AFP_PROVIDERS } from '../lib/quota-values';
+import { StatementHelp } from './statement-help';
 
 const PROVIDER_LABELS: Record<string, string> = {
   CAPITAL: 'AFP Capital',
@@ -269,6 +270,7 @@ export function PensionQuotaSection({ userId, accountId, accountType }: PensionQ
             Importar cartola o certificado
           </button>
         )}
+        {configured && <StatementHelp provider={status.provider!} />}
       </div>
       <input
         ref={fileRef}
