@@ -595,7 +595,7 @@ export function TransactionDialogContent({
         </div>
 
         {isTransferMode && !isEditing ? (
-          <ScrollArea key="transfer" className="h-[72dvh] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
+          <ScrollArea key="transfer" className="h-[min(72dvh,calc(var(--drawer-vh,100dvh)_-_6.5rem))] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
             <div className="space-y-[18px] px-4 pb-4 pt-2">
               <CurrencyInput
                 value={transferAmount}
@@ -706,7 +706,7 @@ export function TransactionDialogContent({
             </div>
           </ScrollArea>
         ) : (
-          <ScrollArea key="transaction" className="h-[72dvh] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
+          <ScrollArea key="transaction" className="h-[min(72dvh,calc(var(--drawer-vh,100dvh)_-_6.5rem))] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
             <Form {...form}>
               <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-[18px] px-4 pb-4 pt-2">
             {/* Monto: protagonista */}
