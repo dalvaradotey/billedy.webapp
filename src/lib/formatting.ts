@@ -109,6 +109,26 @@ export function getToday(): Date {
 }
 
 /**
+ * Fecha calendario de Chile para guardar en columnas `date`.
+ *
+ * Los formularios mandan "ahora" como fecha por defecto; guardada tal cual, desde
+ * las 21:00 en Chile (ya el día siguiente en UTC) quedaba con fecha de mañana.
+ * Una fecha a medianoche UTC ya es una fecha calendario (la usan el bot y la
+ * conciliación) y se respeta tal cual.
+ */
+export function toAppDate(d: Date): Date {
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0) {
+    return d;
+  }
+  return new Date(d.toLocaleDateString('en-CA', { timeZone: TIMEZONE }) + 'T00:00:00Z');
+}
+
+/** "YYYY-MM-DD" de la fecha calendario de Chile (para los campos de fecha) */
+export function appDateString(d: Date): string {
+  return toAppDate(d).toISOString().slice(0, 10);
+}
+
+/**
  * Normaliza una fecha a medianoche UTC (sin componente de hora)
  * Útil para comparar días calendario sin que la hora afecte
  */

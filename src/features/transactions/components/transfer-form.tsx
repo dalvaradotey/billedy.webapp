@@ -1,4 +1,5 @@
 'use client';
+import { appDateString } from '@/lib/formatting';
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -143,7 +144,7 @@ export function TransferForm({
             <label className="text-sm font-medium">Fecha</label>
             <Input
               type="date"
-              value={date.toISOString().split('T')[0]}
+              value={appDateString(date)}
               onChange={(e) => setDate(new Date(e.target.value + 'T12:00:00'))}
             />
           </div>

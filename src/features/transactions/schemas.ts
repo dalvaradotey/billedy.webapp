@@ -1,3 +1,4 @@
+import { toAppDate } from '@/lib/formatting';
 import { z } from 'zod';
 import { TRANSACTION_NATURES } from './nature';
 
@@ -10,7 +11,7 @@ export const createTransactionSchema = z.object({
   savingsGoalId: z.string().uuid().optional().nullable(),
   type: z.enum(['income', 'expense'], { message: 'El tipo es requerido' }),
   originalAmount: z.number({ message: 'Ingresa un monto' }).positive('El monto debe ser mayor a 0'),
-  date: z.date({ message: 'La fecha es requerida' }),
+  date: z.date({ message: 'La fecha es requerida' }).transform(toAppDate),
   description: z.string().min(1, 'La descripción es requerida').max(500),
   notes: z.string().max(1000).optional().nullable(),
   isPaid: z.boolean().optional(),
@@ -27,7 +28,7 @@ export const updateTransactionSchema = createTransactionSchema.partial();
 
 export const togglePaidSchema = z.object({
   isPaid: z.boolean(),
-  paidAt: z.date().optional(), // Fecha de pago (solo cuando isPaid = true)
+  paidAt: z.date().transform(toAppDate).optional(), // Fecha de pago (solo cuando isPaid = true)
 });
 
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
@@ -55,7 +56,7 @@ export const createAccountTransferSchema = z.object({
   fromAccountId: z.string().uuid('La cuenta origen es requerida'),
   toAccountId: z.string().uuid('La cuenta destino es requerida'),
   amount: z.number().positive('El monto debe ser mayor a 0'),
-  date: z.date({ message: 'La fecha es requerida' }),
+  date: z.date({ message: 'La fecha es requerida' }).transform(toAppDate),
   description: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   savingsGoalId: z.string().uuid().optional().nullable(),
@@ -68,7 +69,7 @@ export const createAccountTransferSchema = z.object({
 
 export const updateAccountTransferSchema = z.object({
   amount: z.number().positive('El monto debe ser mayor a 0').optional(),
-  date: z.date().optional(),
+  date: z.date().transform(toAppDate).optional(),
   description: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   savingsGoalId: z.string().uuid().optional().nullable(),
@@ -84,7 +85,7 @@ export const payCreditCardSchema = z.object({
   transactionIds: z.array(z.string().uuid()).min(1, 'Debes seleccionar al menos una transacción'),
   sourceAccountId: z.string().uuid('La cuenta origen es requerida'),
   creditCardAccountId: z.string().uuid('La tarjeta de crédito es requerida'),
-  date: z.date({ message: 'La fecha es requerida' }),
+  date: z.date({ message: 'La fecha es requerida' }).transform(toAppDate),
   description: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   // Intereses/cargos opcionales - se registran como gasto en la cuenta origen
@@ -117,7 +118,7 @@ export type BulkTogglePaidInput = z.infer<typeof bulkTogglePaidSchema>;
 export const bulkUpdateDateSchema = z.object({
   projectId: z.string().uuid('El proyecto es requerido'),
   transactionIds: z.array(z.string().uuid()).min(1, 'Debes seleccionar al menos una transacción'),
-  date: z.date({ message: 'La fecha es requerida' }),
+  date: z.date({ message: 'La fecha es requerida' }).transform(toAppDate),
 });
 
 export type BulkUpdateDateInput = z.infer<typeof bulkUpdateDateSchema>;
