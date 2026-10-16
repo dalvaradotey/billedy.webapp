@@ -51,6 +51,8 @@ export async function getPendingExpenses(projectId: string): Promise<PendingExpe
       join n1n4_accounts a on a.id = t.account_id
       where t.project_id = ${projectId} and t.type = 'expense' and t.is_paid
         and t.nature in ('external', 'reimbursable', 'fund')
+        -- Un traspaso de plata de terceros no espera abono
+        and t.linked_transaction_id is null
         and t.date <= ${today}::date
     ) p
     where remaining > 0.5

@@ -84,6 +84,8 @@ export async function getPendingSettlementSummary(projectId: string): Promise<Pe
         and t.type = 'expense'
         and t.is_paid
         and t.nature in ('external', 'reimbursable', 'fund')
+        -- Un traspaso de plata de terceros no espera abono
+        and t.linked_transaction_id is null
         and t.date <= ${today}::date
     )
     select
