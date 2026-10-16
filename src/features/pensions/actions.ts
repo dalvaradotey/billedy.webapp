@@ -110,6 +110,16 @@ export async function configurePensionQuotas(
   if (!quote) return { success: false, error: 'No hay valor cuota disponible' };
   const balance = Math.round(quotaCount * quote.value);
 
+  // Resguardo en la primera configuración: un saldo 10 veces mayor o menor al
+  // actual casi seguro es un error al escribir las cuotas (al corregir se omite)
+  const current0 = Number(account.currentBalance);
+  if (account.quotaCount == null && current0 > 0 && (balance > current0 * 10 || balance < current0 / 10)) {
+    return {
+      success: false,
+      error: `Con ${quotaCount.toLocaleString('es-CL')} cuotas el saldo quedaría en $${balance.toLocaleString('es-CL')}. Revisa el número de cuotas (usa coma para los decimales).`,
+    };
+  }
+
   // Puesta al día: el saldo inicial absorbe la diferencia para que recalcular siga cuadrando
   const current = Number(account.currentBalance);
   await db
