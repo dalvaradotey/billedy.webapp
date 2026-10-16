@@ -59,6 +59,8 @@ export const createAccountTransferSchema = z.object({
   description: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   savingsGoalId: z.string().uuid().optional().nullable(),
+  // Plata de otra persona: mueve saldos, pero no cuenta como ahorro ni ingreso tuyo
+  isThirdParty: z.boolean().optional(),
 }).refine((data) => data.fromAccountId !== data.toAccountId, {
   message: 'La cuenta origen y destino deben ser diferentes',
   path: ['toAccountId'],

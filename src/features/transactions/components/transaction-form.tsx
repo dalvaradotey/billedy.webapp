@@ -150,6 +150,7 @@ export function TransactionDialogContent({
   const [transferNotes, setTransferNotes] = useState('');
   const [showTransferAdvancedOptions, setShowTransferAdvancedOptions] = useState(false);
   const [transferSavingsGoalId, setTransferSavingsGoalId] = useState<string | undefined>(undefined);
+  const [transferIsThirdParty, setTransferIsThirdParty] = useState(false);
 
   // Update local categories when props change
   useEffect(() => {
@@ -466,6 +467,7 @@ export function TransactionDialogContent({
         description: transferDescription || undefined,
         notes: transferNotes || undefined,
         savingsGoalId: transferSavingsGoalId || undefined,
+        isThirdParty: transferIsThirdParty,
       };
 
       const result = await createAccountTransfer(userId, transferData);
@@ -479,6 +481,7 @@ export function TransactionDialogContent({
         setTransferDescription('');
         setTransferNotes('');
         setTransferSavingsGoalId(undefined);
+        setTransferIsThirdParty(false);
         setShowTransferAdvancedOptions(false);
         onMutationSuccess?.(toastId, 'Transferencia creada');
         triggerSuccess();
@@ -592,7 +595,7 @@ export function TransactionDialogContent({
         </div>
 
         {isTransferMode && !isEditing ? (
-          <ScrollArea key="transfer" className="h-[72dvh] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
+          <ScrollArea key="transfer" className="h-[min(72dvh,calc(var(--drawer-vh,100dvh)_-_6.5rem))] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
             <div className="space-y-[18px] px-4 pb-4 pt-2">
               <CurrencyInput
                 value={transferAmount}
@@ -619,6 +622,24 @@ export function TransactionDialogContent({
                 value={transferToAccountId}
                 onChange={setTransferToAccountId}
               />
+
+              {/* Plata de terceros: mueve saldos sin contar como ahorro ni ingreso tuyo */}
+              <label
+                className={cn(
+                  'flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl pl-4 pr-3.5 transition-colors',
+                  transferIsThirdParty ? 'bg-sky-soft' : 'border border-line bg-background'
+                )}
+              >
+                <span className="flex-1">
+                  <span className="block text-sm font-extrabold">Plata de otra persona</span>
+                  <span className={cn('text-xs', transferIsThirdParty ? 'text-sky-text' : 'text-muted-foreground')}>
+                    {transferIsThirdParty
+                      ? 'mueve el saldo, pero no cuenta como ahorro ni ingreso tuyo'
+                      : 'actívalo si es plata que te encargan (p. ej. ahorro de un familiar)'}
+                  </span>
+                </span>
+                <Switch checked={transferIsThirdParty} onCheckedChange={setTransferIsThirdParty} aria-label="Plata de otra persona" />
+              </label>
 
               {!showTransferAdvancedOptions ? (
                 <div className="flex flex-wrap gap-1.5">
@@ -685,7 +706,7 @@ export function TransactionDialogContent({
             </div>
           </ScrollArea>
         ) : (
-          <ScrollArea key="transaction" className="h-[72dvh] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
+          <ScrollArea key="transaction" className="h-[min(72dvh,calc(var(--drawer-vh,100dvh)_-_6.5rem))] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
             <Form {...form}>
               <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-[18px] px-4 pb-4 pt-2">
             {/* Monto: protagonista */}
