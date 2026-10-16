@@ -1,3 +1,4 @@
+import { toAppDate } from '@/lib/formatting';
 import { z } from 'zod';
 
 export const createCreditSchema = z.object({
@@ -10,7 +11,7 @@ export const createCreditSchema = z.object({
   installmentAmount: z.number({ message: 'Ingresa el valor de la cuota' }).positive('El valor de la cuota debe ser mayor a 0'),
   installments: z.number({ message: 'Ingresa el número de cuotas' }).int().min(1, 'Debe tener al menos 1 cuota').max(60, 'Máximo 60 cuotas'),
   paidInstallments: z.number().int().min(0, 'Las cuotas pagadas no pueden ser negativas').optional(),
-  startDate: z.date({ message: 'La fecha de inicio es requerida' }),
+  startDate: z.date({ message: 'La fecha de inicio es requerida' }).transform(toAppDate),
   frequency: z.enum(['monthly', 'biweekly', 'weekly'], { message: 'La frecuencia es requerida' }),
   description: z.string().max(500).optional().nullable(),
   notes: z.string().optional().nullable(),

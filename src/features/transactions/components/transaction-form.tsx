@@ -33,7 +33,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { fetchCardImpactData, type CardImpactData } from '@/features/billing-cycles/actions';
 import { fetchAccountFunds } from '@/features/accounts/fund-actions';
 import type { AccountFund } from '@/features/accounts/lib/funds';
-import { formatCurrency } from '@/lib/formatting';
+import { formatCurrency, appDateString } from '@/lib/formatting';
 import { normalizeNature, type TransactionNature } from '../nature';
 import { CurrencyInput } from '@/components/currency-input';
 import { EntitySelector } from '@/components/entity-selector';
@@ -675,7 +675,7 @@ export function TransactionDialogContent({
                   <FloatingLabelInput
                     label="Fecha"
                     type="date"
-                    value={transferDate.toISOString().split('T')[0]}
+                    value={appDateString(transferDate)}
                     onChange={(val) => setTransferDate(new Date(val + 'T12:00:00'))}
                     valid={!!transferDate}
                   />
@@ -1148,7 +1148,7 @@ export function TransactionDialogContent({
                               data-vaul-no-drag
                               {...field}
                               value={field.value instanceof Date && !isNaN(field.value.getTime())
-                                ? field.value.toISOString().split('T')[0]
+                                ? appDateString(field.value)
                                 : typeof field.value === 'string'
                                   ? String(field.value).split('T')[0]
                                   : ''}

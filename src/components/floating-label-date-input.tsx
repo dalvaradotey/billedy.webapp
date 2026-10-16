@@ -1,4 +1,5 @@
 'use client';
+import { appDateString } from '@/lib/formatting';
 
 import { forwardRef, useRef, useImperativeHandle, type InputHTMLAttributes } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
@@ -44,7 +45,7 @@ export const FloatingLabelDateInput = forwardRef<HTMLInputElement, FloatingLabel
     };
 
     const formattedValue = value instanceof Date
-      ? value.toISOString().split('T')[0]
+      ? appDateString(value)
       : typeof value === 'string'
         ? String(value).split('T')[0]
         : '';
