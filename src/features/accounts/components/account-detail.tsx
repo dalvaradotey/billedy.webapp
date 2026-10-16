@@ -20,6 +20,7 @@ import type { AccountWithEntity, AccountType, AccountDebtBreakdown } from '../ty
 import { ACCOUNT_TYPE_LABELS } from '../types';
 import { WalletChip } from './wallet-card';
 import { AccountFundsSection } from './account-funds';
+import { PensionQuotaSection } from '@/features/pensions/components/pension-quota-section';
 import type { AccountFund } from '../lib/funds';
 
 interface AccountDetailPanelProps {
@@ -236,6 +237,9 @@ export function AccountDetailPanel({
                   <span className="text-xs text-muted-foreground">Saldo de la cuenta</span>
                   <span className="num text-base font-extrabold">{formatCurrency(balance, account.currency)}</span>
                 </div>
+                {(account.type === 'pension' || account.type === 'unemployment') && (
+                  <PensionQuotaSection userId={userId} accountId={account.id} accountType={account.type} />
+                )}
                 <AccountFundsSection
                   projectId={projectId}
                   userId={userId}

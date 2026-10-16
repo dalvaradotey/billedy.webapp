@@ -9,6 +9,7 @@ import {
   date,
   pgEnum,
   unique,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 
@@ -197,6 +198,11 @@ export const accounts = pgTable('n1n4_accounts', {
   creditLimit: decimal('credit_limit', { precision: 15, scale: 2 }),
   // Diseño de tarjeta de la billetera (null = automático según el banco)
   cardDesign: varchar('card_design', { length: 40 }),
+  // Previsión por cuotas (AFP / AFC): saldo = cuotas × valor cuota del día
+  pensionProvider: varchar('pension_provider', { length: 20 }),
+  pensionFund: varchar('pension_fund', { length: 10 }),
+  quotaCount: decimal('quota_count', { precision: 18, scale: 4 }),
+  quotaCountDate: date('quota_count_date'),
   isDefault: boolean('is_default').default(false).notNull(),
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
@@ -269,3 +275,15 @@ export const fundMovements = pgTable('n1n4_fund_movements', {
   notes: varchar('notes', { length: 500 }),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 });
+
+/** Valor cuota diario de los fondos de pensiones y de cesantía (dato público) */
+export const quotaValues = pgTable(
+  'n1n4_quota_values',
+  {
+    provider: varchar('provider', { length: 20 }).notNull(),
+    fund: varchar('fund', { length: 10 }).notNull(),
+    date: date('date').notNull(),
+    value: decimal('value', { precision: 14, scale: 2 }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.provider, t.fund, t.date] })]
+);
