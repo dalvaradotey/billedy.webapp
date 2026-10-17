@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
@@ -61,7 +61,7 @@ export function AppSidebar({
   const initials = user.name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col gap-3 border-r border-line bg-background px-[18px] py-5 md:flex">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] flex-col gap-3 border-r border-line bg-background px-[18px] py-5 md:flex [@media(max-height:860px)]:gap-2.5 [@media(max-height:860px)]:py-4">
       <div className="flex items-center justify-between px-1.5">
         <a href="/dashboard" aria-label="Ir al inicio">
           <BrandMark />
@@ -102,18 +102,15 @@ export function AppSidebar({
         )}
       </ActionsPopover>
 
-      <nav aria-label="Principal" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-        <SidebarGroup items={PRIMARY_NAV} pathname={pathname} />
-        <SidebarGroup items={SECONDARY_NAV} pathname={pathname} />
-      </nav>
+      <SidebarNav pathname={pathname} />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-2.5 rounded-[20px] border border-line bg-surface p-2.5 text-left transition-colors hover:bg-surface-2"
+            className="flex shrink-0 items-center gap-2.5 rounded-[20px] border border-line bg-surface p-2 text-left transition-colors hover:bg-surface-2"
           >
-            <Avatar className="h-[38px] w-[38px]">
+            <Avatar className="h-9 w-9">
               <AvatarImage src={user.image ?? undefined} alt="" />
               <AvatarFallback className="bg-violet-soft font-extrabold text-violet-text">{initials ?? 'U'}</AvatarFallback>
             </Avatar>
@@ -142,9 +139,48 @@ export function AppSidebar({
   );
 }
 
+const FADE = 28;
+
+/**
+ * Lista de destinos. En pantallas bajas no caben todos: hace scroll y los bordes
+ * se desvanecen donde hay más, en vez de cortarse en seco.
+ */
+function SidebarNav({ pathname }: { pathname: string }) {
+  const ref = useRef<HTMLElement>(null);
+  const [edges, setEdges] = useState({ top: false, bottom: false });
+
+  const measure = (el: HTMLElement) => {
+    const max = el.scrollHeight - el.clientHeight;
+    setEdges({ top: el.scrollTop > 2, bottom: max > 2 && el.scrollTop < max - 2 });
+  };
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => measure(el));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const mask = `linear-gradient(to bottom, ${edges.top ? 'transparent' : '#000'} 0, #000 ${FADE}px, #000 calc(100% - ${FADE}px), ${edges.bottom ? 'transparent' : '#000'} 100%)`;
+
+  return (
+    <nav
+      ref={ref}
+      aria-label="Principal"
+      onScroll={(e) => measure(e.currentTarget)}
+      className="scrollbar-hide -mx-1 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-1"
+      style={{ maskImage: mask, WebkitMaskImage: mask }}
+    >
+      <SidebarGroup items={PRIMARY_NAV} pathname={pathname} />
+      <SidebarGroup items={SECONDARY_NAV} pathname={pathname} />
+    </nav>
+  );
+}
+
 function SidebarGroup({ items, pathname }: { items: NavItem[]; pathname: string }) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-[24px] border border-line-strong bg-surface-2 p-1">
+    <div className="flex shrink-0 flex-col gap-0.5 rounded-[22px] border border-line-strong bg-surface-2 p-1">
       {items.map((item) => {
         const active = isNavActive(pathname, item.href);
         const Icon = item.icon;
@@ -154,7 +190,7 @@ function SidebarGroup({ items, pathname }: { items: NavItem[]; pathname: string 
             href={item.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'flex min-h-9 items-center gap-3 rounded-full px-3.5 text-sm transition-colors',
+              'flex min-h-9 items-center gap-3 rounded-full px-3.5 text-sm transition-colors [@media(max-height:860px)]:min-h-8',
               active
                 ? 'bg-jade-soft font-extrabold text-jade-text'
                 : 'font-semibold text-[#CFC6D6] hover:bg-surface-3 hover:text-foreground'
