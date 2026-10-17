@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { reserveRowsQuery } from './cycle-reserves';
 import { db } from '@/lib/db';
 import { getToday } from '@/lib/formatting';
 import type { CycleBalance } from './cycle-balance';
@@ -250,6 +251,7 @@ export type CycleDailyPoint = { day: number; cash: number; savings: number };
  * Caja y ahorro acumulados día a día (solo lo real, hasta hoy), con las mismas
  * reglas de la cascada: caja = ingresos + abonos − débito − pago TC − aportes + retiros;
  * ahorro = aportes − retiros (incluye apartar/liberar en fondos y gastos pagados con fondos).
+ * Los abonos reservados (ver cycle-reserves) salen de la caja hasta que se paga su gasto.
  */
 export async function getCycleDailySeries(
   cycle: Pick<CycleInput, 'projectId' | 'startDate' | 'endDate' | 'daysElapsed'>
@@ -322,6 +324,15 @@ export async function getCycleDailySeries(
         and t.is_paid
         and a.type in ('checking', 'cash')
         and t.date between ${start}::date and ${until}::date
+      union all
+      -- Abono reservado (su gasto aún no sale de la caja) y su liberación al pagarse
+      select rs.reserved_on::date, -rs.amount, 0
+      from (${reserveRowsQuery(projectId, until)}) rs
+      where rs.reserved_on::date between ${start}::date and ${until}::date
+      union all
+      select rs.released_on::date, rs.amount, 0
+      from (${reserveRowsQuery(projectId, until)}) rs
+      where rs.released_on::date between ${start}::date and ${until}::date
     )
     select (date - ${start}::date + 1)::int as day, sum(cash) as cash, sum(savings) as savings
     from moves

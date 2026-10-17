@@ -12,6 +12,7 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import { getToday } from '@/lib/formatting';
 import { bucketAggregationQuery, parseBucketRows } from '@/features/billing-cycles/lib/cycle-buckets';
 import { buildBalances, type BalanceRange } from '@/features/billing-cycles/lib/cycle-balance';
+import { parseReserveRows, reserveRowsQuery } from '@/features/billing-cycles/lib/cycle-reserves';
 
 type Expected = {
   income: number;
@@ -101,10 +102,13 @@ async function main() {
         const today = getToday().toISOString().slice(0, 10);
         const query = dialect.sqlToQuery(bucketAggregationQuery(projectId, ranges, today));
         const raw = await tx.unsafe(query.sql, query.params as never[]);
+        const reserveQuery = dialect.sqlToQuery(reserveRowsQuery(projectId, today));
+        const reserves = parseReserveRows(await tx.unsafe(reserveQuery.sql, reserveQuery.params as never[]));
         const balances = buildBalances(
           ranges,
           parseBucketRows(raw as unknown as Parameters<typeof parseBucketRows>[0]),
-          new Map(cards.map((c) => [c.id, c.name]))
+          new Map(cards.map((c) => [c.id, c.name])),
+          reserves
         );
 
         console.log(`\nProyecto ${projectId}`);

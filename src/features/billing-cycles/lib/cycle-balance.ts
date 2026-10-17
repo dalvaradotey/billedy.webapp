@@ -9,13 +9,15 @@ import {
   type BucketRow,
   type DateRange,
 } from './cycle-buckets';
+import { parseReserveRows, reserveRowsQuery, reservesForRange, type ReserveRow } from './cycle-reserves';
 
 /**
  * Saldo de caja de un ciclo (cascada única).
  * Ver docs/PLAN_SALDOS_CICLOS_Y_TECHO_TC.md §3.
  *
  *   Ingresos + Abonos − Gastos débito − Pago TC = Saldo antes de ahorro
- *   − Aportes a ahorro + Retiros de ahorro      = Saldo final
+ *   − Aportes a ahorro + Retiros de ahorro
+ *   − Abonos reservados + Reservas liberadas    = Saldo final
  */
 
 /**
@@ -65,6 +67,10 @@ export type CycleBalance = {
   provisionsOut: Amounts;
   /** Aportes a inversiones: salen de la caja, pero no son gasto */
   investmentsIn: Amounts;
+  /** Abonos que llegaron por gastos que aún no salen de la caja (p. ej. TC sin pagar) */
+  reservedIn: Amounts;
+  /** Reservas de ciclos anteriores cuyo gasto se pagó en este */
+  reservedOut: Amounts;
   finalBalance: Amounts;
   card: {
     /** Gasto en TC del ciclo, ya cargado (se paga el próximo ciclo) */
@@ -249,7 +255,8 @@ function paymentsByCard(rows: BucketRow[]): Map<string, { amount: number }> {
 export function buildBalances(
   ranges: BalanceRange[],
   rows: BucketRow[],
-  cardNames: Map<string, string>
+  cardNames: Map<string, string>,
+  reserves: ReserveRow[] = []
 ): Map<string, CycleBalance> {
   const rowsByKey = new Map<string, BucketRow[]>();
   for (const row of rows) {
@@ -278,6 +285,9 @@ export function buildBalances(
     const provisionsOut = cashLine(rangeRows, 'provision_out', isOpen);
     const investmentsIn = cashLine(rangeRows, 'investment_in', isOpen);
     const paidCardPayment = cashLine(rangeRows, 'card_payment', isOpen);
+    const reserve = reservesForRange(reserves, range.start, range.end);
+    const reservedIn: Amounts = { real: reserve.reserved, committed: reserve.reserved, projected: reserve.reserved };
+    const reservedOut: Amounts = { real: reserve.released, committed: reserve.released, projected: reserve.released };
 
     const payments = paymentsByCard(rangeRows);
     const warnings: CycleWarning[] = [];
@@ -322,7 +332,9 @@ export function buildBalances(
       [savingsOut, 1],
       [provisionsIn, -1],
       [provisionsOut, 1],
-      [investmentsIn, -1]
+      [investmentsIn, -1],
+      [reservedIn, -1],
+      [reservedOut, 1]
     );
 
     if (!isOpen) {
@@ -365,6 +377,8 @@ export function buildBalances(
       provisionsIn,
       provisionsOut,
       investmentsIn,
+      reservedIn,
+      reservedOut,
       finalBalance,
       card: {
         spent: sum(rangeRows, (r) => r.bucket === 'card_spend' && r.inRange && r.isReal),
@@ -398,6 +412,11 @@ async function fetchBucketRows(projectId: string, ranges: DateRange[]): Promise<
   return parseBucketRows(rows as unknown as Parameters<typeof parseBucketRows>[0]);
 }
 
+async function fetchReserves(projectId: string): Promise<ReserveRow[]> {
+  const rows = await db.execute(reserveRowsQuery(projectId, toDateString(getToday())));
+  return parseReserveRows(rows as unknown as Record<string, unknown>[]);
+}
+
 /**
  * Saldo de varios ciclos con una sola consulta.
  * Recibe los ciclos del proyecto (en cualquier orden); el anterior de cada
@@ -416,11 +435,12 @@ export async function getCycleBalances(
       status: c.status,
     }));
 
-  const [rows, cardNames] = await Promise.all([
+  const [rows, cardNames, reserves] = await Promise.all([
     fetchBucketRows(projectId, ranges),
     getCardNames(projectId),
+    fetchReserves(projectId),
   ]);
-  return buildBalances(ranges, rows, cardNames);
+  return buildBalances(ranges, rows, cardNames, reserves);
 }
 
 /**
@@ -438,6 +458,6 @@ export async function getRangeBalance(
     end: toDateString(endDate),
     status: 'closed',
   };
-  const rows = await fetchBucketRows(projectId, [range]);
-  return buildBalances([range], rows, new Map()).get('range')!;
+  const [rows, reserves] = await Promise.all([fetchBucketRows(projectId, [range]), fetchReserves(projectId)]);
+  return buildBalances([range], rows, new Map(), reserves).get('range')!;
 }
