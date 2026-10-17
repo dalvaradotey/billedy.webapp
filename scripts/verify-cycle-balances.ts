@@ -36,9 +36,11 @@ const EXPECTED: Record<string, Expected> = {
   'Ciclo Julio 2026': {
     income: 5_326_137,
     reimbursements: 1_008_231,
-    debitExpenses: 2_684_735,
+    // El aporte a Ostras ($381.034, 1 jul) es inversión, no gasto: sale de la
+    // línea Inversiones, así que sube el saldo antes de ahorro; el final no cambia
+    debitExpenses: 2_303_701,
     cardPayment: 2_186_801,
-    balanceBeforeSavings: 1_462_832,
+    balanceBeforeSavings: 1_843_866,
     savings: 270_000,
     finalBalance: 1_192_832,
   },
