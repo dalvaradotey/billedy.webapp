@@ -226,8 +226,8 @@ export function CardPurchaseCard({
             {/* Row 1: Title + badges + Amount + actions */}
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-bold text-[15px] truncate">{purchase.description}</p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="min-w-0 break-words text-[15px] font-bold">{purchase.description}</p>
                   {purchase.nature !== 'own' && (
                     <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium bg-sky-soft text-sky shrink-0">
                       <Users className="h-3 w-3" />

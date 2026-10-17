@@ -24,7 +24,7 @@ export function DashboardAccountsStrip() {
         <h2 className="text-lg font-extrabold tracking-[-0.02em]">Tus cuentas</h2>
         <Link href="/dashboard/accounts" className="-my-2 inline-flex min-h-10 items-center px-1 text-xs font-bold text-jade">Ver todas</Link>
       </div>
-      <ScrollRow className="-mx-4 mt-2.5 flex snap-x gap-2.5 px-4 md:mx-0 md:grid md:grid-cols-4 md:px-0">
+      <ScrollRow className="-mx-4 mt-2.5 flex snap-x scroll-px-4 gap-2.5 px-4 md:mx-0 md:grid md:grid-cols-4 md:px-0">
         {cards.map((c) => (
           <Link
             key={c.name}

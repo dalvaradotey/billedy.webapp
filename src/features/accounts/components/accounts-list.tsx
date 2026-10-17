@@ -268,7 +268,7 @@ export function AccountsList({
 
           {/* Carrusel (móvil) */}
           <section aria-label="Tus cuentas" className="-mx-4 md:hidden">
-            <ScrollRow className="flex snap-x snap-mandatory gap-3 px-4 py-1.5">
+            <ScrollRow className="flex snap-x snap-mandatory scroll-px-4 gap-3 px-4 py-1.5">
               {ordered.filter((a) => !a.isArchived).map((account) => (
                 <div key={account.id} className="w-[300px] flex-none snap-center">
                   <WalletCard account={account} selected={selected?.id === account.id} onSelect={() => setSelectedId(account.id)} />
@@ -369,7 +369,7 @@ function AccountRow({
       <button type="button" onClick={onSelect} aria-pressed={active} className={cn('flex min-h-[60px] w-full items-center gap-3 text-left', account.isArchived && 'opacity-60')}>
         <WalletChip account={account} />
         <span className="min-w-0 flex-1">
-          <span className={cn('block truncate text-sm font-bold', active && 'text-jade-text')}>{account.name}</span>
+          <span className={cn('line-clamp-2 break-words text-sm font-bold', active && 'text-jade-text')}>{account.name}</span>
           <span className="block truncate text-xs text-muted-foreground">
             {accountKindLabel(account.type).toLowerCase()}
             {account.entity?.name || account.bankName ? ` · ${account.entity?.name ?? account.bankName}` : ''}

@@ -5,7 +5,8 @@ import type { NextConfig } from "next";
  * scripts inline y sin nonce una CSP estricta los bloquearía.
  */
 const SECURITY_HEADERS = [
-  { key: 'X-Frame-Options', value: 'DENY' },
+  // En desarrollo se permite enmarcar la app en sí misma (revisión en tamaño teléfono)
+  { key: 'X-Frame-Options', value: process.env.NODE_ENV === 'production' ? 'DENY' : 'SAMEORIGIN' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },

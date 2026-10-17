@@ -440,6 +440,8 @@ function LinkDrawer({
             <label className="flex items-center gap-2 rounded-xl border border-line bg-background px-3">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
+                type="search"
+                enterKeyHint="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar por descripción"

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { getBudgetsWithCategory, getProjectCategories } from '@/features/budgets/queries';
+import { getBudgetsProgress, getBudgetsWithCategory, getProjectCategories } from '@/features/budgets/queries';
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
 import { getAllCurrencies } from '@/features/savings/queries';
@@ -37,11 +37,18 @@ export default async function BudgetsPage() {
 
   const defaultCurrency = project?.currency ?? 'CLP';
 
+  // Lo gastado en el ciclo abierto, para el avance de cada presupuesto
+  const openCycle = cycles.find((c) => c.status === 'open');
+  const progress = openCycle
+    ? await getBudgetsProgress(projectId, session.user.id, new Date(openCycle.startDate), new Date(openCycle.endDate))
+    : null;
+  const cycleSpent = progress ? Object.fromEntries(progress.map((p) => [p.id, p.spentAmount])) : undefined;
+
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Presupuestos</h1>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">Define plantillas de presupuesto para asignar a cada ciclo de facturación.</p>
+        <p className="mt-0.5 hidden text-[13px] text-muted-foreground md:block">Define plantillas de presupuesto para asignar a cada ciclo de facturación.</p>
       </div>
 
       <BudgetList
@@ -53,6 +60,7 @@ export default async function BudgetsPage() {
         userId={session.user.id}
         defaultCurrency={defaultCurrency}
         cycles={cycles}
+        cycleSpent={cycleSpent}
       />
     </div>
   );

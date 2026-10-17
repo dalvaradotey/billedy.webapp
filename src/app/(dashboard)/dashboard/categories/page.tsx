@@ -35,7 +35,7 @@ export default async function CategoriesPage({ searchParams }: CategoriesPagePro
     <div className="space-y-5">
       <div>
         <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Categorías</h1>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">Administra las categorías para organizar tus transacciones.</p>
+        <p className="mt-0.5 hidden text-[13px] text-muted-foreground md:block">Administra las categorías para organizar tus transacciones.</p>
       </div>
 
       <div className="flex gap-2 border-b">

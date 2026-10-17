@@ -13,6 +13,7 @@ import { FloatingLabelTextarea } from '@/components/floating-label-textarea';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { STICKY_FOOTER } from '@/components/form-drawer';
 import { DrawerClose, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
@@ -596,7 +597,7 @@ export function TransactionDialogContent({
 
         {isTransferMode && !isEditing ? (
           <ScrollArea key="transfer" className="h-[min(72dvh,calc(var(--drawer-vh,100dvh)_-_6.5rem))] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
-            <div className="space-y-[18px] px-4 pb-4 pt-2">
+            <div className="space-y-[18px] px-4 pt-2">
               <CurrencyInput
                 value={transferAmount}
                 onChange={setTransferAmount}
@@ -696,15 +697,17 @@ export function TransactionDialogContent({
 
               {error && <p className="text-sm text-coral-text">{error}</p>}
 
-              <SubmitButton type="button" isPending={isPending} pendingText="Creando..." onClick={onSubmitTransfer}>
-                Guardar traspaso
-              </SubmitButton>
+              <div className={STICKY_FOOTER}>
+                <SubmitButton type="button" isPending={isPending} pendingText="Creando..." onClick={onSubmitTransfer}>
+                  Guardar traspaso
+                </SubmitButton>
+              </div>
             </div>
           </ScrollArea>
         ) : (
           <ScrollArea key="transaction" className="h-[min(72dvh,calc(var(--drawer-vh,100dvh)_-_6.5rem))] animate-fade-in md:flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
             <Form {...form}>
-              <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-[18px] px-4 pb-4 pt-2">
+              <form id="transaction-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-[18px] px-4 pt-2">
             {/* Monto: protagonista */}
             <FormField
               control={form.control}
@@ -1194,15 +1197,17 @@ export function TransactionDialogContent({
 
               {error && <p className="text-sm text-coral-text">{error}</p>}
 
-              <SubmitButton isPending={isPending} pendingText="Guardando...">
-                {isEditing
-                  ? 'Guardar cambios'
-                  : capOver
-                    ? 'Guardar igual'
-                    : watchedType === 'income'
-                      ? 'Guardar ingreso'
-                      : 'Guardar gasto'}
-              </SubmitButton>
+              <div className={STICKY_FOOTER}>
+                <SubmitButton isPending={isPending} pendingText="Guardando...">
+                  {isEditing
+                    ? 'Guardar cambios'
+                    : capOver
+                      ? 'Guardar igual'
+                      : watchedType === 'income'
+                        ? 'Guardar ingreso'
+                        : 'Guardar gasto'}
+                </SubmitButton>
+              </div>
               </form>
             </Form>
           </ScrollArea>

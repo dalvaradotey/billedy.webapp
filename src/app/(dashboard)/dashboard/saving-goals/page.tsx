@@ -48,7 +48,7 @@ export default async function SavingsPage({ searchParams }: SavingsPageProps) {
     <div className="space-y-5">
       <div>
         <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Metas de ahorro</h1>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">Administra tus metas de ahorro y alcanza tus objetivos financieros.</p>
+        <p className="mt-0.5 hidden text-[13px] text-muted-foreground md:block">Administra tus metas de ahorro y alcanza tus objetivos financieros.</p>
       </div>
 
       <SavingsList

@@ -189,7 +189,7 @@ function CategoryCard({ category, userId, onEdit }: CategoryCardProps) {
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled={isPending}>
+          <Button variant="ghost" size="icon" className="-mr-1.5 h-11 w-11 shrink-0" disabled={isPending}>
             <span className="sr-only">Acciones</span>
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v.01M12 12v.01M12 18v.01" />

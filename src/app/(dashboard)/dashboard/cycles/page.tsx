@@ -37,7 +37,7 @@ export default async function CyclesPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Ciclos</h1>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">Organiza tus finanzas por períodos de facturación.</p>
+        <p className="mt-0.5 hidden text-[13px] text-muted-foreground md:block">Organiza tus finanzas por períodos de facturación.</p>
       </div>
 
       <BillingCyclesList

@@ -173,10 +173,10 @@ export function TransactionList({
     setIsChartsOpen(true);
   }, []);
 
+  // Registrar es solo "Nuevo movimiento" (el + lo abre directo); los gráficos van en la barra de filtros
   const pageActions = useMemo<PageAction[]>(() => [
     { label: 'Nuevo movimiento', icon: Plus, onClick: handleOpenDialog },
-    { label: 'Gráficos', icon: BarChart3, onClick: handleOpenCharts },
-  ], [handleOpenDialog, handleOpenCharts]);
+  ], [handleOpenDialog]);
 
   useRegisterPageActions(pageActions);
 
@@ -335,7 +335,8 @@ export function TransactionList({
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
-                type="text"
+                type="search"
+                enterKeyHint="search"
                 placeholder="Buscar..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -343,14 +344,26 @@ export function TransactionList({
               />
               {searchQuery && (
                 <button
+                  type="button"
+                  aria-label="Limpiar búsqueda"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted"
+                  className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full hover:bg-muted"
                 >
                   <X className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               )}
             </div>
             <button
+              type="button"
+              aria-label="Gráficos"
+              onClick={handleOpenCharts}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-muted-foreground transition-colors"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Filtros"
               onClick={() => setShowMobileFilters(!showMobileFilters)}
               className={`relative shrink-0 h-11 w-11 rounded-full flex items-center justify-center transition-colors ${
                 showMobileFilters
@@ -576,7 +589,8 @@ export function TransactionList({
             <div className="relative flex-1 max-w-[220px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <Input
-                type="text"
+                type="search"
+                enterKeyHint="search"
                 placeholder="Buscar..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -584,13 +598,24 @@ export function TransactionList({
               />
               {searchQuery && (
                 <button
+                  type="button"
+                  aria-label="Limpiar búsqueda"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted"
+                  className="absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full hover:bg-muted"
                 >
                   <X className="h-3 w-3 text-muted-foreground" />
                 </button>
               )}
             </div>
+
+            <button
+              type="button"
+              onClick={handleOpenCharts}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              Gráficos
+            </button>
 
             {/* Type toggle */}
             <div className="inline-flex rounded-full border border-line bg-surface p-1">

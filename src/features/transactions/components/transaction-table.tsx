@@ -786,7 +786,7 @@ function TransactionRow({
             type="button"
             disabled={disabled}
             aria-label={`Acciones de ${t.description}`}
-            className="-mr-1.5 flex h-11 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
+            className="-mr-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
           >
             <MoreVertical className="h-4 w-4" />
           </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useTransition, useEffect, useCallback, useMemo } from 'react';
 import { pulseColor } from '@/lib/pulse-tone';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -110,7 +110,12 @@ interface BudgetListProps {
   userId: string;
   defaultCurrency: string;
   cycles?: CycleOption[];
+  /** Gastado por presupuesto en el ciclo abierto (id → monto); sin ciclo abierto, undefined */
+  cycleSpent?: Record<string, number>;
 }
+
+/** Lo gastado en el ciclo abierto, para que cada tarjeta muestre su avance sin pasarlo por cada nivel */
+const CycleSpentContext = createContext<Record<string, number> | undefined>(undefined);
 
 export function BudgetList({
   budgets,
@@ -121,6 +126,7 @@ export function BudgetList({
   userId,
   defaultCurrency,
   cycles = [],
+  cycleSpent,
 }: BudgetListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<BudgetWithCategory | null>(null);
@@ -208,6 +214,7 @@ export function BudgetList({
   useRegisterPageActions(pageActions);
 
   return (
+    <CycleSpentContext.Provider value={cycleSpent}>
     <div className="space-y-6">
       {/* Toolbar */}
       <PageToolbar label={`${budgets.length} presupuestos`}>
@@ -215,7 +222,7 @@ export function BudgetList({
           <Button
             variant={isReorderMode ? 'default' : 'ghost'}
             size="sm"
-            className="h-8"
+            className="h-10"
             onClick={() => setIsReorderMode(!isReorderMode)}
             disabled={isPending}
           >
@@ -308,7 +315,7 @@ export function BudgetList({
             <div className="space-y-3">
               <button
                 onClick={() => setShowExpired(!showExpired)}
-                className="text-sm font-medium text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors"
+                className="flex min-h-11 items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 Expirados ({expiredBudgets.length})
                 <span className={cn('transition-transform', showExpired && 'rotate-180')}>▾</span>
@@ -347,6 +354,7 @@ export function BudgetList({
         </>
       )}
     </div>
+    </CycleSpentContext.Provider>
   );
 }
 
@@ -436,6 +444,7 @@ interface BudgetCardProps {
 }
 
 function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
+  const spent = useContext(CycleSpentContext)?.[budget.id];
   const [isPending, startTransition] = useTransition();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showInlineActions, setShowInlineActions] = useState(false);
@@ -607,6 +616,10 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
             <p className="num text-[22px] font-extrabold text-foreground mt-1 sm:hidden">
               {formatCurrency(budget.defaultAmount, budget.currency)}
             </p>
+
+            {spent !== undefined && budget.isActive && (
+              <CycleSpentBar spent={spent} budgeted={parseFloat(budget.defaultAmount)} currency={budget.currency} />
+            )}
 
             {/* Mobile actions drawer */}
             <Drawer open={showActionsDrawer} onOpenChange={setShowActionsDrawer}>
@@ -1087,5 +1100,29 @@ function BudgetDialogContent({
         </FormDrawerBody>
       </Form>
     </FormDrawer>
+  );
+}
+
+/** Avance del ciclo abierto: lo gastado contra lo presupuestado */
+function CycleSpentBar({ spent, budgeted, currency }: { spent: number; budgeted: number; currency: string }) {
+  const pct = budgeted > 0 ? Math.round((spent / budgeted) * 100) : 0;
+  const over = spent > budgeted;
+  return (
+    <div className="mt-2.5 space-y-1.5">
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
+        <div
+          className={cn('h-full rounded-full', over ? 'bg-coral' : pct >= 85 ? 'bg-amber' : 'bg-jade')}
+          style={{ width: `${Math.min(100, pct)}%` }}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        <span className="num font-bold text-foreground">{formatCurrency(spent, currency)}</span> gastado este ciclo ·{' '}
+        {over ? (
+          <span className="font-bold text-coral-text">{formatCurrency(spent - budgeted, currency)} sobre</span>
+        ) : (
+          <>quedan <span className="num font-bold text-foreground">{formatCurrency(budgeted - spent, currency)}</span></>
+        )}
+      </p>
+    </div>
   );
 }

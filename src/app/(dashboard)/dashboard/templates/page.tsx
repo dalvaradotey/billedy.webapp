@@ -50,7 +50,7 @@ export default async function TemplatesPage({ searchParams }: TemplatesPageProps
     <div className="space-y-5">
       <div>
         <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Plantillas</h1>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">Configura los items recurrentes que se cargarán automáticamente en cada ciclo.</p>
+        <p className="mt-0.5 hidden text-[13px] text-muted-foreground md:block">Configura los items recurrentes que se cargarán automáticamente en cada ciclo.</p>
       </div>
 
       <TemplateList

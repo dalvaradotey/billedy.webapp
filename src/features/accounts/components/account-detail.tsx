@@ -157,8 +157,9 @@ export function AccountDetailPanel({
             <WalletChip account={account} />
           )}
           <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-1.5">
-              <span className="truncate text-base font-extrabold">{account.name}</span>
+            {/* El nombre completo distingue cuentas parecidas ("Santander Corriente #6114" / "#7343") */}
+            <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+              <span className="min-w-0 break-words text-base font-extrabold">{account.name}</span>
               {account.isDefault && (
                 <span className="shrink-0 rounded-full bg-jade px-1.5 py-px text-[10px] font-extrabold tracking-[0.04em] text-jade-ink">
                   PRINCIPAL
