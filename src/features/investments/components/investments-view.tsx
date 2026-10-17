@@ -458,7 +458,7 @@ function LinkDrawer({
                         type="checkbox"
                         checked={!!role}
                         onChange={() => toggle(c)}
-                        className="h-5 w-5 shrink-0 accent-[#5CC3A4]"
+                        className="h-5 w-5 shrink-0 accent-jade"
                         aria-label={`Asociar ${c.description}`}
                       />
                       <span className="min-w-0 flex-1">

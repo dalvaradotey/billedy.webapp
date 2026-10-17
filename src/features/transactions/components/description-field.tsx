@@ -88,7 +88,7 @@ export function DescriptionField({
                 key={s.description}
                 type="button"
                 onClick={() => onPick(s)}
-                className="flex min-h-[34px] max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong pl-1.5 pr-3 text-xs font-bold text-[#CFC6D6] transition-colors hover:bg-surface-2"
+                className="flex min-h-[34px] max-w-[180px] items-center gap-1.5 rounded-full border border-line-strong pl-1.5 pr-3 text-xs font-bold text-subtle transition-colors hover:bg-surface-2"
               >
                 <span aria-hidden className={cn('flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-xl text-[10px] font-extrabold', tone.soft, tone.text)}>
                   {(s.categoryName ?? s.description).charAt(0).toUpperCase()}

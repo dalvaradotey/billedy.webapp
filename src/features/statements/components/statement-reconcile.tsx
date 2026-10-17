@@ -204,7 +204,7 @@ export function StatementReconcile({ userId, projectId, budgets }: StatementReco
                           type="checkbox"
                           checked={draft?.on ?? false}
                           onChange={(e) => setCreateDrafts((s) => ({ ...s, [m.line.index]: { ...s[m.line.index], on: e.target.checked } }))}
-                          className="mt-1 h-5 w-5 accent-[#5CC3A4]"
+                          className="mt-1 h-5 w-5 accent-jade"
                           aria-label={`Crear ${m.line.description}`}
                         />
                       )}
@@ -261,7 +261,7 @@ export function StatementReconcile({ userId, projectId, budgets }: StatementReco
                     type="checkbox"
                     checked={fixOn[d.tx.id] ?? false}
                     onChange={(e) => setFixOn((s) => ({ ...s, [d.tx.id]: e.target.checked }))}
-                    className="mt-1 h-5 w-5 accent-[#5CC3A4]"
+                    className="mt-1 h-5 w-5 accent-jade"
                     aria-label={`Corregir ${d.tx.description}`}
                   />
                   <div className="min-w-0 flex-1">
@@ -303,7 +303,7 @@ export function StatementReconcile({ userId, projectId, budgets }: StatementReco
                     type="checkbox"
                     checked={templateOn[t.item.id] ?? false}
                     onChange={(e) => setTemplateOn((s) => ({ ...s, [t.item.id]: e.target.checked }))}
-                    className="h-5 w-5 accent-[#5CC3A4]"
+                    className="h-5 w-5 accent-jade"
                     aria-label={`Actualizar ${t.item.description}`}
                   />
                   <p className="min-w-0 flex-1 truncate text-sm font-bold">{t.item.description}</p>

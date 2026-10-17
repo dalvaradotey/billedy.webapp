@@ -204,7 +204,7 @@ export function PulseChart({
               <text x="4" y={capLabelBelow ? capY + 15 : capY - 6} className={`${st.capText} text-[11px] font-extrabold`}>
                 {st.capLabel} {formatCurrency(cap!)}
               </text>
-              <line x1="0" y1={Y(baseline)} x2={W} y2={capY} stroke="#5E5568" strokeWidth={1.5} strokeDasharray="1 4" strokeLinecap="round" />
+              <line x1="0" y1={Y(baseline)} x2={W} y2={capY} className="stroke-faint" strokeWidth={1.5} strokeDasharray="1 4" strokeLinecap="round" />
             </>
           )}
 
@@ -221,9 +221,9 @@ export function PulseChart({
             </>
           )}
 
-          <line x1={tX} x2={tX} y1={tY} y2={base} stroke="#F4EFE8" strokeOpacity={0.3} />
+          <line x1={tX} x2={tX} y1={tY} y2={base} className="stroke-foreground" strokeOpacity={0.3} />
           {hasCap && !pendingAmount && (
-            <circle cx={tX} cy={Y(idealAtToday)} r={4} className="fill-background" stroke="#A79DB0" strokeWidth={2} />
+            <circle cx={tX} cy={Y(idealAtToday)} r={4} className="fill-background stroke-muted-foreground" strokeWidth={2} />
           )}
           <circle cx={tX} cy={tY} r={6} className={`${st.dot} stroke-surface`} strokeWidth={3} />
 
@@ -237,7 +237,7 @@ export function PulseChart({
             showTooltip && !scrub && (
               <g transform={`translate(${tipX},${tipY})`}>
                 <rect width={tipW} height={40} rx={12} className="fill-cream" />
-                <text x={10} y={16} className="fill-[#6B6172] text-[10px] font-bold uppercase">hoy · {todayLabel}</text>
+                <text x={10} y={16} className="fill-cream-muted text-[10px] font-bold uppercase">hoy · {todayLabel}</text>
                 <text x={10} y={32} className="fill-cream-ink text-[14px] font-extrabold">{formatCurrency(last.total)}</text>
               </g>
             )
@@ -245,8 +245,8 @@ export function PulseChart({
 
           {scrub && (
             <g pointerEvents="none">
-              <line x1={scrub.x} x2={scrub.x} y1={top} y2={base} stroke="#F4EFE8" strokeOpacity={0.45} strokeDasharray="2 3" />
-              {scrub.ideal != null && <circle cx={scrub.x} cy={Y(scrub.ideal)} r={3.5} className="fill-background" stroke="#A79DB0" strokeWidth={2} />}
+              <line x1={scrub.x} x2={scrub.x} y1={top} y2={base} className="stroke-foreground" strokeOpacity={0.45} strokeDasharray="2 3" />
+              {scrub.ideal != null && <circle cx={scrub.x} cy={Y(scrub.ideal)} r={3.5} className="fill-background stroke-muted-foreground" strokeWidth={2} />}
               <circle
                 cx={scrub.x}
                 cy={scrub.y}
@@ -256,13 +256,13 @@ export function PulseChart({
               />
               <g transform={`translate(${scrubTipX},${scrubTipY})`}>
                 <rect width={scrubTipW} height={scrubTipH} rx={12} className="fill-cream" />
-                <text x={10} y={16} className="fill-[#6B6172] text-[10px] font-bold uppercase">
+                <text x={10} y={16} className="fill-cream-muted text-[10px] font-bold uppercase">
                   {scrub.day === last.day ? `hoy · ${todayLabel}` : dayLabel(scrub.day)}
                   {!scrub.real && ' · proyección'}
                 </text>
                 <text x={10} y={32} className="fill-cream-ink text-[14px] font-extrabold">{formatCurrency(Math.round(scrub.value))}</text>
                 {scrub.ideal != null && (
-                  <text x={10} y={47} className="fill-[#6B6172] text-[10px] font-bold">
+                  <text x={10} y={47} className="fill-cream-muted text-[10px] font-bold">
                     {variant === 'cap' ? 'ritmo sano' : 'ritmo a la meta'} {compact(scrub.ideal)}
                   </text>
                 )}

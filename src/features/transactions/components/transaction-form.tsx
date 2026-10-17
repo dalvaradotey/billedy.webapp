@@ -588,7 +588,7 @@ export function TransactionDialogContent({
             <button
               type="button"
               aria-label="Cerrar"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[#CFC6D6] transition-colors hover:text-foreground"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-3 text-subtle transition-colors hover:text-foreground"
             >
               <X className="h-[18px] w-[18px]" strokeWidth={2.2} />
             </button>
@@ -1246,7 +1246,7 @@ function DetailChip({ children, dashed, onClick }: { children: React.ReactNode; 
         'min-h-10 max-w-full truncate rounded-full px-3.5 text-xs font-bold transition-colors',
         dashed
           ? 'border border-dashed border-line-strong text-muted-foreground hover:text-foreground'
-          : 'bg-surface-2 text-[#CFC6D6] hover:bg-surface-3'
+          : 'bg-surface-2 text-subtle hover:bg-surface-3'
       )}
     >
       {children}

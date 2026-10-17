@@ -80,7 +80,7 @@ export function CapImpactNotice({ data, amount, onNotMine }: CapImpactNoticeProp
           <div
             role="dialog"
             aria-label="Impacto en tu ritmo"
-            className="relative w-full max-w-[420px] rounded-[26px] border border-[#3E3548] bg-surface-2 px-4 pb-4 pt-[18px] animate-fade-in"
+            className="relative w-full max-w-[420px] rounded-[26px] border border-line-strong bg-surface-2 px-4 pb-4 pt-[18px] animate-fade-in"
           >
             <div className="flex items-center justify-between">
               <span className="text-base font-extrabold">Impacto en tu ritmo</span>
@@ -120,7 +120,7 @@ export function CapImpactNotice({ data, amount, onNotMine }: CapImpactNoticeProp
                 ariaLabel={`Con este gasto, el acumulado pasa de ${formatCurrency(data.spent)} a ${formatCurrency(after)}; techo ${formatCurrency(data.cap)}`}
               />
             </div>
-            <p className="mt-3.5 text-[13px] leading-relaxed text-[#CFC6D6]">
+            <p className="mt-3.5 text-[13px] leading-relaxed text-subtle">
               {over
                 ? `Quedarías sin techo para ${remainingDays === 1 ? 'el día que falta' : `los ${remainingDays} días que faltan`}`
                 : `Te quedarían ${formatCurrency(data.cap - after)} para ${remainingDays === 1 ? '1 día' : `${remainingDays} días`}`}
@@ -134,7 +134,7 @@ export function CapImpactNotice({ data, amount, onNotMine }: CapImpactNoticeProp
                     onNotMine();
                     setOpen(false);
                   }}
-                  className="min-h-12 rounded-full border border-[#3E3548] text-[13px] font-extrabold"
+                  className="min-h-12 rounded-full border border-line-strong text-[13px] font-extrabold"
                 >
                   No es mío
                 </button>

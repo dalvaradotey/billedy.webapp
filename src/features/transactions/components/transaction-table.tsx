@@ -437,7 +437,7 @@ export function TransactionTable({
               <span className="text-[13px] font-extrabold">
                 {selectedIds.size} {selectedIds.size === 1 ? 'elegido' : 'elegidos'}
               </span>
-              <span className="num text-[11px] font-semibold text-[#6B6172]">
+              <span className="num text-[11px] font-semibold text-faint">
                 {selectionTotals.income > 0 && `+${formatCurrency(selectionTotals.income, defaultCurrency)} `}
                 {selectionTotals.expense > 0 && `−${formatCurrency(selectionTotals.expense, defaultCurrency)}`}
               </span>

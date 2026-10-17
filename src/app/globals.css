@@ -1,7 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* Temas oscuros: Ciruela (por defecto), Grafito y Niebla. Arena, Papel y Nube son claros. */
+@custom-variant dark (&:is(:root:not([data-theme]) *, [data-theme='ciruela'] *, [data-theme='grafito'] *, [data-theme='niebla'] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -31,6 +32,9 @@
   --color-rose-ink: var(--rose-ink);
   --color-cream: var(--cream);
   --color-cream-ink: var(--cream-ink);
+  --color-cream-muted: var(--cream-muted);
+  --color-cream-jade: var(--cream-jade);
+  --color-subtle: var(--subtle);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
@@ -78,9 +82,8 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
-:root,
-.dark {
-  /* Billedy · Pulso — solo modo oscuro, fondo ciruela tinta */
+:root {
+  /* Billedy · Pulso — tema Ciruela (por defecto): oscuro, fondo ciruela tinta */
   color-scheme: dark;
   --radius: 1rem;
 
@@ -92,6 +95,8 @@
   --line: #2E2836;
   --line-strong: #342D3C;
   --faint: #8A8095;
+  /* Texto secundario más claro que muted (etiquetas, chips) */
+  --subtle: #CFC6D6;
 
   --jade: #5CC3A4;
   --jade-soft: #1B3330;
@@ -116,8 +121,11 @@
   --rose: #EE8FB2;
   --rose-soft: #3A1F30;
   --rose-ink: #3A1028;
+  /* Cream: superficie invertida (pastilla activa, tooltips) y su texto */
   --cream: #F4EFE8;
   --cream-ink: #1B1620;
+  --cream-muted: #6B6172;
+  --cream-jade: #1F6B55;
 
   --card: var(--surface);
   --card-foreground: var(--foreground);
@@ -148,6 +156,199 @@
   --sidebar-accent-foreground: var(--jade-text);
   --sidebar-border: var(--line);
   --sidebar-ring: var(--jade);
+}
+
+
+/* ── Grafito: oscuro neutro, gris carbón frío ─────────────────────────────── */
+[data-theme='grafito'] {
+  /* Acento turquesa (logo, positivos, botones principales) */
+  --jade: #4CC2C4;
+  --jade-text: #9EE4E4;
+  --jade-ink: #0B2A2B;
+  color-scheme: dark;
+  --background: #111317;
+  --foreground: #EEF1F4;
+  --surface: #181B20;
+  --surface-2: #1E2228;
+  --surface-3: #252A31;
+  --line: #262B32;
+  --line-strong: #2F353D;
+  --faint: #727B86;
+  --subtle: #C8CFD7;
+  --muted-foreground: #9AA3AE;
+  --jade-soft: #14302F;
+  --coral-soft: #362022;
+  --amber-soft: #33291B;
+  --sky-soft: #1A2738;
+  --violet-soft: #272340;
+  --rose-soft: #35202D;
+  --cream: #EEF1F4;
+  --cream-ink: #14171B;
+  --cream-muted: #5F6873;
+}
+
+/* ── Niebla: soft oscuro, gris azulado con menos contraste ────────────────── */
+[data-theme='niebla'] {
+  /* Acento menta suave */
+  --jade: #7BD3AE;
+  --jade-text: #B6EBD3;
+  color-scheme: dark;
+  --background: #262A33;
+  --foreground: #F1F2F5;
+  --surface: #2E333D;
+  --surface-2: #343A45;
+  --surface-3: #3B424E;
+  --line: #3F4652;
+  --line-strong: #4A5260;
+  --faint: #8F97A5;
+  --subtle: #D6DBE3;
+  --muted-foreground: #B2B9C5;
+  --jade-soft: #2C4B47;
+  --coral-soft: #4E3436;
+  --amber-soft: #4B3F2E;
+  --sky-soft: #2F3F55;
+  --violet-soft: #3D375A;
+  --rose-soft: #4C3343;
+  --cream: #F1F2F5;
+  --cream-ink: #232731;
+  --cream-muted: #616A78;
+}
+
+/* ── Arena: soft claro, beige cálido sin blanco puro ──────────────────────── */
+[data-theme='arena'] {
+  color-scheme: light;
+  --background: #E9E3D9;
+  --foreground: #2A2420;
+  --surface: #F3EEE6;
+  --surface-2: #E4DDD1;
+  --surface-3: #DCD3C5;
+  --line: #D8CFC0;
+  --line-strong: #CABFAD;
+  --faint: #8E8375;
+  --subtle: #4B4239;
+  --muted-foreground: #6C6257;
+
+  --jade: #2E9C7C;
+  --jade-soft: #D4EBE2;
+  --jade-ink: #0B2A20;
+  --jade-text: #1C6A54;
+  --coral: #D9654C;
+  --coral-soft: #F6DDD5;
+  --coral-ink: #3A1510;
+  --coral-text: #A9432E;
+  --amber: #D0922F;
+  --amber-soft: #F5E6C9;
+  --amber-ink: #33240C;
+  --amber-text: #875810;
+  --sky: #3F86CB;
+  --sky-soft: #D8E6F4;
+  --sky-ink: #0F2235;
+  --sky-text: #285E93;
+  --violet: #7B67DA;
+  --violet-soft: #E4DFF7;
+  --violet-ink: #1C1530;
+  --violet-text: #5241AA;
+  --rose: #CD5C89;
+  --rose-soft: #F5DCE6;
+  --rose-ink: #3A1028;
+
+  --cream: #2A2420;
+  --cream-ink: #F3EEE6;
+  --cream-muted: #B9AE9E;
+  --cream-jade: #82D9BE;
+}
+
+/* ── Papel: claro, blanco cálido ──────────────────────────────────────────── */
+[data-theme='papel'] {
+  color-scheme: light;
+  --background: #F6F3EE;
+  --foreground: #1E1A24;
+  --surface: #FFFFFF;
+  --surface-2: #F1EDE6;
+  --surface-3: #E9E3DA;
+  --line: #E7E1D7;
+  --line-strong: #D9D1C4;
+  --faint: #978F9F;
+  --subtle: #453E4D;
+  --muted-foreground: #6A6274;
+
+  --jade: #2E9C7C;
+  --jade-soft: #D4EBE2;
+  --jade-ink: #0B2A20;
+  --jade-text: #1C6A54;
+  --coral: #D9654C;
+  --coral-soft: #F6DDD5;
+  --coral-ink: #3A1510;
+  --coral-text: #A9432E;
+  --amber: #D0922F;
+  --amber-soft: #F5E6C9;
+  --amber-ink: #33240C;
+  --amber-text: #875810;
+  --sky: #3F86CB;
+  --sky-soft: #D8E6F4;
+  --sky-ink: #0F2235;
+  --sky-text: #285E93;
+  --violet: #7B67DA;
+  --violet-soft: #E4DFF7;
+  --violet-ink: #1C1530;
+  --violet-text: #5241AA;
+  --rose: #CD5C89;
+  --rose-soft: #F5DCE6;
+  --rose-ink: #3A1028;
+
+  --cream: #1E1A24;
+  --cream-ink: #F6F3EE;
+  --cream-muted: #A79DB0;
+  --cream-jade: #82D9BE;
+}
+
+/* ── Nube: claro, blanco frío azulado ─────────────────────────────────────── */
+/* Nube lleva acento turquesa profundo (al final del bloque, sobre los acentos claros) */
+[data-theme='nube'] {
+  color-scheme: light;
+  --background: #F2F5F9;
+  --foreground: #141821;
+  --surface: #FFFFFF;
+  --surface-2: #EDF1F6;
+  --surface-3: #E3E9F0;
+  --line: #DFE5EC;
+  --line-strong: #CED6E0;
+  --faint: #8C97A6;
+  --subtle: #344050;
+  --muted-foreground: #5E6A79;
+
+  --jade: #2E9C7C;
+  --jade-soft: #D4EBE2;
+  --jade-ink: #0B2A20;
+  --jade-text: #1C6A54;
+  --coral: #D9654C;
+  --coral-soft: #F6DDD5;
+  --coral-ink: #3A1510;
+  --coral-text: #A9432E;
+  --amber: #D0922F;
+  --amber-soft: #F5E6C9;
+  --amber-ink: #33240C;
+  --amber-text: #875810;
+  --sky: #3F86CB;
+  --sky-soft: #D8E6F4;
+  --sky-ink: #0F2235;
+  --sky-text: #285E93;
+  --violet: #7B67DA;
+  --violet-soft: #E4DFF7;
+  --violet-ink: #1C1530;
+  --violet-text: #5241AA;
+  --rose: #CD5C89;
+  --rose-soft: #F5DCE6;
+  --rose-ink: #3A1028;
+
+  --cream: #141821;
+  --cream-ink: #F2F5F9;
+  --cream-muted: #9AA3AE;
+  --cream-jade: #82D9BE;
+  --jade: #1D96A3;
+  --jade-soft: #D3ECEF;
+  --jade-text: #12636C;
+  --jade-ink: #072528;
 }
 
 @layer base {

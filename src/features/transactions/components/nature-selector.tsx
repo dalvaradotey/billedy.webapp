@@ -56,7 +56,7 @@ export function NatureSelector({
             open ? 'border-jade' : 'border-line'
           )}
         >
-          <span className="flex-1 text-[13px] font-bold text-[#CFC6D6]">{label}</span>
+          <span className="flex-1 text-[13px] font-bold text-subtle">{label}</span>
           <span className="flex items-center gap-2 rounded-full bg-surface-2 px-2.5 py-1.5 text-[13px] font-extrabold">
             <span aria-hidden className={cn('h-2 w-2 rounded-full', NATURE_DOTS[value])} />
             {NATURE_LABELS[value]}
