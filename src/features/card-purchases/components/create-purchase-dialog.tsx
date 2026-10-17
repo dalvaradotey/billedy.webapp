@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { ArrowRight, Settings, Pencil, Store } from 'lucide-react';
+import { ArrowRight, Settings } from 'lucide-react';
 
 import { useFormValidation, useSuccessAnimation } from '@/hooks';
 import { SubmitButton } from '@/components/submit-button';
@@ -100,7 +100,6 @@ export function CreatePurchaseDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [showManualStore, setShowManualStore] = useState(false);
   const [localCategories, setLocalCategories] = useState<{ id: string; name: string; color: string }[]>(
     categories.map((c) => ({ id: c.id, name: c.name, color: c.color }))
   );
@@ -123,14 +122,12 @@ export function CreatePurchaseDialog({
       categoryId: '',
       entityId: undefined as string | undefined,
       description: '',
-      storeName: '',
       purchaseDate: new Date(),
       originalAmount: 0,
       interestRate: 0,
       installments: 3,
       firstChargeDate: new Date(),
       chargedInstallments: 0,
-      isExternalDebt: false,
       nature: 'own',
       notes: '',
     },
@@ -144,7 +141,6 @@ export function CreatePurchaseDialog({
     const category = categories.find((c) => c.id === watchCategoryId);
     const suggested = normalizeNature(category?.defaultNature, 'expense') as (typeof EXPENSE_NATURES)[number];
     form.setValue('nature', suggested);
-    form.setValue('isExternalDebt', suggested === 'external');
   }, [watchCategoryId, categories, natureTouched, form]);
 
   // Watch fields for conditional rendering
@@ -321,81 +317,28 @@ export function CreatePurchaseDialog({
               )}
             />
 
-            {/* Entity or Manual Store */}
-            {entities.length > 0 && !showManualStore ? (
-              <div className="space-y-2">
-                <FormField
-                  control={form.control}
-                  name="entityId"
-                  render={({ field, fieldState }) => (
-                    <FormItem data-field="entityId">
-                      <FormControl>
-                        <EntitySelector
-                          entities={entities}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          label="Tienda (opcional)"
-                          searchPlaceholder="Buscar tienda..."
-                          allowNone
-                          noneLabel="Sin tienda"
-                          invalid={!!fieldState.error}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground h-auto p-0"
-                  onClick={() => {
-                    setShowManualStore(true);
-                    form.setValue('entityId', undefined);
-                  }}
-                >
-                  <Pencil className="mr-1.5 h-3 w-3" />
-                  Escribir tienda manualmente
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <FormField
-                  control={form.control}
-                  name="storeName"
-                  render={({ field, fieldState }) => (
-                    <FormItem data-field="storeName">
-                      <FormControl>
-                        <FloatingLabelInput
-                          label="Tienda (opcional)"
-                          placeholder="ej: Apple Store"
-                          value={field.value ?? ''}
-                          onChange={field.onChange}
-                          invalid={!!fieldState.error}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {entities.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground h-auto p-0"
-                    onClick={() => {
-                      setShowManualStore(false);
-                      form.setValue('storeName', '');
-                    }}
-                  >
-                    <Store className="mr-1.5 h-3 w-3" />
-                    Seleccionar tienda
-                  </Button>
-                )}
-              </div>
-            )}
+            {/* Entity */}
+            <FormField
+              control={form.control}
+              name="entityId"
+              render={({ field, fieldState }) => (
+                <FormItem data-field="entityId">
+                  <FormControl>
+                    <EntitySelector
+                      entities={entities}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      label="Tienda (opcional)"
+                      searchPlaceholder="Buscar tienda..."
+                      allowNone
+                      noneLabel="Sin tienda"
+                      invalid={!!fieldState.error}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Category */}
             <FormField
@@ -436,7 +379,6 @@ export function CreatePurchaseDialog({
                     onChange={(value) => {
                       setNatureTouched(true);
                       field.onChange(value);
-                      form.setValue('isExternalDebt', value === 'external');
                     }}
                   />
                 </FormItem>

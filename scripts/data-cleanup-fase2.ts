@@ -76,12 +76,6 @@ async function run(sql: postgres.Sql, projectId: string) {
   await recategorize('Inversión ostras', sql`t.description = 'Inversión Ostras'`, 'Inversión');
 
   // 3. Naturaleza
-  const externalPurchases = await sql`
-    update n1n4_card_purchases set nature = 'external', updated_at = now()
-    where project_id = ${projectId} and is_external_debt and nature <> 'external'
-    returning description`;
-  section('Compras en cuotas → De otra persona', externalPurchases, (r) => String(r.description));
-
   const installmentsNature = await sql`
     update n1n4_transactions t set nature = cp.nature, updated_at = now()
     from n1n4_card_purchases cp
@@ -171,17 +165,13 @@ async function run(sql: postgres.Sql, projectId: string) {
     const rows = await sql`
       update n1n4_billing_cycles set
         closing_snapshot = ${sql.json(toClosingSnapshot(b))},
-        snapshot_income = ${b.income.real + b.reimbursements.real},
-        snapshot_expenses = ${b.debitExpenses.real + b.cardPayment.real},
-        snapshot_savings = ${b.savingsIn.real - b.savingsOut.real},
-        snapshot_balance = ${b.finalBalance.real},
         updated_at = now()
       where id = ${cycle.id} and closing_snapshot is null
-      returning name, snapshot_balance`;
+      returning name, closing_snapshot->>'finalBalance' as final_balance`;
     snapshots.push(...rows);
   }
   section('Snapshot de cierre de ciclos cerrados (fórmula nueva)', snapshots, (r) =>
-    `${r.name}: saldo final $${fmt(r.snapshot_balance)}`);
+    `${r.name}: saldo final $${fmt(r.final_balance)}`);
 
   // Para revisar a mano (no se cambia)
   const uncategorized = await sql`

@@ -46,14 +46,12 @@ export async function createCardPurchase(data: {
   categoryId: string;
   entityId?: string | null;
   description: string;
-  storeName?: string | null;
   purchaseDate: Date;
   originalAmount: number;
   interestRate?: number | null;
   installments: number;
   firstChargeDate: Date;
   chargedInstallments?: number;
-  isExternalDebt?: boolean;
   nature?: 'own' | 'external' | 'reimbursable' | 'fund';
   notes?: string | null;
 }): Promise<ActionResult<CardPurchase>> {
@@ -64,8 +62,7 @@ export async function createCardPurchase(data: {
   try {
     // Validar datos
     const validated = createCardPurchaseSchema.parse(data);
-    // La naturaleza manda; is_external_debt se mantiene sincronizado por compatibilidad
-    const nature = validated.nature ?? (validated.isExternalDebt ? 'external' : 'own');
+    const nature = validated.nature ?? 'own';
 
     // Verificar acceso de escritura al proyecto
     if (!(await verifyProjectWriteAccess(validated.projectId, validated.userId))) {
@@ -142,7 +139,6 @@ export async function createCardPurchase(data: {
           categoryId: validated.categoryId || null,
           entityId: validated.entityId || null,
           description: validated.description,
-          storeName: validated.storeName || null,
           purchaseDate: validated.purchaseDate,
           originalAmount: validated.originalAmount.toFixed(2),
           totalAmount: totalAmount.toFixed(2),
@@ -153,7 +149,6 @@ export async function createCardPurchase(data: {
           firstChargeDate: validated.firstChargeDate,
           chargedInstallments: validated.installments, // Todas las cuotas se crean de inmediato
           initialPaidInstallments,
-          isExternalDebt: nature === 'external',
           nature,
           notes: validated.notes || null,
           isActive: true, // Activa mientras tenga cuotas pendientes de pago
@@ -229,7 +224,6 @@ export async function updateCardPurchase(
     categoryId?: string | null;
     entityId?: string | null;
     description?: string;
-    storeName?: string | null;
     notes?: string | null;
     nature?: 'own' | 'external' | 'reimbursable' | 'fund';
   }
@@ -258,7 +252,6 @@ export async function updateCardPurchase(
         .update(cardPurchases)
         .set({
           ...validated,
-          ...(validated.nature ? { isExternalDebt: validated.nature === 'external' } : {}),
           updatedAt: new Date(),
         })
         .where(and(eq(cardPurchases.id, purchaseId), eq(cardPurchases.projectId, existing.projectId)))

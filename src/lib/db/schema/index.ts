@@ -32,11 +32,11 @@ export * from './statements';
 
 import { relations } from 'drizzle-orm';
 import { users, oauthAccounts, sessions } from './auth';
-import { currencies, categories, projects, projectMembers, accounts, transfers, entities } from './core';
+import { currencies, categories, projects, projectMembers, accounts, entities } from './core';
 import { transactions, credits, budgets, cardPurchases } from './transactions';
 import { savingsGoals } from './savings';
 import { templates, templateItems } from './templates';
-import { billingCycles, billingCycleBudgets } from './billing-cycles';
+import { billingCycles } from './billing-cycles';
 
 // User relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -49,7 +49,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   credits: many(credits),
   savingsGoals: many(savingsGoals),
   templates: many(templates),
-  transfers: many(transfers),
   cardPurchases: many(cardPurchases),
   createdEntities: many(entities),
 }));
@@ -100,7 +99,6 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   budgets: many(budgets),
   savingsGoals: many(savingsGoals),
   billingCycles: many(billingCycles),
-  transfers: many(transfers),
   cardPurchases: many(cardPurchases),
   templates: many(templates),
 }));
@@ -128,8 +126,6 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
     references: [users.id],
   }),
   transactions: many(transactions),
-  outgoingTransfers: many(transfers, { relationName: 'fromAccount' }),
-  incomingTransfers: many(transfers, { relationName: 'toAccount' }),
   cardPurchases: many(cardPurchases),
   templateItems: many(templateItems),
 }));
@@ -217,7 +213,6 @@ export const budgetsRelations = relations(budgets, ({ one, many }) => ({
     fields: [budgets.categoryId],
     references: [categories.id],
   }),
-  billingCycleBudgets: many(billingCycleBudgets),
   transactions: many(transactions),
 }));
 
@@ -280,45 +275,10 @@ export const templateItemsRelations = relations(templateItems, ({ one }) => ({
 }));
 
 // Billing cycles relations
-export const billingCyclesRelations = relations(billingCycles, ({ one, many }) => ({
+export const billingCyclesRelations = relations(billingCycles, ({ one }) => ({
   project: one(projects, {
     fields: [billingCycles.projectId],
     references: [projects.id],
-  }),
-  billingCycleBudgets: many(billingCycleBudgets),
-}));
-
-// Billing cycle budgets relations
-export const billingCycleBudgetsRelations = relations(billingCycleBudgets, ({ one }) => ({
-  billingCycle: one(billingCycles, {
-    fields: [billingCycleBudgets.billingCycleId],
-    references: [billingCycles.id],
-  }),
-  budget: one(budgets, {
-    fields: [billingCycleBudgets.budgetId],
-    references: [budgets.id],
-  }),
-}));
-
-// Transfers relations
-export const transfersRelations = relations(transfers, ({ one }) => ({
-  user: one(users, {
-    fields: [transfers.userId],
-    references: [users.id],
-  }),
-  project: one(projects, {
-    fields: [transfers.projectId],
-    references: [projects.id],
-  }),
-  fromAccount: one(accounts, {
-    fields: [transfers.fromAccountId],
-    references: [accounts.id],
-    relationName: 'fromAccount',
-  }),
-  toAccount: one(accounts, {
-    fields: [transfers.toAccountId],
-    references: [accounts.id],
-    relationName: 'toAccount',
   }),
 }));
 

@@ -31,7 +31,6 @@ const getPurchasesWithPaidCounts = cache(
           categoryId: cardPurchases.categoryId,
           entityId: cardPurchases.entityId,
           description: cardPurchases.description,
-          storeName: cardPurchases.storeName,
           purchaseDate: cardPurchases.purchaseDate,
           originalAmount: cardPurchases.originalAmount,
           totalAmount: cardPurchases.totalAmount,
@@ -43,7 +42,6 @@ const getPurchasesWithPaidCounts = cache(
           chargedInstallments: cardPurchases.chargedInstallments,
           initialPaidInstallments: cardPurchases.initialPaidInstallments,
           isActive: cardPurchases.isActive,
-          isExternalDebt: cardPurchases.isExternalDebt,
           nature: cardPurchases.nature,
           notes: cardPurchases.notes,
           createdAt: cardPurchases.createdAt,
@@ -156,7 +154,7 @@ export async function getCardPurchasesSummary(
       monthlyCharge += parseFloat(p.installmentAmount);
 
       // Separar deuda personal vs externa
-      if (p.isExternalDebt) {
+      if (p.nature === 'external') {
         externalDebt += remainingAmount;
       } else {
         personalDebt += remainingAmount;
@@ -232,7 +230,7 @@ export async function getDebtCapacityReport(
     if (p.remainingInstallments > 0) {
       // Usar el monto de la cuota mensual, no el total restante
       const installmentAmount = parseFloat(p.installmentAmount);
-      if (p.isExternalDebt) {
+      if (p.nature === 'external') {
         externalMonthlyCharge += installmentAmount;
       } else {
         personalMonthlyCharge += installmentAmount;

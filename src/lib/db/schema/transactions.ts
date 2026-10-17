@@ -186,7 +186,6 @@ export const cardPurchases = pgTable('n1n4_card_purchases', {
 
   // Purchase details
   description: varchar('description', { length: 500 }).notNull(),
-  storeName: varchar('store_name', { length: 255 }), // Alternative to entityId - user can use one or the other
   purchaseDate: date('purchase_date', { mode: 'date' }).notNull(),
 
   // Amounts
@@ -204,7 +203,6 @@ export const cardPurchases = pgTable('n1n4_card_purchases', {
 
   // Status
   isActive: boolean('is_active').default(true).notNull(),
-  isExternalDebt: boolean('is_external_debt').default(false).notNull(), // For purchases made for others (family, etc.)
   nature: transactionNatureEnum('nature').default('own').notNull(), // Las cuotas la heredan
   notes: text('notes'),
 

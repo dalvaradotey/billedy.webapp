@@ -4,7 +4,6 @@ import {
   varchar,
   timestamp,
   boolean,
-  integer,
   decimal,
   date,
   pgEnum,
@@ -68,13 +67,6 @@ export const currencies = pgTable('n1n4_currencies', {
   code: varchar('code', { length: 3 }).unique().notNull(), // ISO 4217
   symbol: varchar('symbol', { length: 10 }).notNull(),
   name: varchar('name', { length: 100 }).notNull(),
-  decimalSeparator: varchar('decimal_separator', { length: 1 })
-    .default('.')
-    .notNull(),
-  thousandsSeparator: varchar('thousands_separator', { length: 1 })
-    .default(',')
-    .notNull(),
-  decimalPlaces: integer('decimal_places').default(2).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
@@ -205,32 +197,6 @@ export const accounts = pgTable('n1n4_accounts', {
   quotaCountDate: date('quota_count_date'),
   isDefault: boolean('is_default').default(false).notNull(),
   isArchived: boolean('is_archived').default(false).notNull(),
-  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
-});
-
-// ============================================================================
-// TRANSFERS (Between accounts)
-// ============================================================================
-
-export const transfers = pgTable('n1n4_transfers', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  projectId: uuid('project_id')
-    .notNull()
-    .references(() => projects.id, { onDelete: 'cascade' }),
-  fromAccountId: uuid('from_account_id')
-    .notNull()
-    .references(() => accounts.id, { onDelete: 'cascade' }),
-  toAccountId: uuid('to_account_id')
-    .notNull()
-    .references(() => accounts.id, { onDelete: 'cascade' }),
-  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
-  date: timestamp('date', { mode: 'date' }).notNull(),
-  description: varchar('description', { length: 500 }),
-  notes: varchar('notes', { length: 1000 }),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });

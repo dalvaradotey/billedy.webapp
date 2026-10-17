@@ -187,7 +187,7 @@ async function _getAccountDebtBreakdown(
     .select({
       id: cardPurchases.id,
       accountId: cardPurchases.accountId,
-      isExternalDebt: cardPurchases.isExternalDebt,
+      nature: cardPurchases.nature,
       installments: cardPurchases.installments,
       installmentAmount: cardPurchases.installmentAmount,
     })
@@ -241,7 +241,7 @@ async function _getAccountDebtBreakdown(
 
     // Solo rastreamos externalDebt desde card_purchases
     // personalDebt se calcula en el componente como: saldo total - externalDebt
-    if (p.isExternalDebt) {
+    if (p.nature === 'external') {
       result[p.accountId].externalDebt += remainingAmount;
     }
   }

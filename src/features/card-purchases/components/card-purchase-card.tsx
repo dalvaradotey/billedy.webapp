@@ -140,7 +140,6 @@ export function CardPurchaseCard({
   // Build description line
   const descriptionParts: string[] = [];
   if (purchase.entityName) descriptionParts.push(purchase.entityName);
-  else if (purchase.storeName) descriptionParts.push(purchase.storeName);
   if (purchase.categoryName) descriptionParts.push(purchase.categoryName);
   const description = descriptionParts.join(' · ') || formatDateLong(purchase.purchaseDate);
 

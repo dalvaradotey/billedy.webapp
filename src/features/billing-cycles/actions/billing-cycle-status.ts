@@ -20,11 +20,8 @@ import {
  * Permite ajustar la fecha de fin al momento de cerrar.
  *
  * Los ciclos cerrados se muestran siempre calculados en vivo; el snapshot queda
- * como registro del valor al cierre (columnas snapshot_*):
- * - snapshot_income   = ingresos + abonos
- * - snapshot_expenses = gastos débito + pago TC
- * - snapshot_savings  = aportes − retiros de ahorro
- * - snapshot_balance  = saldo final
+ * como registro del valor al cierre en closing_snapshot (cascada completa, de
+ * donde se derivan ingresos, gastos, ahorro y saldo final).
  */
 export async function closeBillingCycle(
   cycleId: string,
@@ -98,10 +95,6 @@ export async function closeBillingCycle(
     .set({
       status: 'closed',
       endDate: finalEndDate,
-      snapshotIncome: String(balance.income.real + balance.reimbursements.real),
-      snapshotExpenses: String(balance.debitExpenses.real + balance.cardPayment.real),
-      snapshotSavings: String(balance.savingsIn.real - balance.savingsOut.real),
-      snapshotBalance: String(balance.finalBalance.real),
       closingSnapshot: toClosingSnapshot(balance),
       updatedAt: new Date(),
     })
@@ -151,10 +144,6 @@ export async function reopenBillingCycle(cycleId: string): Promise<ActionResult>
     .update(billingCycles)
     .set({
       status: 'open',
-      snapshotIncome: null,
-      snapshotExpenses: null,
-      snapshotSavings: null,
-      snapshotBalance: null,
       closingSnapshot: null,
       updatedAt: new Date(),
     })
