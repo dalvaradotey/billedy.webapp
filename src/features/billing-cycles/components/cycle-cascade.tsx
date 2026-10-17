@@ -49,7 +49,7 @@ interface CycleCascadeProps {
 
 /**
  * Cascada de caja del ciclo:
- * Ingresos + Abonos − Débito − Pago TC = Saldo antes de ahorro − Ahorro − Provisiones = Saldo final
+ * Ingresos + Abonos − Débito − Pago TC = Saldo antes de ahorro − Ahorro − Provisiones − Reservas = Saldo final
  */
 export function CycleCascade({ balance, isOpen, tone = 'light', animated }: CycleCascadeProps) {
   const t = TONES[tone];
@@ -139,6 +139,34 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
             </dt>
             <dd className={cn('font-medium', t.value)}>
               −<Amount value={balance.investmentsIn.real} animated={animated} />
+            </dd>
+          </div>
+        )}
+
+        {balance.reservedIn.real > 0 && (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className={t.label}>
+              Reservado para la tarjeta
+              <span className={cn('block text-[11px]', t.muted)}>
+                Abonos que ya llegaron por gastos que aún no pagas; se liberan al pagar
+              </span>
+            </dt>
+            <dd className={cn('font-medium', t.value)}>
+              −<Amount value={balance.reservedIn.real} animated={animated} />
+            </dd>
+          </div>
+        )}
+
+        {balance.reservedOut.real > 0 && (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className={t.label}>
+              Reserva liberada
+              <span className={cn('block text-[11px]', t.muted)}>
+                Abonos de ciclos anteriores para gastos que pagaste en este
+              </span>
+            </dt>
+            <dd className={cn('font-medium', t.value)}>
+              +<Amount value={balance.reservedOut.real} animated={animated} />
             </dd>
           </div>
         )}
