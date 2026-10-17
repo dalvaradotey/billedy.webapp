@@ -1,8 +1,8 @@
+import { MONTHS_SHORT as MONTHS } from '@/lib/dates';
 /**
  * Fechas de ciclo como días calendario (sin zona horaria): las fechas de la BD
  * llegan a medianoche UTC y en Chile se correrían un día si se formatean en hora local.
  */
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function toUtcDay(d: Date | string): Date {
   const iso = typeof d === 'string' ? d.slice(0, 10) : d.toISOString().slice(0, 10);

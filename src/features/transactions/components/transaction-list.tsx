@@ -3,6 +3,7 @@
 import { NATURE_LABELS, TRANSACTION_NATURES } from '../nature';
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import {
   ArrowUpCircle,
@@ -35,25 +36,19 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { getToday } from '@/lib/formatting';
+import { formatCurrency, getToday } from '@/lib/formatting';
 import type { TransactionWithCategory, TransactionSummary } from '../types';
 import type { AccountWithEntity } from '@/features/accounts/types';
 import type { Category } from '@/features/categories/types';
 import type { Entity } from '@/features/entities/types';
 import { TransactionDialogContent } from './transaction-form';
 import { TransactionTable } from './transaction-table';
-import { TransactionChartsContent } from './transaction-charts';
 import { DailyPulseCard } from './daily-pulse-card';
 
-function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(num);
-}
+// Los gráficos (recharts) solo se usan al abrir su panel: se cargan aparte
+const TransactionChartsContent = dynamic(() => import('./transaction-charts').then((m) => m.TransactionChartsContent), {
+  ssr: false,
+});
 
 interface Budget {
   id: string;

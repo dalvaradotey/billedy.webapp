@@ -6,15 +6,14 @@ import { db } from '@/lib/db';
 import { accounts, pensionContributions, quotaValues } from '@/lib/db/schema';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
-import { verifyProjectAccess } from '@/features/transactions/lib/access';
+import { verifyProjectAccess, verifyProjectWriteAccess } from '@/lib/auth/project-access';
+import type { ActionResult } from '@/types/action-result';
 import { AFC_FUND, AFC_PROVIDER, AFP_FUNDS, AFP_PROVIDERS } from './lib/quota-values';
 import { latestQuotaValue, revaluePensionAccounts, syncQuotaValues } from './lib/sync';
 import { expectedContributions, saveContribution, type ExpectedContribution } from './lib/contributions';
 import { parseAfcDocument } from './lib/afc-documents';
 import { pdfToLines } from '@/features/statements/lib/pdf-lines';
 import { getToday } from '@/lib/formatting';
-
-type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string };
 
 export type PensionStatus = {
   provider: string | null;
@@ -27,9 +26,11 @@ export type PensionStatus = {
   expected: ExpectedContribution[];
 };
 
-async function accountForUser(accountId: string, userId: string) {
+/** Cuenta previsional del usuario; con `write`, exige rol que pueda modificar */
+async function accountForUser(accountId: string, userId: string, options: { write?: boolean } = {}) {
   const [account] = await db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1);
-  if (!account || !(await verifyProjectAccess(account.projectId, userId))) return null;
+  const verify = options.write ? verifyProjectWriteAccess : verifyProjectAccess;
+  if (!account || !(await verify(account.projectId, userId))) return null;
   if (account.type !== 'pension' && account.type !== 'unemployment') return null;
   return account;
 }
@@ -39,12 +40,14 @@ export async function fetchPensionStatus(userId: string, accountId: string): Pro
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
   const account = await accountForUser(accountId, userId);
   if (!account) return { success: false, error: 'Cuenta no encontrada' };
-  const quote = account.pensionProvider && account.pensionFund ? await latestQuotaValue(account.pensionProvider, account.pensionFund) : null;
-  const history = await db
-    .select()
-    .from(pensionContributions)
-    .where(eq(pensionContributions.accountId, accountId))
-    .orderBy(asc(pensionContributions.period));
+  const [quote, history] = await Promise.all([
+    account.pensionProvider && account.pensionFund ? latestQuotaValue(account.pensionProvider, account.pensionFund) : null,
+    db
+      .select()
+      .from(pensionContributions)
+      .where(eq(pensionContributions.accountId, accountId))
+      .orderBy(asc(pensionContributions.period)),
+  ]);
   const expected = expectedContributions(
     account,
     history.map((h) => ({ period: h.period, amount: Number(h.amount) })),
@@ -106,12 +109,15 @@ export async function configurePensionQuotas(
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
   const parsed = configSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
-  const account = await accountForUser(accountId, userId);
+  const account = await accountForUser(accountId, userId, { write: true });
   if (!account) return { success: false, error: 'Cuenta no encontrada' };
   const { provider, fund, date } = parsed.data;
 
   // Guardar institución y fondo primero: la sincronización descarga los fondos en uso
-  await db.update(accounts).set({ pensionProvider: provider, pensionFund: fund, updatedAt: new Date() }).where(eq(accounts.id, accountId));
+  await db
+    .update(accounts)
+    .set({ pensionProvider: provider, pensionFund: fund, updatedAt: new Date() })
+    .where(and(eq(accounts.id, accountId), eq(accounts.projectId, account.projectId)));
 
   let quotaCount = parsed.data.quotaCount;
   try {
@@ -159,7 +165,7 @@ export async function configurePensionQuotas(
       currentBalance: String(balance),
       updatedAt: new Date(),
     })
-    .where(eq(accounts.id, accountId));
+    .where(and(eq(accounts.id, accountId), eq(accounts.projectId, account.projectId)));
 
   invalidateRelatedCache('accounts');
   return { success: true, data: { quotaCount, balance } };
@@ -168,7 +174,7 @@ export async function configurePensionQuotas(
 /** Sincroniza ahora (además de la tarea diaria) */
 export async function refreshPensionValues(userId: string, accountId: string): Promise<ActionResult> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  if (!(await accountForUser(accountId, userId))) return { success: false, error: 'Cuenta no encontrada' };
+  if (!(await accountForUser(accountId, userId, { write: true }))) return { success: false, error: 'Cuenta no encontrada' };
   try {
     await syncQuotaValues();
     await revaluePensionAccounts();
@@ -194,7 +200,7 @@ export async function confirmContribution(
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
   const parsed = confirmSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Datos inválidos' };
-  const account = await accountForUser(accountId, userId);
+  const account = await accountForUser(accountId, userId, { write: true });
   if (!account) return { success: false, error: 'Cuenta no encontrada' };
   if (!account.quotaCountDate) return { success: false, error: 'Configura primero las cuotas de la cuenta' };
   const { period, amount, paidDate } = parsed.data;
@@ -222,7 +228,7 @@ export async function importPensionDocument(
   formData: FormData
 ): Promise<ActionResult<ImportSummary>> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  let account = await accountForUser(accountId, userId);
+  let account = await accountForUser(accountId, userId, { write: true });
   if (!account) return { success: false, error: 'Cuenta no encontrada' };
   const file = formData.get('file');
   if (!(file instanceof File) || file.size > 5 * 1024 * 1024) return { success: false, error: 'Sube el PDF (máximo 5 MB)' };
@@ -252,7 +258,7 @@ export async function importPensionDocument(
     await db
       .update(accounts)
       .set({ quotaCount: String(total), quotaCountDate: doc.closing.date, updatedAt: new Date() })
-      .where(eq(accounts.id, accountId));
+      .where(and(eq(accounts.id, accountId), eq(accounts.projectId, account.projectId)));
     account = (await accountForUser(accountId, userId))!;
   }
 

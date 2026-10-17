@@ -16,7 +16,6 @@ export const updateTemplateSchema = z.object({
 export const createTemplateItemSchema = z.object({
   templateId: z.string().uuid('La plantilla es requerida'),
   userId: z.string().uuid('El usuario es requerido'),
-  projectId: z.string().uuid('El proyecto es requerido'),
   categoryId: z.string().uuid('La categoría es requerida'),
   accountId: z.string().uuid().optional().nullable(),
   entityId: z.string().uuid().optional().nullable(),
@@ -41,7 +40,3 @@ export const updateTemplateItemSchema = z.object({
   notes: z.string().max(1000).optional().nullable(),
 });
 
-export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
-export type UpdateTemplateInput = z.infer<typeof updateTemplateSchema>;
-export type CreateTemplateItemInput = z.infer<typeof createTemplateItemSchema>;
-export type UpdateTemplateItemInput = z.infer<typeof updateTemplateItemSchema>;

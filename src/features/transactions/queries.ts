@@ -3,7 +3,6 @@ import { getRangeBalance } from '@/features/billing-cycles/lib/cycle-balance';
 import { transactions, categories, projectMembers, accounts, budgets, entities } from '@/lib/db/schema';
 import { eq, and, desc, gte, lte, like, sql, isNotNull, isNull, or } from 'drizzle-orm';
 import type {
-  Transaction,
   TransactionWithCategory,
   TransactionFilters,
   TransactionSummary,
@@ -107,74 +106,9 @@ export async function getTransactions(
     .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
     .leftJoin(entities, eq(transactions.entityId, entities.id))
     .where(and(...conditions))
-    .orderBy(desc(transactions.date), desc(transactions.createdAt));
+    .orderBy(desc(transactions.date), desc(transactions.createdAt), desc(transactions.id));
 
   return result;
-}
-
-/**
- * Obtiene una transacción por ID
- */
-export async function getTransactionById(
-  transactionId: string,
-  userId: string
-): Promise<TransactionWithCategory | null> {
-  const result = await db
-    .select({
-      id: transactions.id,
-      userId: transactions.userId,
-      projectId: transactions.projectId,
-      categoryId: transactions.categoryId,
-      accountId: transactions.accountId,
-      entityId: transactions.entityId,
-      type: transactions.type,
-      originalAmount: transactions.originalAmount,
-      originalCurrency: transactions.originalCurrency,
-      baseAmount: transactions.baseAmount,
-      baseCurrency: transactions.baseCurrency,
-      exchangeRate: transactions.exchangeRate,
-      date: transactions.date,
-      description: transactions.description,
-      notes: transactions.notes,
-      isPaid: transactions.isPaid,
-      paidAt: transactions.paidAt,
-      creditId: transactions.creditId,
-      budgetId: transactions.budgetId,
-      cardPurchaseId: transactions.cardPurchaseId,
-      savingsGoalId: transactions.savingsGoalId,
-      linkedTransactionId: transactions.linkedTransactionId,
-      paidByTransferId: transactions.paidByTransferId,
-      isHistoricallyPaid: transactions.isHistoricallyPaid,
-      isReconciled: transactions.isReconciled,
-      nature: transactions.nature,
-      accountFundId: transactions.accountFundId,
-      investmentId: transactions.investmentId,
-      investmentRole: transactions.investmentRole,
-      createdAt: transactions.createdAt,
-      updatedAt: transactions.updatedAt,
-      categoryName: categories.name,
-      categoryColor: categories.color,
-      accountName: accounts.name,
-      budgetName: budgets.name,
-      entityName: entities.name,
-      entityImageUrl: entities.imageUrl,
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
-    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
-    .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
-    .leftJoin(entities, eq(transactions.entityId, entities.id))
-    .where(
-      and(
-        eq(transactions.id, transactionId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  return result[0] ?? null;
 }
 
 /**
@@ -274,73 +208,6 @@ export async function getTransactionSummary(
 }
 
 /**
- * Obtiene transacciones recientes del proyecto
- */
-export async function getRecentTransactions(
-  projectId: string,
-  userId: string,
-  limit: number = 5
-): Promise<TransactionWithCategory[]> {
-  const result = await db
-    .select({
-      id: transactions.id,
-      userId: transactions.userId,
-      projectId: transactions.projectId,
-      categoryId: transactions.categoryId,
-      accountId: transactions.accountId,
-      entityId: transactions.entityId,
-      type: transactions.type,
-      originalAmount: transactions.originalAmount,
-      originalCurrency: transactions.originalCurrency,
-      baseAmount: transactions.baseAmount,
-      baseCurrency: transactions.baseCurrency,
-      exchangeRate: transactions.exchangeRate,
-      date: transactions.date,
-      description: transactions.description,
-      notes: transactions.notes,
-      isPaid: transactions.isPaid,
-      paidAt: transactions.paidAt,
-      creditId: transactions.creditId,
-      budgetId: transactions.budgetId,
-      cardPurchaseId: transactions.cardPurchaseId,
-      savingsGoalId: transactions.savingsGoalId,
-      linkedTransactionId: transactions.linkedTransactionId,
-      paidByTransferId: transactions.paidByTransferId,
-      isHistoricallyPaid: transactions.isHistoricallyPaid,
-      isReconciled: transactions.isReconciled,
-      nature: transactions.nature,
-      accountFundId: transactions.accountFundId,
-      investmentId: transactions.investmentId,
-      investmentRole: transactions.investmentRole,
-      createdAt: transactions.createdAt,
-      updatedAt: transactions.updatedAt,
-      categoryName: categories.name,
-      categoryColor: categories.color,
-      accountName: accounts.name,
-      budgetName: budgets.name,
-      entityName: entities.name,
-      entityImageUrl: entities.imageUrl,
-    })
-    .from(transactions)
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
-    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
-    .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
-    .leftJoin(entities, eq(transactions.entityId, entities.id))
-    .where(
-      and(
-        eq(transactions.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .orderBy(desc(transactions.date), desc(transactions.createdAt))
-    .limit(limit);
-
-  return result;
-}
-
-/**
  * Obtiene transacciones pendientes de pago de una tarjeta de crédito
  * (transacciones de tipo expense sin paidByTransferId)
  */
@@ -419,7 +286,7 @@ export async function getUnpaidCreditCardTransactions(
         sql`${transactions.paidByTransferId} IS NULL`
       )
     )
-    .orderBy(desc(transactions.date), desc(transactions.createdAt));
+    .orderBy(desc(transactions.date), desc(transactions.createdAt), desc(transactions.id));
 
   return result;
 }

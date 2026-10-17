@@ -78,6 +78,28 @@ export function parseCurrencyToNumber(value: string): number {
   return parseFloat(value.replace(/[^0-9.-]/g, '')) || 0;
 }
 
+/** "$ 1.234.567" → 1234567 (pesos chilenos, sin decimales) */
+export function parseClp(value: string): number {
+  return parseInt(value.replace(/[$\s.]/g, ''), 10);
+}
+
+/** "1.234,56" → 1234.56 (decimal con formato chileno) */
+export function parseChileanDecimal(value: string): number {
+  return Number(value.replace(/\./g, '').replace(',', '.'));
+}
+
+/**
+ * Número escrito a mano con decimales en cualquier formato ("566,17", "566.17",
+ * "1.234,5678"). Con coma, la coma es decimal y los puntos son miles; sin coma,
+ * un punto seguido de 1 a 4 dígitos al final es decimal ("566.17" no es 56.617).
+ */
+export function parseFlexibleDecimal(raw: string): number {
+  const s = raw.trim().replace(/\s/g, '');
+  if (s.includes(',')) return parseChileanDecimal(s);
+  if (/^\d+\.\d{1,4}$/.test(s)) return Number(s);
+  return Number(s.replace(/\./g, ''));
+}
+
 /**
  * Formatea un número como porcentaje
  * @param value - Número entre 0 y 100

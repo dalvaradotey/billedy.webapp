@@ -29,9 +29,7 @@ export type CycleOption = {
 interface BudgetDetailProps {
   budgetId: string;
   userId: string;
-  budgetedAmount: number;
   currency: string;
-  categoryColor: string | null;
   cycles: CycleOption[];
   defaultCycleId?: string;
 }
@@ -60,9 +58,7 @@ type DetailData = {
 export function BudgetDetail({
   budgetId,
   userId,
-  budgetedAmount,
   currency,
-  categoryColor,
   cycles,
   defaultCycleId,
 }: BudgetDetailProps) {
@@ -90,8 +86,10 @@ export function BudgetDetail({
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const [data, setData] = useState<DetailData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [isPending, startTransition] = useTransition();
+  // Cargando: antes de la primera respuesta o mientras corre una consulta
+  const isLoading = isPending || !hasLoaded;
 
   const getActiveDates = useCallback((): { start: string; end: string } => {
     if (selectedCycleId === 'custom') {
@@ -111,12 +109,11 @@ export function BudgetDetail({
       if (result.success) {
         setData(result.data);
       }
-      setIsLoading(false);
+      setHasLoaded(true);
     });
   }, [budgetId, userId, getActiveDates]);
 
   useEffect(() => {
-    setIsLoading(true);
     loadData();
   }, [loadData]);
 

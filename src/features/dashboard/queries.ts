@@ -36,23 +36,17 @@ export async function getDashboardData(userId: string) {
   const isOwner = project?.userId === userId;
   const totalExternalDebt = Object.values(debtBreakdown).reduce((sum, d) => sum + d.externalDebt, 0);
 
-  // Progreso de presupuestos y plan del ciclo (techo TC, ahorro, libre) si hay ciclo activo
-  const [budgetsProgress, planStatus] = currentCycle
+  // Con ciclo activo: progreso de presupuestos, plan del ciclo (techo TC, ahorro, libre)
+  // y las series del inicio, todo en paralelo. El ritmo usa el mismo gasto propio
+  // comprometido que el plan (card.own.committed), así no espera al plan.
+  const [budgetsProgress, planStatus, cardPace, dailySeries] = currentCycle
     ? await Promise.all([
-        getBudgetsProgress(
-          projectId,
-          userId,
-          new Date(currentCycle.startDate),
-          new Date(currentCycle.endDate)
-        ),
+        getBudgetsProgress(projectId, userId, new Date(currentCycle.startDate), new Date(currentCycle.endDate)),
         getCyclePlanStatus(currentCycle),
+        getCardPaceSeries(currentCycle, currentCycle.balance.card.own.committed),
+        getCycleDailySeries(currentCycle),
       ])
-    : [[], null];
-
-  // Serie del gráfico de ritmo (gasto propio en TC acumulado por día)
-  const [cardPace, dailySeries] = currentCycle && planStatus
-    ? await Promise.all([getCardPaceSeries(currentCycle, planStatus.card.spent), getCycleDailySeries(currentCycle)])
-    : [null, null];
+    : [[], null, null, null];
 
   return {
     hasProject: true as const,

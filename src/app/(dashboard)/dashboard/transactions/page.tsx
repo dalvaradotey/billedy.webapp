@@ -10,7 +10,7 @@ import { getEntities } from '@/features/entities/queries';
 import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
 import { getToday } from '@/lib/formatting';
-import { getBillingCycles } from '@/features/billing-cycles/queries';
+import { getBillingCycleOptions } from '@/features/billing-cycles/queries';
 import { TransactionList } from '@/features/transactions/components';
 import type { TransactionFilters } from '@/features/transactions/types';
 
@@ -48,7 +48,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   }
 
   // Obtener ciclos de facturación
-  const cycles = await getBillingCycles(projectId, session.user.id);
+  const cycles = await getBillingCycleOptions(projectId, session.user.id);
   const hasCycles = cycles.length > 0;
 
   // Encontrar ciclo actual (abierto) o el seleccionado por parámetro
@@ -71,8 +71,8 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
     defaultEndDate = params.endDate;
   } else if (selectedCycle) {
     // Usar fechas del ciclo seleccionado
-    defaultStartDate = new Date(selectedCycle.startDate).toISOString().split('T')[0];
-    defaultEndDate = new Date(selectedCycle.endDate).toISOString().split('T')[0];
+    defaultStartDate = selectedCycle.startDate;
+    defaultEndDate = selectedCycle.endDate;
   } else {
     // Sin ciclos: últimos 30 días
     const today = getToday();
@@ -151,13 +151,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         defaultCurrency={defaultCurrency}
         defaultStartDate={defaultStartDate}
         defaultEndDate={defaultEndDate}
-        cycles={cycles.map((c) => ({
-          id: c.id,
-          name: c.name,
-          startDate: new Date(c.startDate).toISOString().split('T')[0],
-          endDate: new Date(c.endDate).toISOString().split('T')[0],
-          status: c.status,
-        }))}
+        cycles={cycles}
         selectedCycleId={selectedCycle?.id}
       />
     </div>

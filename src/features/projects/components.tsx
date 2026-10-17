@@ -402,7 +402,7 @@ function InviteMemberDialogContent({
 
   // Crear función de búsqueda con userId capturado
   const searchUsers = async (query: string) => {
-    return searchUsersForInvite(query, userId);
+    return searchUsersForInvite(projectId, query, userId);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -450,11 +450,10 @@ function InviteMemberDialogContent({
             label="Usuario"
             searchPlaceholder="Buscar por correo..."
             emptyMessage="No se encontraron usuarios con ese correo."
-            valid={!!selectedUser}
             invalid={!!error && !selectedUser}
           />
           <p className="text-xs text-muted-foreground">
-            Busca por correo electrónico
+            Escribe el inicio del correo (mínimo 3 caracteres)
           </p>
         </div>
 
@@ -466,7 +465,6 @@ function InviteMemberDialogContent({
           label="Rol"
           searchPlaceholder="Buscar rol..."
           emptyMessage="No se encontraron roles."
-          valid={!!role}
         />
 
         {error && <p className="text-sm text-destructive">{error}</p>}

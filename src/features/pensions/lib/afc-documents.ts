@@ -5,6 +5,9 @@
  * - Cartola de movimientos: cotizaciones con sus cuotas y el saldo en cuotas al cierre.
  */
 
+import { parseChileanDecimal, parseClp } from '@/lib/formatting';
+import { MONTHS_LONG as MONTHS } from '@/lib/dates';
+
 export type ParsedContribution = {
   /** YYYY-MM-01 */
   period: string;
@@ -20,9 +23,6 @@ export type AfcDocument =
   | { kind: 'certificado'; contributions: ParsedContribution[] }
   | { kind: 'cartola'; contributions: ParsedContribution[]; closing: { date: string; quotas: number } | null };
 
-const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const pesos = (s: string) => parseInt(s.replace(/[$\s.]/g, ''), 10);
-const decimal = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
 const iso = (d: string, m: string, y: string) => `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 
 /** Une las líneas del mismo período (afiliado + empleador, o varios empleadores) */
@@ -51,12 +51,12 @@ function parseCertificado(lines: string[]): ParsedContribution[] {
   for (const line of lines) {
     const m = line.match(re);
     if (!m) continue;
-    const month = MONTHS.indexOf(m[1].toLowerCase()) + 1;
+    const month = (MONTHS as readonly string[]).indexOf(m[1].toLowerCase()) + 1;
     rows.push({
       period: `${m[2]}-${String(month).padStart(2, '0')}-01`,
       paidDate: iso(m[6], m[7], m[8]),
-      taxableIncome: pesos(m[4]),
-      amount: pesos(m[5]),
+      taxableIncome: parseClp(m[4]),
+      amount: parseClp(m[5]),
       quotas: null,
       employerRut: m[3],
     });
@@ -75,9 +75,9 @@ function parseCartola(lines: string[]): { contributions: ParsedContribution[]; c
       period: `${m[9]}-${m[8]}-01`,
       // Las cuotas quedan en la cuenta en la fecha de movimiento
       paidDate: iso(m[4], m[5], m[6]),
-      taxableIncome: pesos(m[10]),
-      amount: pesos(m[11]),
-      quotas: decimal(m[12]),
+      taxableIncome: parseClp(m[10]),
+      amount: parseClp(m[11]),
+      quotas: parseChileanDecimal(m[12]),
       employerRut: m[13],
     });
   }
@@ -89,7 +89,7 @@ function parseCartola(lines: string[]): { contributions: ParsedContribution[]; c
     const d = line.match(/Saldo de la cartola anterior al:\s*(\d{2})-(\d{2})-(\d{4})/i);
     if (d) lastDate = iso(d[1], d[2], d[3]);
     const t = line.match(/Saldo total:\s*([\d.,]+)/i);
-    if (t && lastDate) closing = { date: lastDate, quotas: decimal(t[1]) };
+    if (t && lastDate) closing = { date: lastDate, quotas: parseChileanDecimal(t[1]) };
   }
   return { contributions: mergeByPeriod(rows), closing };
 }

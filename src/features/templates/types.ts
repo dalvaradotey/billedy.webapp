@@ -2,10 +2,8 @@ import type { templates, templateItems } from '@/lib/db/schema';
 
 // Base types from schema
 export type Template = typeof templates.$inferSelect;
-export type NewTemplate = typeof templates.$inferInsert;
 
 export type TemplateItem = typeof templateItems.$inferSelect;
-export type NewTemplateItem = typeof templateItems.$inferInsert;
 
 // Template with items and related data
 export interface TemplateWithItems extends Template {

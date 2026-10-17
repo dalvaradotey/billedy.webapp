@@ -668,7 +668,6 @@ export function TransactionDialogContent({
                       onValueChange={(value) => setTransferSavingsGoalId(value ?? undefined)}
                       label="Meta de ahorro (opcional)"
                       searchPlaceholder="Buscar meta..."
-                      valid={!!transferSavingsGoalId}
                     />
                   )}
 
@@ -677,7 +676,6 @@ export function TransactionDialogContent({
                     type="date"
                     value={appDateString(transferDate)}
                     onChange={(val) => setTransferDate(new Date(val + 'T12:00:00'))}
-                    valid={!!transferDate}
                   />
 
                   <FloatingLabelInput
@@ -685,7 +683,6 @@ export function TransactionDialogContent({
                     value={transferDescription}
                     onChange={setTransferDescription}
                     placeholder="Ej: Ahorro mensual"
-                    valid={!!transferDescription}
                   />
 
                   <FloatingLabelTextarea
@@ -693,7 +690,6 @@ export function TransactionDialogContent({
                     value={transferNotes}
                     onChange={setTransferNotes}
                     placeholder="Notas adicionales..."
-                    valid={!!transferNotes}
                   />
                 </div>
               )}
@@ -756,7 +752,6 @@ export function TransactionDialogContent({
                             }}
                             label="Tienda"
                             searchPlaceholder="Buscar tienda..."
-                            valid={!!field.value}
                             invalid={!!fieldState.error}
                           />
                         </FormControl>
@@ -973,7 +968,6 @@ export function TransactionDialogContent({
                   currency={defaultCurrency}
                   placeholder="0"
                   label="Saldo actual según proveedor"
-                  valid={providerBalance !== undefined && providerBalance >= 0}
                 />
                 {profitabilityPreview !== null && (
                   <p className={cn(
@@ -1039,7 +1033,6 @@ export function TransactionDialogContent({
                               }}
                               label="Presupuesto (opcional)"
                               searchPlaceholder="Buscar presupuesto..."
-                              valid={!!field.value}
                               invalid={!!fieldState.error}
                             />
                           </FormControl>
@@ -1076,7 +1069,6 @@ export function TransactionDialogContent({
                               placeholder="Sin categoría"
                               searchPlaceholder="Buscar categoría..."
                               onCategoryCreated={handleCategoryCreated}
-                              valid={!!field.value}
                               invalid={!!fieldState.error}
                             />
                           </FormControl>
@@ -1113,7 +1105,6 @@ export function TransactionDialogContent({
                             onValueChange={(value) => field.onChange(value)}
                             label="Meta de ahorro (opcional)"
                             searchPlaceholder="Buscar meta..."
-                            valid={!!field.value}
                             invalid={!!fieldState.error}
                           />
                         </FormControl>
@@ -1190,7 +1181,6 @@ export function TransactionDialogContent({
                           onChange={field.onChange}
                           onBlur={field.onBlur}
                           placeholder="Notas adicionales..."
-                          valid={!!field.value}
                           invalid={!!fieldState.error}
                         />
                       </FormControl>

@@ -11,7 +11,6 @@ import { SubmitButton } from '@/components/submit-button';
 import { FloatingLabelInput } from '@/components/floating-label-input';
 import { FormDrawer, FormDrawerBody, FormDrawerFooter } from '@/components/form-drawer';
 import { ProgressIndicator } from '@/components/progress-indicator';
-import { cn } from '@/lib/utils';
 import { CurrencyInput } from '@/components/currency-input';
 import { SearchableSelect, type SearchableSelectOption } from '@/components/searchable-select';
 import { EntitySelector } from '@/components/entity-selector';
@@ -243,7 +242,6 @@ export function AccountDialogContent({
                     label="Tipo de cuenta"
                     searchPlaceholder="Buscar tipo..."
                     emptyMessage="No se encontraron tipos."
-                    valid={!!field.value}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -264,7 +262,6 @@ export function AccountDialogContent({
                     placeholder="Ej: Cuenta Corriente BCI"
                     value={field.value}
                     onChange={field.onChange}
-                    valid={!!field.value && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -290,7 +287,6 @@ export function AccountDialogContent({
                       filterByType={['bank', 'credit_card', 'pension_fund', 'unemployment_fund']}
                       allowNone
                       noneLabel="Sin institución"
-                      valid={!!field.value}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -337,7 +333,6 @@ export function AccountDialogContent({
                       placeholder="0"
                       size="lg"
                       label={watchType === 'credit_card' ? 'Deuda actual' : 'Saldo inicial'}
-                      valid={field.value !== undefined && !fieldState.error}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -367,7 +362,6 @@ export function AccountDialogContent({
                       placeholder="0"
                       size="lg"
                       label="Cupo total"
-                      valid={field.value != null && field.value > 0 && !fieldState.error}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -460,7 +454,6 @@ export function AccountDialogContent({
                             label="Moneda"
                             searchPlaceholder="Buscar moneda..."
                             emptyMessage="No se encontraron monedas."
-                            valid={!!field.value}
                             invalid={!!fieldState.error}
                           />
                         </FormControl>
@@ -508,7 +501,6 @@ export function AccountDialogContent({
                           placeholder="0"
                           size="lg"
                           label={watchType === 'credit_card' ? 'Nueva deuda' : 'Nuevo saldo'}
-                          valid={newBalance !== undefined}
                         />
                         <p className="text-[0.8rem] text-muted-foreground">
                           Saldo actual: {formatCurrency(account?.currentBalance ?? 0)}

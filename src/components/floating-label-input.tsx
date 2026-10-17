@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, forwardRef, type InputHTMLAttributes } from 'react';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -9,13 +9,12 @@ interface FloatingLabelInputProps extends Omit<InputHTMLAttributes<HTMLInputElem
   label: string;
   value: string | undefined;
   onChange: (value: string) => void;
-  valid?: boolean;
   invalid?: boolean;
 }
 
 export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInputProps>(
   function FloatingLabelInput(
-    { label, value, onChange, valid, invalid, className, onFocus, onBlur, placeholder, ...props },
+    { label, value, onChange, invalid, className, onFocus, onBlur, placeholder, ...props },
     ref
   ) {
     const [isFocused, setIsFocused] = useState(false);

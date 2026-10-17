@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { pulseColor } from '@/lib/pulse-tone';
-import { Check, CheckCircle2, ChevronsUpDown, XCircle } from 'lucide-react';
+import { Check, ChevronsUpDown, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -88,7 +88,6 @@ interface SearchableSelectProps {
   disabled?: boolean;
   groupLabels?: Record<string, string>;
   renderSelected?: (option: SearchableSelectOption) => ReactNode;
-  valid?: boolean;
   invalid?: boolean;
 }
 
@@ -106,7 +105,6 @@ export function SearchableSelect({
   disabled = false,
   groupLabels = {},
   renderSelected,
-  valid,
   invalid,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);

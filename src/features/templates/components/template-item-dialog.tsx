@@ -165,7 +165,6 @@ export function TemplateItemDialogContent({
         const result = await createTemplateItem({
           templateId,
           userId,
-          projectId,
           categoryId: data.categoryId,
           accountId: data.accountId,
           entityId: data.entityId,
@@ -234,7 +233,6 @@ export function TemplateItemDialogContent({
                     placeholder="Ej: Sueldo, Arriendo, Netflix"
                     value={field.value}
                     onChange={field.onChange}
-                    valid={!!field.value && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -257,7 +255,6 @@ export function TemplateItemDialogContent({
                     onChange={field.onChange}
                     currency={baseCurrency}
                     placeholder="0"
-                    valid={field.value != null && field.value > 0 && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -287,7 +284,6 @@ export function TemplateItemDialogContent({
                       }
                       projectId={projectId}
                       userId={userId}
-                      valid={!!field.value && !fieldState.error}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -310,7 +306,6 @@ export function TemplateItemDialogContent({
                       allowNone
                       noneLabel="Sin tienda"
                       searchPlaceholder="Buscar tienda..."
-                      valid={!!field.value && !fieldState.error}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -365,7 +360,6 @@ export function TemplateItemDialogContent({
                         searchPlaceholder="Buscar cuenta..."
                         allowNone
                         noneLabel="Sin cuenta específica"
-                        valid={!!field.value}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>
@@ -386,7 +380,6 @@ export function TemplateItemDialogContent({
                         placeholder="Notas adicionales sobre este item"
                         value={field.value ?? ''}
                         onChange={field.onChange}
-                        valid={!!field.value && !fieldState.error}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>

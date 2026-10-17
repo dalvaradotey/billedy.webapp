@@ -329,7 +329,6 @@ function EntityFormDialog({ userId, entity, onSuccess }: EntityFormDialogProps) 
           value={name}
           onChange={setName}
           placeholder="Ej: Banco de Chile, Lider, Cruz Verde"
-          valid={name.trim().length > 0}
         />
 
         <Popover open={typeOpen} onOpenChange={setTypeOpen} modal={true}>

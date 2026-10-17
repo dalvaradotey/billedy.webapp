@@ -5,14 +5,11 @@ import { db } from '@/lib/db';
 import { entities } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
-import { uploadImage, deleteImage } from '@/lib/cloudinary';
+import { uploadImage, deleteImage, isImageDataUrl } from '@/lib/cloudinary';
+import type { ActionResult } from '@/types/action-result';
 import { createEntitySchema, updateEntitySchema } from './schemas';
 import { isUserAdmin } from './queries';
 import type { CreateEntityInput, UpdateEntityInput } from './schemas';
-
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string };
 
 /**
  * Crea una nueva entidad (solo admin)
@@ -35,6 +32,10 @@ export async function createEntity(
   const parsed = createEntitySchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+
+  if (imageFile && !isImageDataUrl(imageFile)) {
+    return { success: false, error: 'Formato de imagen no válido' };
   }
 
   let imageUrl: string | undefined;
@@ -86,6 +87,10 @@ export async function updateEntity(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
+  if (imageFile && !isImageDataUrl(imageFile)) {
+    return { success: false, error: 'Formato de imagen no válido' };
+  }
+
   let imageUrl: string | undefined;
 
   // Subir nueva imagen si se proporciona
@@ -98,12 +103,15 @@ export async function updateEntity(
         .where(eq(entities.id, entityId))
         .limit(1);
 
+      // Subir primero: si falla, la entidad conserva su imagen actual
+      imageUrl = await uploadImage(imageFile, 'entities');
+
       // Eliminar imagen anterior si existe
       if (current[0]?.imageUrl) {
-        await deleteImage(current[0].imageUrl);
+        await deleteImage(current[0].imageUrl).catch(() => {
+          // La imagen nueva ya quedó: no fallar por la limpieza de la anterior
+        });
       }
-
-      imageUrl = await uploadImage(imageFile, 'entities');
     } catch {
       return { success: false, error: 'Error al subir la imagen' };
     }

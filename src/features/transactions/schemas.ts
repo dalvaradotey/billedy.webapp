@@ -24,7 +24,11 @@ export const createTransactionSchema = z.object({
   profitabilityCategoryId: z.string().uuid().optional().nullable(),
 });
 
-export const updateTransactionSchema = createTransactionSchema.partial();
+// Al editar no se cambia de proyecto (se deriva de la transacción existente) ni se
+// usan los campos previsionales (solo aplican al crear el aporte). Si llegan, se ignoran.
+export const updateTransactionSchema = createTransactionSchema
+  .omit({ projectId: true, providerBalance: true, profitabilityCategoryId: true })
+  .partial();
 
 export const togglePaidSchema = z.object({
   isPaid: z.boolean(),
@@ -67,16 +71,7 @@ export const createAccountTransferSchema = z.object({
   path: ['toAccountId'],
 });
 
-export const updateAccountTransferSchema = z.object({
-  amount: z.number().positive('El monto debe ser mayor a 0').optional(),
-  date: z.date().transform(toAppDate).optional(),
-  description: z.string().max(500).optional().nullable(),
-  notes: z.string().max(1000).optional().nullable(),
-  savingsGoalId: z.string().uuid().optional().nullable(),
-});
-
 export type CreateAccountTransferInput = z.infer<typeof createAccountTransferSchema>;
-export type UpdateAccountTransferInput = z.infer<typeof updateAccountTransferSchema>;
 
 // Schema para pagar transacciones de tarjeta de crédito
 // Soporta intereses/cargos opcionales que se registran como gasto en la cuenta origen
@@ -122,3 +117,14 @@ export const bulkUpdateDateSchema = z.object({
 });
 
 export type BulkUpdateDateInput = z.infer<typeof bulkUpdateDateSchema>;
+
+// Schema para eliminar transacciones en lote
+export const bulkDeleteSchema = z.object({
+  projectId: z.string().uuid('El proyecto es requerido'),
+  transactionIds: z
+    .array(z.string().uuid())
+    .min(1, 'Debes seleccionar al menos una transacción')
+    .max(500, 'Puedes eliminar hasta 500 transacciones a la vez'),
+});
+
+export type BulkDeleteInput = z.infer<typeof bulkDeleteSchema>;

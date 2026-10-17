@@ -1,17 +1,18 @@
 'use server';
 
 import { z } from 'zod';
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { accountFunds, accounts, fundMovements, projectMembers } from '@/lib/db/schema';
+import { accountFunds, accounts, fundMovements } from '@/lib/db/schema';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
+import { NO_PROJECT_ACCESS, verifyProjectAccess, verifyProjectWriteAccess } from '@/lib/auth/project-access';
 import { getToday } from '@/lib/formatting';
+import type { ActionResult } from '@/types/action-result';
 import { getAccountFree, getAccountFunds, type AccountFund } from './lib/funds';
 
-type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string };
-
 const amount = z.number().int().positive('El monto debe ser mayor a 0');
+const uuid = z.string().uuid();
 
 const createFundSchema = z.object({
   projectId: z.string().uuid(),
@@ -25,23 +26,15 @@ const createFundSchema = z.object({
 
 export type CreateFundInput = z.infer<typeof createFundSchema>;
 
-async function isMember(projectId: string, userId: string): Promise<boolean> {
-  const [member] = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(and(eq(projectMembers.projectId, projectId), eq(projectMembers.userId, userId), isNotNull(projectMembers.acceptedAt)))
-    .limit(1);
-  return !!member;
-}
-
-/** Fondo con verificación de acceso; incluye su saldo actual */
+/** Fondo con verificación de acceso de escritura (para modificarlo); incluye su saldo actual */
 async function getFundForUser(fundId: string, userId: string): Promise<AccountFund & { projectId: string } | null> {
+  if (!uuid.safeParse(fundId).success) return null;
   const [fund] = await db
     .select({ id: accountFunds.id, projectId: accountFunds.projectId })
     .from(accountFunds)
     .where(eq(accountFunds.id, fundId))
     .limit(1);
-  if (!fund || !(await isMember(fund.projectId, userId))) return null;
+  if (!fund || !(await verifyProjectWriteAccess(fund.projectId, userId))) return null;
   const all = await getAccountFunds(fund.projectId, true);
   const detail = all.find((f) => f.id === fundId);
   return detail ? { ...detail, projectId: fund.projectId } : null;
@@ -60,7 +53,7 @@ export async function fetchAccountFunds(
   userId: string
 ): Promise<ActionResult<AccountFund[]>> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  if (!(await isMember(projectId, userId))) return { success: false, error: 'No tienes acceso a este proyecto' };
+  if (!(await verifyProjectAccess(projectId, userId))) return { success: false, error: NO_PROJECT_ACCESS };
   return { success: true, data: await getAccountFunds(projectId) };
 }
 
@@ -75,7 +68,7 @@ export async function createFund(userId: string, input: CreateFundInput): Promis
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   const data = parsed.data;
 
-  if (!(await isMember(data.projectId, userId))) return { success: false, error: 'No tienes acceso a este proyecto' };
+  if (!(await verifyProjectWriteAccess(data.projectId, userId))) return { success: false, error: NO_PROJECT_ACCESS };
 
   const [account] = await db
     .select({ id: accounts.id, type: accounts.type })
@@ -213,7 +206,7 @@ export async function updateFund(
       ...(parsed.data.isProvision !== undefined && !fund.isThirdParty ? { isProvision: parsed.data.isProvision } : {}),
       updatedAt: new Date(),
     })
-    .where(eq(accountFunds.id, fundId));
+    .where(and(eq(accountFunds.id, fundId), eq(accountFunds.projectId, fund.projectId)));
 
   invalidate();
   return { success: true, data: undefined };
@@ -229,6 +222,7 @@ export async function moveFund(userId: string, fundId: string, targetAccountId: 
   const fund = await getFundForUser(fundId, userId);
   if (!fund) return { success: false, error: 'Fondo no encontrado' };
   if (fund.accountId === targetAccountId) return { success: false, error: 'El fondo ya está en esa cuenta' };
+  if (!uuid.safeParse(targetAccountId).success) return { success: false, error: 'Cuenta de destino inválida' };
 
   const [target] = await db
     .select({ id: accounts.id, type: accounts.type })
@@ -237,7 +231,10 @@ export async function moveFund(userId: string, fundId: string, targetAccountId: 
     .limit(1);
   if (!target || target.type === 'credit_card') return { success: false, error: 'Cuenta de destino inválida' };
 
-  await db.update(accountFunds).set({ accountId: targetAccountId, updatedAt: new Date() }).where(eq(accountFunds.id, fundId));
+  await db
+    .update(accountFunds)
+    .set({ accountId: targetAccountId, updatedAt: new Date() })
+    .where(and(eq(accountFunds.id, fundId), eq(accountFunds.projectId, fund.projectId)));
 
   invalidate();
   return { success: true, data: undefined };
@@ -258,7 +255,7 @@ export async function archiveFund(userId: string, fundId: string, isArchived: bo
   await db
     .update(accountFunds)
     .set({ isArchived, updatedAt: sql`now()` })
-    .where(eq(accountFunds.id, fundId));
+    .where(and(eq(accountFunds.id, fundId), eq(accountFunds.projectId, fund.projectId)));
 
   invalidate();
   return { success: true, data: undefined };

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/formatting';
 import { analyzeStatement, applyReconciliation, type StatementReview } from '../actions';
+import { MONTHS_SHORT as MONTHS } from '@/lib/dates';
 
 type BudgetOption = { id: string; name: string; categoryId: string | null };
 
@@ -16,7 +17,6 @@ interface StatementReconcileProps {
   budgets: BudgetOption[];
 }
 
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const short = (iso: string | null) => {
   if (!iso) return '—';
   const [, m, d] = iso.split('-');

@@ -1,27 +1,9 @@
 import { db } from '@/lib/db';
-import { categories, projectMembers } from '@/lib/db/schema';
-import { eq, and, asc, isNotNull } from 'drizzle-orm';
+import { categories } from '@/lib/db/schema';
+import { eq, and, asc } from 'drizzle-orm';
+import { verifyProjectAccess } from '@/lib/auth/project-access';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { Category } from './types';
-
-/**
- * Verifica acceso al proyecto (helper interno)
- */
-async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
-  const hasAccess = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  return hasAccess.length > 0;
-}
 
 /**
  * Query interna para obtener categorías
@@ -70,36 +52,3 @@ export const getActiveCategories = cachedQuery(
   ['categories', 'active'],
   { tags: [CACHE_TAGS.categories] }
 );
-
-/**
- * Obtiene una categoría por ID
- * No cacheada porque es una consulta puntual
- */
-export async function getCategoryById(
-  categoryId: string,
-  userId: string
-): Promise<Category | null> {
-  const result = await db
-    .select({
-      id: categories.id,
-      projectId: categories.projectId,
-      name: categories.name,
-      color: categories.color,
-      isArchived: categories.isArchived,
-      defaultNature: categories.defaultNature,
-      createdAt: categories.createdAt,
-      updatedAt: categories.updatedAt,
-    })
-    .from(categories)
-    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(categories.id, categoryId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  return result[0] ?? null;
-}

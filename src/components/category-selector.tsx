@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useCallback, useRef } from 'react';
+import { useState, useTransition, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -67,7 +67,6 @@ interface CategorySelectorProps {
   noneLabel?: string;
   disabled?: boolean;
   onCategoryCreated?: (category: { id: string; name: string; color: string }) => void;
-  valid?: boolean;
   invalid?: boolean;
 }
 
@@ -84,7 +83,6 @@ export function CategorySelector({
   noneLabel = 'Sin categoría',
   disabled = false,
   onCategoryCreated,
-  valid,
   invalid,
 }: CategorySelectorProps) {
   const [open, setOpen] = useState(false);
@@ -258,18 +256,10 @@ function CreateCategoryDialog({
 }: CreateCategoryDialogProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const pendingCategoryRef = useRef<{ id: string; name: string; color: string } | null>(null);
 
   // Form UX hooks
   const { onInvalid } = useFormValidation();
-  const { showSuccess, triggerSuccess } = useSuccessAnimation({
-    onComplete: () => {
-      if (pendingCategoryRef.current) {
-        onSuccess(pendingCategoryRef.current);
-        pendingCategoryRef.current = null;
-      }
-    },
-  });
+  const { showSuccess, triggerSuccess } = useSuccessAnimation();
 
   const getDefaultValues = useCallback(
     () => ({
@@ -297,13 +287,14 @@ function CreateCategoryDialog({
 
       if (result.success) {
         toast.success('Categoría creada', { id: toastId });
-        pendingCategoryRef.current = {
+        const created = {
           id: result.data.id,
           name: data.name,
           color: data.color,
         };
         form.reset(getDefaultValues());
-        triggerSuccess();
+        // Avisa al padre recién cuando termina la animación de éxito
+        triggerSuccess(() => onSuccess(created));
       } else {
         toast.error(result.error, { id: toastId });
         setError(result.error);
@@ -341,7 +332,6 @@ function CreateCategoryDialog({
                       onBlur={field.onBlur}
                       placeholder="Ej: Comida, Transporte"
                       autoFocus
-                      valid={fieldState.isDirty && !fieldState.invalid}
                       invalid={fieldState.invalid}
                     />
                   </FormControl>
@@ -399,7 +389,6 @@ function CreateCategoryDialog({
                         onChange={field.onChange}
                         placeholder="#3b82f6"
                         className="font-mono"
-                        valid={fieldState.isDirty && !fieldState.invalid}
                         invalid={fieldState.invalid}
                       />
                     </div>

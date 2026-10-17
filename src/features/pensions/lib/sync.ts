@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { accounts, categories, quotaValues, transactions } from '@/lib/db/schema';
 import { getToday } from '@/lib/formatting';
 import { AFC_PROVIDER, fetchAfcQuotaValues, fetchAfpQuotaValues, type QuotaValue } from './quota-values';
+import { MONTHS_LONG as MONTHS } from '@/lib/dates';
 
 /**
  * Previsión por cuotas: guarda el valor cuota del día y lleva el saldo de cada
@@ -16,7 +17,6 @@ import { AFC_PROVIDER, fetchAfcQuotaValues, fetchAfpQuotaValues, type QuotaValue
 /** Marca del movimiento automático de rentabilidad del mes */
 export const QUOTA_REVALUE_NOTE = 'auto:rentabilidad-valor-cuota';
 
-const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 type PensionAccount = {
   id: string;

@@ -3,8 +3,8 @@
 import { sql } from 'drizzle-orm';
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import type { ActionResult } from '../types';
-import { verifyProjectAccess } from '../lib/access';
+import type { ActionResult } from '@/types/action-result';
+import { NO_PROJECT_ACCESS, verifyProjectAccess } from '@/lib/auth/project-access';
 
 export type DescriptionSuggestion = {
   description: string;
@@ -28,7 +28,7 @@ export async function fetchDescriptionSuggestions(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
   if (!(await verifyProjectAccess(projectId, userId))) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   const rows = (await db.execute(sql`

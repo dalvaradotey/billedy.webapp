@@ -77,7 +77,7 @@ export function BillingCycleDialogContent({
   });
 
   // Track form progress
-  const calculateProgress = useCallback((values: any) => {
+  const calculateProgress = useCallback((values: Partial<CreateBillingCycleInput>) => {
     return [
       !!values.name,
       !!values.startDate,
@@ -147,7 +147,6 @@ export function BillingCycleDialogContent({
                     placeholder="Ej: Ciclo Enero 2025"
                     value={field.value}
                     onChange={field.onChange}
-                    valid={!!field.value && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -168,7 +167,6 @@ export function BillingCycleDialogContent({
                       label="Fecha inicio"
                       value={field.value}
                       onChange={field.onChange}
-                      valid={!!field.value && !fieldState.error}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -187,7 +185,6 @@ export function BillingCycleDialogContent({
                       label="Fecha fin"
                       value={field.value}
                       onChange={field.onChange}
-                      valid={!!field.value && !fieldState.error}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -209,7 +206,6 @@ export function BillingCycleDialogContent({
                     placeholder="Ej: Mes con bono de fin de año"
                     value={field.value ?? ''}
                     onChange={field.onChange}
-                    valid={!!field.value && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>

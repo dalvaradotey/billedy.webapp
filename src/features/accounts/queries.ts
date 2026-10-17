@@ -3,7 +3,7 @@ import { getFundTotals } from './lib/funds';
 import { accounts, entities, projectMembers, cardPurchases, transactions } from '@/lib/db/schema';
 import { eq, and, desc, isNotNull, or, sql } from 'drizzle-orm';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
-import type { Account, AccountsSummary, AccountWithEntity, AccountDebtBreakdown } from './types';
+import type { AccountsSummary, AccountWithEntity, AccountDebtBreakdown } from './types';
 
 /**
  * Query interna para obtener cuentas del proyecto (sin caché)
@@ -50,115 +50,6 @@ export const getAccounts = cachedQuery(
   ['accounts', 'list'],
   { tags: [CACHE_TAGS.accounts] }
 );
-
-/**
- * Query interna para obtener todas las cuentas incluyendo archivadas (sin caché)
- */
-async function _getAllAccounts(
-  projectId: string,
-  userId: string
-): Promise<AccountWithEntity[]> {
-  const result = await db
-    .select({
-      account: accounts,
-      entity: entities,
-    })
-    .from(accounts)
-    .innerJoin(
-      projectMembers,
-      eq(accounts.projectId, projectMembers.projectId)
-    )
-    .leftJoin(entities, eq(accounts.entityId, entities.id))
-    .where(
-      and(
-        eq(accounts.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .orderBy(desc(accounts.isDefault), accounts.name);
-
-  return result.map((row) => ({
-    ...row.account,
-    entity: row.entity,
-  }));
-}
-
-/**
- * Get all accounts including archived (with entity data)
- * Cacheada por 60 segundos
- */
-export const getAllAccounts = cachedQuery(
-  _getAllAccounts,
-  ['accounts', 'all'],
-  { tags: [CACHE_TAGS.accounts] }
-);
-
-/**
- * Get account by ID (with entity data)
- * Verifica membresía del usuario al proyecto
- * No cacheada porque es una consulta puntual
- */
-export async function getAccountById(
-  accountId: string,
-  userId: string
-): Promise<AccountWithEntity | null> {
-  const result = await db
-    .select({
-      account: accounts,
-      entity: entities,
-    })
-    .from(accounts)
-    .innerJoin(
-      projectMembers,
-      eq(accounts.projectId, projectMembers.projectId)
-    )
-    .leftJoin(entities, eq(accounts.entityId, entities.id))
-    .where(
-      and(
-        eq(accounts.id, accountId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!result[0]) return null;
-
-  return {
-    ...result[0].account,
-    entity: result[0].entity,
-  };
-}
-
-/**
- * Get default account for a project
- * No cacheada porque se usa poco y puede cambiar frecuentemente
- */
-export async function getDefaultAccount(
-  projectId: string,
-  userId: string
-): Promise<Account | null> {
-  const result = await db
-    .select({ account: accounts })
-    .from(accounts)
-    .innerJoin(
-      projectMembers,
-      eq(accounts.projectId, projectMembers.projectId)
-    )
-    .where(
-      and(
-        eq(accounts.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt),
-        eq(accounts.isDefault, true),
-        eq(accounts.isArchived, false)
-      )
-    )
-    .limit(1);
-
-  return result[0]?.account ?? null;
-}
 
 /**
  * Totales de cuentas. La plata de terceros guardada en fondos no cuenta como

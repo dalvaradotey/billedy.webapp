@@ -1,6 +1,9 @@
+import { cache } from 'react';
 import { db } from '@/lib/db';
-import { billingCycles, projectMembers } from '@/lib/db/schema';
-import { eq, and, isNotNull, desc } from 'drizzle-orm';
+import { billingCycles } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { verifyProjectAccess } from '@/lib/auth/project-access';
+import { capitalize, MONTHS_LONG } from '@/lib/dates';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import { getToday, daysBetween } from '@/lib/formatting';
 import { getCycleBalances, type ClosingSnapshot } from './lib/cycle-balance';
@@ -62,28 +65,10 @@ async function enrichCyclesWithTotals(
 }
 
 /**
- * Verifica acceso al proyecto
+ * Obtiene todos los ciclos de un proyecto (más reciente primero) con su saldo.
+ * `cache`: el ciclo actual y el historial del inicio comparten el cálculo en el mismo request.
  */
-async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
-  const member = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  return member.length > 0;
-}
-
-/**
- * Obtiene todos los ciclos de un proyecto (más reciente primero)
- */
-export async function getBillingCycles(
+export const getBillingCycles = cache(async function getBillingCycles(
   projectId: string,
   userId: string
 ): Promise<BillingCycleWithTotals[]> {
@@ -99,6 +84,40 @@ export async function getBillingCycles(
     .orderBy(desc(billingCycles.startDate));
 
   return enrichCyclesWithTotals(cycles, projectId);
+});
+
+export type BillingCycleOption = {
+  id: string;
+  name: string;
+  /** YYYY-MM-DD */
+  startDate: string;
+  /** YYYY-MM-DD */
+  endDate: string;
+  status: BillingCycleRow['status'];
+};
+
+/**
+ * Ciclos del proyecto sin saldos (más reciente primero): para selectores y
+ * filtros, que no necesitan el cálculo de la cascada.
+ */
+export async function getBillingCycleOptions(projectId: string, userId: string): Promise<BillingCycleOption[]> {
+  const [hasAccess, cycles] = await Promise.all([
+    verifyProjectAccess(projectId, userId),
+    db
+      .select({
+        id: billingCycles.id,
+        name: billingCycles.name,
+        startDate: billingCycles.startDate,
+        endDate: billingCycles.endDate,
+        status: billingCycles.status,
+      })
+      .from(billingCycles)
+      .where(eq(billingCycles.projectId, projectId))
+      .orderBy(desc(billingCycles.startDate)),
+  ]);
+  if (!hasAccess) return [];
+  const iso = (d: Date | string) => new Date(d).toISOString().slice(0, 10);
+  return cycles.map((c) => ({ ...c, startDate: iso(c.startDate), endDate: iso(c.endDate) }));
 }
 
 /**
@@ -178,16 +197,12 @@ export async function suggestNextCycleDates(
     .orderBy(desc(billingCycles.endDate))
     .limit(1);
 
-  const MONTH_NAMES = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-  ];
 
   if (!lastCycle[0]) {
     // No hay ciclos previos, sugerir desde hoy hasta día 25 del mes siguiente
     const today = getToday();
     const nextMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 25));
-    const monthName = MONTH_NAMES[nextMonth.getUTCMonth()];
+    const monthName = capitalize(MONTHS_LONG[nextMonth.getUTCMonth()]);
 
     return {
       startDate: today,
@@ -208,7 +223,7 @@ export async function suggestNextCycleDates(
   const endDate = new Date(startDate);
   endDate.setUTCDate(endDate.getUTCDate() + lastDuration);
 
-  const monthName = MONTH_NAMES[endDate.getUTCMonth()];
+  const monthName = capitalize(MONTHS_LONG[endDate.getUTCMonth()]);
 
   return {
     startDate,

@@ -1,11 +1,121 @@
+import { cache } from 'react';
 import { db } from '@/lib/db';
-import { cardPurchases, accounts, categories, projectMembers, projects, entities, transactions } from '@/lib/db/schema';
+import { cardPurchases, accounts, categories, projects, entities, transactions } from '@/lib/db/schema';
 import { eq, and, desc, isNotNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
+import { verifyProjectAccess } from '@/lib/auth/project-access';
 import type { CardPurchaseWithDetails, CardPurchasesSummary, DebtCapacityReport } from './types';
 
 // Alias for account entity (to join entities table twice)
 const accountEntities = alias(entities, 'accountEntities');
+
+/**
+ * Todas las compras del proyecto con sus cuotas pagadas y campos derivados.
+ * Devuelve null si el usuario no tiene acceso. Va envuelta en `cache` para que
+ * la lista, el resumen y el reporte de capacidad compartan una sola lectura
+ * por request.
+ */
+const getPurchasesWithPaidCounts = cache(
+  async (projectId: string, userId: string): Promise<CardPurchaseWithDetails[] | null> => {
+    if (!(await verifyProjectAccess(projectId, userId))) {
+      return null;
+    }
+
+    const [result, paidByPurchase] = await Promise.all([
+      db
+        .select({
+          id: cardPurchases.id,
+          userId: cardPurchases.userId,
+          projectId: cardPurchases.projectId,
+          accountId: cardPurchases.accountId,
+          categoryId: cardPurchases.categoryId,
+          entityId: cardPurchases.entityId,
+          description: cardPurchases.description,
+          storeName: cardPurchases.storeName,
+          purchaseDate: cardPurchases.purchaseDate,
+          originalAmount: cardPurchases.originalAmount,
+          totalAmount: cardPurchases.totalAmount,
+          interestAmount: cardPurchases.interestAmount,
+          interestRate: cardPurchases.interestRate,
+          installments: cardPurchases.installments,
+          installmentAmount: cardPurchases.installmentAmount,
+          firstChargeDate: cardPurchases.firstChargeDate,
+          chargedInstallments: cardPurchases.chargedInstallments,
+          initialPaidInstallments: cardPurchases.initialPaidInstallments,
+          isActive: cardPurchases.isActive,
+          isExternalDebt: cardPurchases.isExternalDebt,
+          nature: cardPurchases.nature,
+          notes: cardPurchases.notes,
+          createdAt: cardPurchases.createdAt,
+          updatedAt: cardPurchases.updatedAt,
+          accountName: accounts.name,
+          accountType: accounts.type,
+          accountEntityName: accountEntities.name,
+          accountEntityImageUrl: accountEntities.imageUrl,
+          categoryName: categories.name,
+          categoryColor: categories.color,
+          entityName: entities.name,
+          entityImageUrl: entities.imageUrl,
+        })
+        .from(cardPurchases)
+        .innerJoin(accounts, eq(cardPurchases.accountId, accounts.id))
+        .leftJoin(accountEntities, eq(accounts.entityId, accountEntities.id))
+        .leftJoin(categories, eq(cardPurchases.categoryId, categories.id))
+        .leftJoin(entities, eq(cardPurchases.entityId, entities.id))
+        .where(eq(cardPurchases.projectId, projectId))
+        .orderBy(desc(cardPurchases.purchaseDate), desc(cardPurchases.createdAt)),
+      // Cuotas pagadas por compra (históricas o pagadas con transferencia)
+      db
+        .select({
+          cardPurchaseId: transactions.cardPurchaseId,
+          paidCount: sql<number>`COUNT(*)`,
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.projectId, projectId),
+            isNotNull(transactions.cardPurchaseId),
+            or(eq(transactions.isHistoricallyPaid, true), isNotNull(transactions.paidByTransferId))
+          )
+        )
+        .groupBy(transactions.cardPurchaseId),
+    ]);
+
+    // Crear mapa de cuotas pagadas
+    const paidMap = new Map<string, number>();
+    for (const row of paidByPurchase) {
+      if (row.cardPurchaseId) {
+        paidMap.set(row.cardPurchaseId, Number(row.paidCount));
+      }
+    }
+
+    // Calcular campos derivados usando transacciones pagadas
+    return result.map((purchase) => {
+      // Cuotas pagadas = históricas (isHistoricallyPaid) + pagadas con transferencia (paidByTransferId)
+      const paidInstallments = paidMap.get(purchase.id) ?? 0;
+      const remaining = purchase.installments - paidInstallments;
+      const remainingAmount = remaining * parseFloat(purchase.installmentAmount);
+      const progress = (paidInstallments / purchase.installments) * 100;
+
+      // Calcular próxima fecha de cargo
+      let nextChargeDate: Date | null = null;
+      if (purchase.isActive && remaining > 0) {
+        const firstCharge = new Date(purchase.firstChargeDate);
+        nextChargeDate = new Date(firstCharge);
+        nextChargeDate.setMonth(nextChargeDate.getMonth() + paidInstallments);
+      }
+
+      return {
+        ...purchase,
+        chargedInstallments: paidInstallments, // Cuotas realmente pagadas (con transferencia)
+        remainingInstallments: remaining,
+        remainingAmount,
+        progressPercentage: Math.round(progress),
+        nextChargeDate,
+      };
+    });
+  }
+);
 
 /**
  * Obtiene las compras en cuotas del proyecto
@@ -15,127 +125,8 @@ export async function getCardPurchases(
   userId: string,
   activeOnly: boolean = false
 ): Promise<CardPurchaseWithDetails[]> {
-  // Verificar acceso al proyecto
-  const hasAccess = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (hasAccess.length === 0) {
-    return [];
-  }
-
-  const conditions = [eq(cardPurchases.projectId, projectId)];
-  if (activeOnly) {
-    conditions.push(eq(cardPurchases.isActive, true));
-  }
-
-  const result = await db
-    .select({
-      id: cardPurchases.id,
-      userId: cardPurchases.userId,
-      projectId: cardPurchases.projectId,
-      accountId: cardPurchases.accountId,
-      categoryId: cardPurchases.categoryId,
-      entityId: cardPurchases.entityId,
-      description: cardPurchases.description,
-      storeName: cardPurchases.storeName,
-      purchaseDate: cardPurchases.purchaseDate,
-      originalAmount: cardPurchases.originalAmount,
-      totalAmount: cardPurchases.totalAmount,
-      interestAmount: cardPurchases.interestAmount,
-      interestRate: cardPurchases.interestRate,
-      installments: cardPurchases.installments,
-      installmentAmount: cardPurchases.installmentAmount,
-      firstChargeDate: cardPurchases.firstChargeDate,
-      chargedInstallments: cardPurchases.chargedInstallments,
-      initialPaidInstallments: cardPurchases.initialPaidInstallments,
-      isActive: cardPurchases.isActive,
-      isExternalDebt: cardPurchases.isExternalDebt,
-      nature: cardPurchases.nature,
-      notes: cardPurchases.notes,
-      createdAt: cardPurchases.createdAt,
-      updatedAt: cardPurchases.updatedAt,
-      accountName: accounts.name,
-      accountType: accounts.type,
-      accountEntityName: accountEntities.name,
-      accountEntityImageUrl: accountEntities.imageUrl,
-      categoryName: categories.name,
-      categoryColor: categories.color,
-      entityName: entities.name,
-      entityImageUrl: entities.imageUrl,
-    })
-    .from(cardPurchases)
-    .innerJoin(accounts, eq(cardPurchases.accountId, accounts.id))
-    .leftJoin(accountEntities, eq(accounts.entityId, accountEntities.id))
-    .leftJoin(categories, eq(cardPurchases.categoryId, categories.id))
-    .leftJoin(entities, eq(cardPurchases.entityId, entities.id))
-    .where(and(...conditions))
-    .orderBy(desc(cardPurchases.purchaseDate), desc(cardPurchases.createdAt));
-
-  if (result.length === 0) {
-    return [];
-  }
-
-  // Obtener cuotas pagadas por compra (históricas o pagadas con transferencia)
-  const paidByPurchase = await db
-    .select({
-      cardPurchaseId: transactions.cardPurchaseId,
-      paidCount: sql<number>`COUNT(*)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.projectId, projectId),
-        isNotNull(transactions.cardPurchaseId),
-        or(
-          eq(transactions.isHistoricallyPaid, true),
-          isNotNull(transactions.paidByTransferId)
-        )
-      )
-    )
-    .groupBy(transactions.cardPurchaseId);
-
-  // Crear mapa de cuotas pagadas
-  const paidMap = new Map<string, number>();
-  for (const row of paidByPurchase) {
-    if (row.cardPurchaseId) {
-      paidMap.set(row.cardPurchaseId, Number(row.paidCount));
-    }
-  }
-
-  // Calcular campos derivados usando transacciones pagadas
-  return result.map((purchase) => {
-    // Cuotas pagadas = históricas (isHistoricallyPaid) + pagadas con transferencia (paidByTransferId)
-    const paidInstallments = paidMap.get(purchase.id) ?? 0;
-    const remaining = purchase.installments - paidInstallments;
-    const remainingAmount = remaining * parseFloat(purchase.installmentAmount);
-    const progress = (paidInstallments / purchase.installments) * 100;
-
-    // Calcular próxima fecha de cargo
-    let nextChargeDate: Date | null = null;
-    if (purchase.isActive && remaining > 0) {
-      const firstCharge = new Date(purchase.firstChargeDate);
-      nextChargeDate = new Date(firstCharge);
-      nextChargeDate.setMonth(nextChargeDate.getMonth() + paidInstallments);
-    }
-
-    return {
-      ...purchase,
-      chargedInstallments: paidInstallments, // Cuotas realmente pagadas (con transferencia)
-      remainingInstallments: remaining,
-      remainingAmount,
-      progressPercentage: Math.round(progress),
-      nextChargeDate,
-    };
-  });
+  const purchases = (await getPurchasesWithPaidCounts(projectId, userId)) ?? [];
+  return activeOnly ? purchases.filter((p) => p.isActive) : purchases;
 }
 
 /**
@@ -145,83 +136,9 @@ export async function getCardPurchasesSummary(
   projectId: string,
   userId: string
 ): Promise<CardPurchasesSummary> {
-  const hasAccess = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+  const purchases = (await getPurchasesWithPaidCounts(projectId, userId)) ?? [];
 
-  if (hasAccess.length === 0) {
-    return {
-      totalPurchases: 0,
-      activePurchases: 0,
-      totalDebt: 0,
-      totalInterestPaid: 0,
-      monthlyCharge: 0,
-      personalDebt: 0,
-      externalDebt: 0,
-    };
-  }
-
-  const purchases = await db
-    .select({
-      id: cardPurchases.id,
-      isActive: cardPurchases.isActive,
-      isExternalDebt: cardPurchases.isExternalDebt,
-      nature: cardPurchases.nature,
-      installments: cardPurchases.installments,
-      installmentAmount: cardPurchases.installmentAmount,
-      interestAmount: cardPurchases.interestAmount,
-      initialPaidInstallments: cardPurchases.initialPaidInstallments,
-    })
-    .from(cardPurchases)
-    .where(eq(cardPurchases.projectId, projectId));
-
-  if (purchases.length === 0) {
-    return {
-      totalPurchases: 0,
-      activePurchases: 0,
-      totalDebt: 0,
-      totalInterestPaid: 0,
-      monthlyCharge: 0,
-      personalDebt: 0,
-      externalDebt: 0,
-    };
-  }
-
-  // Obtener cuotas pagadas por compra (históricas o pagadas con transferencia)
-  const paidByPurchase = await db
-    .select({
-      cardPurchaseId: transactions.cardPurchaseId,
-      paidCount: sql<number>`COUNT(*)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.projectId, projectId),
-        isNotNull(transactions.cardPurchaseId),
-        or(
-          eq(transactions.isHistoricallyPaid, true),
-          isNotNull(transactions.paidByTransferId)
-        )
-      )
-    )
-    .groupBy(transactions.cardPurchaseId);
-
-  const paidMap = new Map<string, number>();
-  for (const row of paidByPurchase) {
-    if (row.cardPurchaseId) {
-      paidMap.set(row.cardPurchaseId, Number(row.paidCount));
-    }
-  }
-
-  let totalPurchases = purchases.length;
+  const totalPurchases = purchases.length;
   let activePurchases = 0;
   let totalDebt = 0;
   let totalInterestPaid = 0;
@@ -230,10 +147,8 @@ export async function getCardPurchasesSummary(
   let externalDebt = 0;
 
   for (const p of purchases) {
-    // Cuotas pagadas = históricas (isHistoricallyPaid) + pagadas con transferencia (paidByTransferId)
-    const paidInstallments = paidMap.get(p.id) ?? 0;
-    const remaining = p.installments - paidInstallments;
-    const remainingAmount = remaining * parseFloat(p.installmentAmount);
+    const remaining = p.remainingInstallments;
+    const remainingAmount = p.remainingAmount;
 
     if (p.isActive && remaining > 0) {
       activePurchases++;
@@ -250,7 +165,7 @@ export async function getCardPurchasesSummary(
 
     // Interés pagado proporcional a las cuotas pagadas
     const interestPerInstallment = parseFloat(p.interestAmount) / p.installments;
-    totalInterestPaid += interestPerInstallment * paidInstallments;
+    totalInterestPaid += interestPerInstallment * p.chargedInstallments;
   }
 
   return {
@@ -265,129 +180,23 @@ export async function getCardPurchasesSummary(
 }
 
 /**
- * Obtiene una compra por ID
- */
-export async function getCardPurchaseById(
-  purchaseId: string,
-  userId: string
-): Promise<CardPurchaseWithDetails | null> {
-  const result = await db
-    .select({
-      id: cardPurchases.id,
-      userId: cardPurchases.userId,
-      projectId: cardPurchases.projectId,
-      accountId: cardPurchases.accountId,
-      categoryId: cardPurchases.categoryId,
-      entityId: cardPurchases.entityId,
-      description: cardPurchases.description,
-      storeName: cardPurchases.storeName,
-      purchaseDate: cardPurchases.purchaseDate,
-      originalAmount: cardPurchases.originalAmount,
-      totalAmount: cardPurchases.totalAmount,
-      interestAmount: cardPurchases.interestAmount,
-      interestRate: cardPurchases.interestRate,
-      installments: cardPurchases.installments,
-      installmentAmount: cardPurchases.installmentAmount,
-      firstChargeDate: cardPurchases.firstChargeDate,
-      chargedInstallments: cardPurchases.chargedInstallments,
-      initialPaidInstallments: cardPurchases.initialPaidInstallments,
-      isActive: cardPurchases.isActive,
-      isExternalDebt: cardPurchases.isExternalDebt,
-      nature: cardPurchases.nature,
-      notes: cardPurchases.notes,
-      createdAt: cardPurchases.createdAt,
-      updatedAt: cardPurchases.updatedAt,
-      accountName: accounts.name,
-      accountType: accounts.type,
-      accountEntityName: accountEntities.name,
-      accountEntityImageUrl: accountEntities.imageUrl,
-      categoryName: categories.name,
-      categoryColor: categories.color,
-      entityName: entities.name,
-      entityImageUrl: entities.imageUrl,
-    })
-    .from(cardPurchases)
-    .innerJoin(accounts, eq(cardPurchases.accountId, accounts.id))
-    .leftJoin(accountEntities, eq(accounts.entityId, accountEntities.id))
-    .innerJoin(projectMembers, eq(cardPurchases.projectId, projectMembers.projectId))
-    .leftJoin(categories, eq(cardPurchases.categoryId, categories.id))
-    .leftJoin(entities, eq(cardPurchases.entityId, entities.id))
-    .where(
-      and(
-        eq(cardPurchases.id, purchaseId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!result[0]) return null;
-
-  const purchase = result[0];
-
-  // Obtener cuotas pagadas (históricas o pagadas con transferencia)
-  const paidResult = await db
-    .select({
-      paidCount: sql<number>`COUNT(*)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.cardPurchaseId, purchaseId),
-        or(
-          eq(transactions.isHistoricallyPaid, true),
-          isNotNull(transactions.paidByTransferId)
-        )
-      )
-    );
-
-  // Cuotas pagadas = históricas (isHistoricallyPaid) + pagadas con transferencia (paidByTransferId)
-  const paidInstallments = Number(paidResult[0]?.paidCount ?? 0);
-  const remaining = purchase.installments - paidInstallments;
-  const remainingAmount = remaining * parseFloat(purchase.installmentAmount);
-  const progress = (paidInstallments / purchase.installments) * 100;
-
-  let nextChargeDate: Date | null = null;
-  if (purchase.isActive && remaining > 0) {
-    const firstCharge = new Date(purchase.firstChargeDate);
-    nextChargeDate = new Date(firstCharge);
-    nextChargeDate.setMonth(nextChargeDate.getMonth() + paidInstallments);
-  }
-
-  return {
-    ...purchase,
-    chargedInstallments: paidInstallments, // Cuotas realmente pagadas (con transferencia)
-    remainingInstallments: remaining,
-    remainingAmount,
-    progressPercentage: Math.round(progress),
-    nextChargeDate,
-  };
-}
-
-/**
  * Obtiene el reporte de capacidad de endeudamiento en cuotas
  */
 export async function getDebtCapacityReport(
   projectId: string,
   userId: string
 ): Promise<DebtCapacityReport> {
-  // Verificar acceso y obtener límite del proyecto
-  const [project] = await db
-    .select({
-      maxInstallmentAmount: projects.maxInstallmentAmount,
-    })
-    .from(projects)
-    .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
-    .where(
-      and(
-        eq(projects.id, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+  // Límite del proyecto y compras (el helper ya verifica el acceso)
+  const [[project], allPurchases] = await Promise.all([
+    db
+      .select({ maxInstallmentAmount: projects.maxInstallmentAmount })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1),
+    getPurchasesWithPaidCounts(projectId, userId),
+  ]);
 
-  if (!project) {
+  if (!project || !allPurchases) {
     return {
       maxInstallmentAmount: null,
       personalDebt: 0,
@@ -398,23 +207,8 @@ export async function getDebtCapacityReport(
     };
   }
 
-  // Obtener deudas activas
-  const purchases = await db
-    .select({
-      id: cardPurchases.id,
-      isExternalDebt: cardPurchases.isExternalDebt,
-      nature: cardPurchases.nature,
-      installments: cardPurchases.installments,
-      installmentAmount: cardPurchases.installmentAmount,
-      initialPaidInstallments: cardPurchases.initialPaidInstallments,
-    })
-    .from(cardPurchases)
-    .where(
-      and(
-        eq(cardPurchases.projectId, projectId),
-        eq(cardPurchases.isActive, true)
-      )
-    );
+  // Deudas activas
+  const purchases = allPurchases.filter((p) => p.isActive);
 
   if (purchases.length === 0) {
     return {
@@ -431,40 +225,11 @@ export async function getDebtCapacityReport(
     };
   }
 
-  // Obtener cuotas pagadas por compra (históricas o pagadas con transferencia)
-  const paidByPurchase = await db
-    .select({
-      cardPurchaseId: transactions.cardPurchaseId,
-      paidCount: sql<number>`COUNT(*)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.projectId, projectId),
-        isNotNull(transactions.cardPurchaseId),
-        or(
-          eq(transactions.isHistoricallyPaid, true),
-          isNotNull(transactions.paidByTransferId)
-        )
-      )
-    )
-    .groupBy(transactions.cardPurchaseId);
-
-  const paidMap = new Map<string, number>();
-  for (const row of paidByPurchase) {
-    if (row.cardPurchaseId) {
-      paidMap.set(row.cardPurchaseId, Number(row.paidCount));
-    }
-  }
-
   let personalMonthlyCharge = 0;
   let externalMonthlyCharge = 0;
 
   for (const p of purchases) {
-    // Cuotas pagadas = históricas (isHistoricallyPaid) + pagadas con transferencia (paidByTransferId)
-    const paidInstallments = paidMap.get(p.id) ?? 0;
-    const remaining = p.installments - paidInstallments;
-    if (remaining > 0) {
+    if (p.remainingInstallments > 0) {
       // Usar el monto de la cuota mensual, no el total restante
       const installmentAmount = parseFloat(p.installmentAmount);
       if (p.isExternalDebt) {

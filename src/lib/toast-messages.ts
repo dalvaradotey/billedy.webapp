@@ -62,7 +62,7 @@ const FEMININE_ENTITIES: EntityName[] = [
 /**
  * Shows a loading toast and returns its ID for later update
  */
-export function showLoadingToast(action: ActionType, entity: EntityName): string | number {
+function showLoadingToast(action: ActionType, entity: EntityName): string | number {
   const message = `${LOADING_MESSAGES[action]} ${entity}...`;
   return toast.loading(capitalize(message));
 }
@@ -70,7 +70,7 @@ export function showLoadingToast(action: ActionType, entity: EntityName): string
 /**
  * Updates a toast to show success
  */
-export function showSuccessToast(
+function showSuccessToast(
   toastId: string | number,
   action: ActionType,
   entity: EntityName,
@@ -90,14 +90,14 @@ export function showSuccessToast(
 /**
  * Updates a toast to show error
  */
-export function showErrorToast(toastId: string | number, error?: string): void {
+function showErrorToast(toastId: string | number, error?: string): void {
   toast.error(error || 'Ocurrió un error', { id: toastId });
 }
 
 /**
  * Helper for common CRUD operations with toast notifications
  */
-export function createToastAction(action: ActionType, entity: EntityName) {
+function createToastAction(action: ActionType, entity: EntityName) {
   const toastId = showLoadingToast(action, entity);
 
   return {

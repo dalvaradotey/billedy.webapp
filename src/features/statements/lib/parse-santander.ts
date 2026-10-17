@@ -3,6 +3,8 @@
  * ver pdf-lines.ts): datos del encabezado y cada operación del período.
  */
 
+import { parseClp } from '@/lib/formatting';
+
 export type StatementLineKind = 'purchase' | 'installment' | 'credit' | 'payment';
 
 export type StatementLine = {
@@ -37,7 +39,6 @@ export type ParsedStatement = {
 
 export type ParseStatementResult = { ok: true; data: ParsedStatement } | { ok: false; error: string };
 
-const money = (s: string) => parseInt(s.replace(/[$\s.]/g, ''), 10);
 const dmy = (s: string) => {
   const [d, m, y] = s.split('/');
   return `${y.length === 2 ? `20${y}` : y}-${m}-${d}`;
@@ -96,7 +97,7 @@ export function parseSantanderStatement(lines: string[]): ParseStatementResult {
       descParts.push(seg);
     }
     const description = descParts.join(' ').replace(/\s+/g, ' ').trim();
-    const amount = money(amountMatch[1]);
+    const amount = parseClp(amountMatch[1]);
     const inst = line.match(/(\d{2})\/(\d{2})\s+\$\s?[\d.]+\s*$/);
 
     const kind: StatementLineKind = /MONTO CANCELADO|PAGO TARJETA/i.test(description)
@@ -118,7 +119,7 @@ export function parseSantanderStatement(lines: string[]): ParseStatementResult {
     });
   }
 
-  const totalBilled = money(total[1]);
+  const totalBilled = parseClp(total[1]);
   const sum = result.filter((l) => l.kind !== 'payment').reduce((acc, l) => acc + l.amount, 0);
 
   return {
@@ -131,7 +132,7 @@ export function parseSantanderStatement(lines: string[]): ParseStatementResult {
       periodEnd: dmy(period[2]),
       dueDate: due ? dmy(due[1]) : null,
       totalBilled,
-      minimumPayment: minimum ? money(minimum[1]) : null,
+      minimumPayment: minimum ? parseClp(minimum[1]) : null,
       lines: result,
       balanced: sum === totalBilled,
     },

@@ -1,7 +1,6 @@
 'use client';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 
 /**
  * Skeleton para cards de resumen (típicamente 4 cards en fila)
@@ -99,56 +98,6 @@ export function PageSkeleton({
 
       {/* Content */}
       {listType === 'table' ? <TableSkeleton /> : <ListSkeleton />}
-    </div>
-  );
-}
-
-/**
- * Skeleton para dashboard principal
- */
-export function DashboardSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <Skeleton className="h-8 w-48 mb-2" />
-        <Skeleton className="h-4 w-64" />
-      </div>
-
-      <SummaryCardsSkeleton />
-
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Últimas transacciones */}
-        <div className="rounded-[22px] border border-line bg-surface p-6">
-          <Skeleton className="h-6 w-40 mb-4" />
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-                <Skeleton className="h-5 w-16" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Presupuestos */}
-        <div className="rounded-[22px] border border-line bg-surface p-6">
-          <Skeleton className="h-6 w-32 mb-4" />
-          <div className="space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex justify-between">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-16" />
-                </div>
-                <Skeleton className="h-2 w-full" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

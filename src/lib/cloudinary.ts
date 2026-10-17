@@ -9,8 +9,18 @@ cloudinary.config({
 export { cloudinary };
 
 /**
+ * Solo data URLs de imagen en base64. Cloudinary también acepta URLs remotas
+ * (http, ftp, s3…) y las descargaría desde su servidor: no se permiten.
+ */
+const IMAGE_DATA_URL = /^data:image\/(png|jpe?g|webp|gif|svg\+xml);base64,[A-Za-z0-9+/]+=*$/;
+
+export function isImageDataUrl(file: string): boolean {
+  return IMAGE_DATA_URL.test(file);
+}
+
+/**
  * Sube una imagen a Cloudinary
- * @param file - base64 de la imagen (data URL)
+ * @param file - base64 de la imagen (data URL de imagen; cualquier otra cosa se rechaza)
  * @param folder - Carpeta en Cloudinary
  * @returns URL de la imagen subida
  */
@@ -18,6 +28,10 @@ export async function uploadImage(
   file: string,
   folder: string = 'entities'
 ): Promise<string> {
+  if (!isImageDataUrl(file)) {
+    throw new Error('Formato de imagen no válido');
+  }
+
   const result = await cloudinary.uploader.upload(file, {
     folder: `billedy/${folder}`,
     transformation: [

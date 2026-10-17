@@ -2,20 +2,14 @@
 
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { transactions, projects, projectMembers, accounts, categories } from '@/lib/db/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { transactions, projects, accounts, categories } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
-import {
-  createAccountTransferSchema,
-  updateAccountTransferSchema,
-} from '../schemas';
-import type {
-  CreateAccountTransferInput,
-  UpdateAccountTransferInput,
-} from '../schemas';
-import type { ActionResult } from '../types';
+import { createAccountTransferSchema } from '../schemas';
+import type { CreateAccountTransferInput } from '../schemas';
+import type { ActionResult } from '@/types/action-result';
 import { updateAccountBalance } from '@/features/accounts/lib/balance';
-import { verifyProjectAccess } from '../lib/access';
+import { NO_PROJECT_ACCESS, projectRefsError, verifyProjectWriteAccess } from '@/lib/auth/project-access';
 
 /**
  * Crea una transferencia entre cuentas (genera 2 transacciones vinculadas)
@@ -34,23 +28,39 @@ export async function createAccountTransfer(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Verificar acceso al proyecto
-  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  // Verificar acceso de escritura al proyecto
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
-  // Obtener la moneda del proyecto
-  const project = await db
-    .select({
-      currency: projects.currency,
-    })
-    .from(projects)
-    .where(eq(projects.id, parsed.data.projectId))
-    .limit(1);
+  const projectId = parsed.data.projectId;
+
+  // Moneda del proyecto, nombres y entityId de las cuentas (ambas del proyecto) y la meta
+  const accountQuery = (accountId: string) =>
+    db
+      .select({ name: accounts.name, entityId: accounts.entityId })
+      .from(accounts)
+      .where(and(eq(accounts.id, accountId), eq(accounts.projectId, projectId)))
+      .limit(1);
+
+  const [project, fromAccount, toAccount, refsError] = await Promise.all([
+    db.select({ currency: projects.currency }).from(projects).where(eq(projects.id, projectId)).limit(1),
+    accountQuery(parsed.data.fromAccountId),
+    accountQuery(parsed.data.toAccountId),
+    projectRefsError(projectId, { savingsGoalIds: [parsed.data.savingsGoalId] }),
+  ]);
 
   if (!project[0]) {
     return { success: false, error: 'Proyecto no encontrado' };
+  }
+
+  if (!fromAccount[0] || !toAccount[0]) {
+    return { success: false, error: 'Cuenta no encontrada' };
+  }
+
+  if (refsError) {
+    return { success: false, error: refsError };
   }
 
   // Buscar o crear categoría de transferencias (por nombre)
@@ -81,20 +91,12 @@ export async function createAccountTransfer(
     transferCategoryId = transferCategory[0].id;
   }
 
-  // Obtener nombres y entityId de las cuentas
-  const [fromAccount, toAccount] = await Promise.all([
-    db.select({ name: accounts.name, entityId: accounts.entityId }).from(accounts).where(eq(accounts.id, parsed.data.fromAccountId)).limit(1),
-    db.select({ name: accounts.name, entityId: accounts.entityId }).from(accounts).where(eq(accounts.id, parsed.data.toAccountId)).limit(1),
-  ]);
-
-  if (!fromAccount[0] || !toAccount[0]) {
-    return { success: false, error: 'Cuenta no encontrada' };
-  }
-
   const amount = String(parsed.data.amount);
   const description = parsed.data.description || 'Transferencia entre cuentas';
 
-  // Las dos patas del traspaso se guardan juntas: si una falla, no queda ninguna suelta
+  const amountNum = parseFloat(amount);
+
+  // Las dos patas del traspaso y los saldos se guardan juntos: si algo falla, no queda nada suelto
   const outTransactionId = await db.transaction(async (tx) => {
     // Crear transacción de salida (expense en cuenta origen)
     // Usa el entityId de la cuenta origen
@@ -152,249 +154,15 @@ export async function createAccountTransfer(
       .set({ linkedTransactionId: inTransaction.id })
       .where(eq(transactions.id, outTransaction.id));
 
+    // Actualizar balances (restar de origen, sumar a destino)
+    await updateAccountBalance(parsed.data.fromAccountId, -amountNum, tx);
+    await updateAccountBalance(parsed.data.toAccountId, amountNum, tx);
+
     return outTransaction.id;
   });
-
-  // Actualizar balances (restar de origen, sumar a destino)
-  const amountNum = parseFloat(amount);
-  await updateAccountBalance(parsed.data.fromAccountId, -amountNum);
-  await updateAccountBalance(parsed.data.toAccountId, amountNum);
 
   invalidateRelatedCache('transactions');
   invalidateRelatedCache('savings');
 
   return { success: true, data: { id: outTransactionId } };
-}
-
-/**
- * Actualiza una transferencia entre cuentas (actualiza ambas transacciones vinculadas)
- */
-export async function updateAccountTransfer(
-  transactionId: string,
-  userId: string,
-  input: UpdateAccountTransferInput
-): Promise<ActionResult> {
-  if (!(await isSessionUser(userId))) {
-    return { success: false, error: UNAUTHORIZED_ERROR };
-  }
-
-  const parsed = updateAccountTransferSchema.safeParse(input);
-
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
-  }
-
-  // Obtener la transacción y su vinculada (identificada por linkedTransactionId)
-  const existing = await db
-    .select({
-      id: transactions.id,
-      projectId: transactions.projectId,
-      accountId: transactions.accountId,
-      originalAmount: transactions.originalAmount,
-      linkedTransactionId: transactions.linkedTransactionId,
-      description: transactions.description,
-      type: transactions.type,
-    })
-    .from(transactions)
-    .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(transactions.id, transactionId),
-        isNotNull(transactions.linkedTransactionId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
-    return { success: false, error: 'Transferencia no encontrada' };
-  }
-
-  const transaction = existing[0];
-  const oldAmount = parseFloat(transaction.originalAmount);
-
-  // Obtener la transacción vinculada
-  let linkedTransaction = null;
-  if (transaction.linkedTransactionId) {
-    const linked = await db
-      .select({
-        id: transactions.id,
-        accountId: transactions.accountId,
-        description: transactions.description,
-      })
-      .from(transactions)
-      .where(eq(transactions.id, transaction.linkedTransactionId))
-      .limit(1);
-    linkedTransaction = linked[0] ?? null;
-  }
-
-  // Revertir balances anteriores según el tipo de transacción
-  if (transaction.accountId) {
-    // Si era expense, revertimos sumando. Si era income, revertimos restando.
-    const revertDelta = transaction.type === 'expense' ? oldAmount : -oldAmount;
-    await updateAccountBalance(transaction.accountId, revertDelta);
-  }
-  if (linkedTransaction?.accountId) {
-    // La transacción vinculada tiene el tipo opuesto
-    const linkedRevertDelta = transaction.type === 'expense' ? -oldAmount : oldAmount;
-    await updateAccountBalance(linkedTransaction.accountId, linkedRevertDelta);
-  }
-
-  const updateData: Record<string, unknown> = {
-    updatedAt: new Date(),
-  };
-
-  if (parsed.data.date !== undefined) updateData.date = parsed.data.date;
-  if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes;
-
-  let newAmount = oldAmount;
-  if (parsed.data.amount !== undefined) {
-    const amount = String(parsed.data.amount);
-    updateData.originalAmount = amount;
-    updateData.baseAmount = amount;
-    newAmount = parsed.data.amount;
-  }
-
-  // Determinar cuál es la transacción de ingreso para aplicar savingsGoalId
-  const incomeUpdateData: Record<string, unknown> = {};
-  if (parsed.data.savingsGoalId !== undefined) {
-    incomeUpdateData.savingsGoalId = parsed.data.savingsGoalId ?? null;
-  }
-
-  // Actualizar descripciones si se proporciona
-  if (parsed.data.description !== undefined) {
-    // Extraer el nombre de la cuenta del destino de la descripción actual
-    const toAccountName = transaction.description.split(' → ')[1] ?? '';
-    const fromAccountName = linkedTransaction?.description.split(' ← ')[1] ?? '';
-
-    await db
-      .update(transactions)
-      .set({
-        ...updateData,
-        ...(transaction.type === 'income' ? incomeUpdateData : {}),
-        description: `${parsed.data.description} → ${toAccountName}`
-      })
-      .where(eq(transactions.id, transactionId));
-
-    if (linkedTransaction) {
-      await db
-        .update(transactions)
-        .set({
-          ...updateData,
-          ...(transaction.type === 'expense' ? incomeUpdateData : {}),
-          description: `${parsed.data.description} ← ${fromAccountName}`
-        })
-        .where(eq(transactions.id, linkedTransaction.id));
-    }
-  } else {
-    // Actualizar ambas transacciones
-    await db
-      .update(transactions)
-      .set({
-        ...updateData,
-        ...(transaction.type === 'income' ? incomeUpdateData : {}),
-      })
-      .where(eq(transactions.id, transactionId));
-
-    if (linkedTransaction) {
-      await db
-        .update(transactions)
-        .set({
-          ...updateData,
-          ...(transaction.type === 'expense' ? incomeUpdateData : {}),
-        })
-        .where(eq(transactions.id, linkedTransaction.id));
-    }
-  }
-
-  // Aplicar nuevos balances según el tipo de transacción
-  if (transaction.accountId) {
-    const newDelta = transaction.type === 'expense' ? -newAmount : newAmount;
-    await updateAccountBalance(transaction.accountId, newDelta);
-  }
-  if (linkedTransaction?.accountId) {
-    // La transacción vinculada tiene el tipo opuesto
-    const linkedNewDelta = transaction.type === 'expense' ? newAmount : -newAmount;
-    await updateAccountBalance(linkedTransaction.accountId, linkedNewDelta);
-  }
-
-  invalidateRelatedCache('transactions');
-  invalidateRelatedCache('savings');
-
-  return { success: true, data: undefined };
-}
-
-/**
- * Elimina una transferencia entre cuentas (elimina ambas transacciones vinculadas)
- */
-export async function deleteAccountTransfer(
-  transactionId: string,
-  userId: string
-): Promise<ActionResult> {
-  if (!(await isSessionUser(userId))) {
-    return { success: false, error: UNAUTHORIZED_ERROR };
-  }
-
-  // Obtener la transacción y su vinculada (identificada por linkedTransactionId)
-  const existing = await db
-    .select({
-      id: transactions.id,
-      projectId: transactions.projectId,
-      accountId: transactions.accountId,
-      originalAmount: transactions.originalAmount,
-      linkedTransactionId: transactions.linkedTransactionId,
-      type: transactions.type,
-    })
-    .from(transactions)
-    .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(transactions.id, transactionId),
-        isNotNull(transactions.linkedTransactionId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
-    return { success: false, error: 'Transferencia no encontrada' };
-  }
-
-  const transaction = existing[0];
-  const amount = parseFloat(transaction.originalAmount);
-
-  // Obtener la transacción vinculada
-  let linkedAccountId: string | null = null;
-  if (transaction.linkedTransactionId) {
-    const linked = await db
-      .select({ accountId: transactions.accountId })
-      .from(transactions)
-      .where(eq(transactions.id, transaction.linkedTransactionId))
-      .limit(1);
-    linkedAccountId = linked[0]?.accountId ?? null;
-  }
-
-  // Eliminar ambas transacciones
-  await db.delete(transactions).where(eq(transactions.id, transactionId));
-  if (transaction.linkedTransactionId) {
-    await db.delete(transactions).where(eq(transactions.id, transaction.linkedTransactionId));
-  }
-
-  // Revertir balances según el tipo de transacción
-  if (transaction.accountId) {
-    // Si era expense, revertimos sumando. Si era income, revertimos restando.
-    const revertDelta = transaction.type === 'expense' ? amount : -amount;
-    await updateAccountBalance(transaction.accountId, revertDelta);
-  }
-  if (linkedAccountId) {
-    // La transacción vinculada tiene el tipo opuesto
-    const linkedRevertDelta = transaction.type === 'expense' ? -amount : amount;
-    await updateAccountBalance(linkedAccountId, linkedRevertDelta);
-  }
-
-  invalidateRelatedCache('transactions');
-
-  return { success: true, data: undefined };
 }

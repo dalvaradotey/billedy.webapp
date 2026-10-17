@@ -76,21 +76,11 @@ import {
   reorderBudgets,
 } from './actions';
 import { createBudgetSchema } from './schemas';
-import type { CreateBudgetInput, UpdateBudgetInput } from './schemas';
+import type { CreateBudgetInput } from './schemas';
 import type { BudgetWithCategory } from './types';
 import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
-import { getToday, toCalendarDate, daysBetween } from '@/lib/formatting';
+import { getToday, toCalendarDate, daysBetween, formatCurrency } from '@/lib/formatting';
 import { BudgetDetail, type CycleOption } from './components/budget-detail';
-
-function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(num);
-}
 
 function startOfDay(d: Date): Date {
   return toCalendarDate(d);
@@ -720,9 +710,7 @@ function BudgetCard({ budget, userId, onEdit, cycles = [] }: BudgetCardProps) {
             <BudgetDetail
               budgetId={budget.id}
               userId={userId}
-              budgetedAmount={parseFloat(budget.defaultAmount)}
               currency={budget.currency}
-              categoryColor={budget.categoryColor}
               cycles={cycles}
             />
           </div>
@@ -902,7 +890,6 @@ function BudgetDialogContent({
                     placeholder="Ej: Comida, Transporte, etc."
                     value={field.value}
                     onChange={field.onChange}
-                    valid={!!field.value && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -929,7 +916,6 @@ function BudgetDialogContent({
                     label="Categoría (opcional)"
                     searchPlaceholder="Buscar categoría..."
                     onCategoryCreated={handleCategoryCreated}
-                    valid={!!field.value}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -953,7 +939,6 @@ function BudgetDialogContent({
                     noneLabel="Sin cuenta por defecto"
                     label="Cuenta de cargo (opcional)"
                     searchPlaceholder="Buscar cuenta..."
-                    valid={!!field.value}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -976,7 +961,6 @@ function BudgetDialogContent({
                     placeholder="0"
                     size="lg"
                     label="Monto por defecto"
-                    valid={field.value !== undefined && field.value > 0 && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -1017,7 +1001,6 @@ function BudgetDialogContent({
                         label="Moneda"
                         searchPlaceholder="Buscar moneda..."
                         emptyMessage="No se encontraron monedas."
-                        valid={!!field.value}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>
@@ -1062,7 +1045,6 @@ function BudgetDialogContent({
                           label="Fecha inicio"
                           value={field.value ?? undefined}
                           onChange={field.onChange}
-                          valid={!!field.value && !fieldState.error}
                           invalid={!!fieldState.error}
                         />
                       </FormControl>
@@ -1080,7 +1062,6 @@ function BudgetDialogContent({
                           label="Fecha fin"
                           value={field.value ?? undefined}
                           onChange={field.onChange}
-                          valid={!!field.value && !fieldState.error}
                           invalid={!!fieldState.error}
                         />
                       </FormControl>

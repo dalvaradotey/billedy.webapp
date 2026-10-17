@@ -4,6 +4,7 @@ import { accounts, categories, pensionContributions, quotaValues, transactions }
 import { updateAccountBalance } from '@/features/accounts/lib/balance';
 import { AFC_PROVIDER } from './quota-values';
 import type { ParsedContribution } from './afc-documents';
+import { MONTHS_LONG as MONTHS } from '@/lib/dates';
 
 /**
  * Cotizaciones de AFP / AFC.
@@ -20,7 +21,6 @@ export const CONTRIBUTION_RULES = {
   afc: { windowStartDay: 6, windowEndDay: 12 },
 } as const;
 
-const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 export const periodLabel = (period: string) => `${MONTHS[parseInt(period.slice(5, 7), 10) - 1]} ${period.slice(0, 4)}`;
 
 const addMonths = (period: string, n: number) => {

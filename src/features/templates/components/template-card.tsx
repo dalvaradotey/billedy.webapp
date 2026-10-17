@@ -102,7 +102,7 @@ export function TemplateCard({
     startTransition(async () => {
       const result = await toggleTemplateActive(template.id, userId);
       if (result.success) {
-        toast.success(result.isActive ? 'Plantilla activada' : 'Plantilla desactivada', {
+        toast.success(result.data.isActive ? 'Plantilla activada' : 'Plantilla desactivada', {
           id: toastId,
         });
       } else {

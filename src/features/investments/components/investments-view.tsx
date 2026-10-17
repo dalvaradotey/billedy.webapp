@@ -20,8 +20,8 @@ import {
   type InvestmentSummary,
   type LinkCandidate,
 } from '../actions';
+import { MONTHS_SHORT as MONTHS } from '@/lib/dates';
 
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const short = (iso: string) => `${parseInt(iso.slice(8, 10), 10)} ${MONTHS[parseInt(iso.slice(5, 7), 10) - 1]} ${iso.slice(2, 4)}`;
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatCurrency(Math.abs(n))}`;
 

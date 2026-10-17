@@ -1,33 +1,30 @@
 import { db } from '@/lib/db';
 import { billingCycles, projectMembers } from '@/lib/db/schema';
-import { eq, and, isNotNull, lte, gte, ne } from 'drizzle-orm';
+import { eq, and, lte, gte, ne } from 'drizzle-orm';
+import { memberCondition } from '@/lib/auth/project-access';
 
-export type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string };
-
+export type { ActionResult } from '@/types/action-result';
 export { UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 
 /**
- * Verifica que el usuario tenga acceso al proyecto
+ * Busca un ciclo verificando que el usuario sea miembro del proyecto con rol
+ * que pueda modificar (owner/editor). Para las mutaciones sobre el ciclo.
  */
-export async function verifyProjectAccess(
-  projectId: string,
-  userId: string
-): Promise<boolean> {
-  const member = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
+export async function getCycleForWrite(cycleId: string, userId: string) {
+  const [existing] = await db
+    .select({
+      id: billingCycles.id,
+      projectId: billingCycles.projectId,
+      status: billingCycles.status,
+      startDate: billingCycles.startDate,
+      endDate: billingCycles.endDate,
+    })
+    .from(billingCycles)
+    .innerJoin(projectMembers, eq(billingCycles.projectId, projectMembers.projectId))
+    .where(and(eq(billingCycles.id, cycleId), memberCondition(userId, { write: true })))
     .limit(1);
 
-  return member.length > 0;
+  return existing ?? null;
 }
 
 /**

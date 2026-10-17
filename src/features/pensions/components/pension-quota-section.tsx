@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { CurrencyInput } from '@/components/currency-input';
 import { DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, ResponsiveDrawer } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
-import { appDateString, formatCurrency } from '@/lib/formatting';
+import { appDateString, formatCurrency, parseFlexibleDecimal } from '@/lib/formatting';
 import {
   configurePensionQuotas,
   confirmContribution,
@@ -19,6 +19,7 @@ import {
 } from '../actions';
 import { AFC_FUND, AFC_PROVIDER, AFP_FUNDS, AFP_PROVIDERS } from '../lib/quota-values';
 import { StatementHelp } from './statement-help';
+import { MONTHS_LONG, MONTHS_SHORT as MONTHS } from '@/lib/dates';
 
 const PROVIDER_LABELS: Record<string, string> = {
   CAPITAL: 'AFP Capital',
@@ -31,9 +32,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   AFC: 'AFC (Seguro de Cesantía)',
 };
 
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const shortDate = (iso: string) => `${parseInt(iso.slice(8, 10), 10)} ${MONTHS[parseInt(iso.slice(5, 7), 10) - 1]}`;
-const MONTHS_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const periodName = (p: string) => `${MONTHS_LONG[parseInt(p.slice(5, 7), 10) - 1]} ${p.slice(0, 4)}`;
 const STATUS: Record<string, { label: string; className: string }> = {
   upcoming: { label: 'por llegar', className: 'bg-surface-3 text-muted-foreground' },
@@ -42,17 +41,6 @@ const STATUS: Record<string, { label: string; className: string }> = {
 };
 
 const quotas = (n: number) => new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(n);
-
-/**
- * Cuotas escritas a mano: "566,17", "1.234,5" o "566.17". Con coma, los puntos
- * son miles; sin coma, un punto seguido de 1 a 4 dígitos al final es decimal.
- */
-function parseQuotaInput(raw: string): number {
-  const s = raw.trim().replace(/\s/g, '');
-  if (s.includes(',')) return Number(s.replace(/\./g, '').replace(',', '.'));
-  if (/^\d+\.\d{1,4}$/.test(s)) return Number(s);
-  return Number(s.replace(/\./g, ''));
-}
 
 interface PensionQuotaSectionProps {
   userId: string;
@@ -147,7 +135,7 @@ export function PensionQuotaSection({ userId, accountId, accountType }: PensionQ
   };
 
   const save = () => {
-    const quotaCount = mode === 'quotas' ? parseQuotaInput(quotaInput) : null;
+    const quotaCount = mode === 'quotas' ? parseFlexibleDecimal(quotaInput) : null;
     startTransition(async () => {
       const result = await configurePensionQuotas(userId, accountId, {
         provider,

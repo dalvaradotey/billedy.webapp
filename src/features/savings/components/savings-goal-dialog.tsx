@@ -161,7 +161,6 @@ export function SavingsGoalDialogContent({
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     placeholder="Ej: Fondo de emergencia"
-                    valid={fieldState.isDirty && !fieldState.invalid}
                     invalid={fieldState.invalid}
                   />
                 </FormControl>
@@ -184,7 +183,6 @@ export function SavingsGoalDialogContent({
                     label="Tipo de meta"
                     searchPlaceholder="Buscar tipo..."
                     emptyMessage="No se encontraron tipos."
-                    valid={!!field.value}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -207,7 +205,6 @@ export function SavingsGoalDialogContent({
                     onChange={field.onChange}
                     currency={selectedCurrencyCode}
                     placeholder="0"
-                    valid={fieldState.isDirty && !fieldState.invalid && field.value != null && field.value > 0}
                     invalid={fieldState.invalid}
                   />
                 </FormControl>
@@ -261,7 +258,6 @@ export function SavingsGoalDialogContent({
                           onChange={(value) => field.onChange(value ?? 0)}
                           currency={selectedCurrencyCode}
                           placeholder="0"
-                          valid={fieldState.isDirty && !fieldState.invalid && field.value != null && field.value > 0}
                           invalid={fieldState.invalid}
                         />
                       </FormControl>
@@ -298,7 +294,6 @@ export function SavingsGoalDialogContent({
                       label="Moneda"
                       searchPlaceholder="Buscar moneda..."
                       emptyMessage="No se encontraron monedas."
-                      valid={!!selectedCurrencyId}
                     />
                   )}
                 </div>

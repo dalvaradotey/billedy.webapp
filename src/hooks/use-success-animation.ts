@@ -21,16 +21,20 @@ interface UseSuccessAnimationOptions {
  *
  * // En el submit exitoso:
  * triggerSuccess();
+ *
+ * // Opcional: callback puntual con datos del submit (corre después de onComplete)
+ * triggerSuccess(() => onCreated(nuevo));
  */
 export function useSuccessAnimation(options: UseSuccessAnimationOptions = {}) {
   const { duration = 1500, onComplete } = options;
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const triggerSuccess = useCallback(() => {
+  const triggerSuccess = useCallback((then?: () => void) => {
     setShowSuccess(true);
     setTimeout(() => {
       setShowSuccess(false);
       onComplete?.();
+      then?.();
     }, duration);
   }, [duration, onComplete]);
 

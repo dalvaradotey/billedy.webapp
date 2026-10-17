@@ -3,36 +3,16 @@
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { accounts, transactions, projectMembers, categories } from '@/lib/db/schema';
-import { eq, and, sql, isNotNull } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
-import { createAccountSchema, updateAccountSchema } from './schemas';
+import { adjustBalanceSchema, createAccountSchema, updateAccountSchema } from './schemas';
 import type { CreateAccountInput, UpdateAccountInput } from './schemas';
-
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string };
-
-/**
- * Verifica que el usuario tenga membresía aceptada en el proyecto
- */
-async function verifyProjectMembership(
-  projectId: string,
-  userId: string
-): Promise<boolean> {
-  const membership = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  return membership.length > 0;
-}
+import type { ActionResult } from '@/types/action-result';
+import {
+  memberCondition,
+  NO_PROJECT_ACCESS,
+  verifyProjectWriteAccess,
+} from '@/lib/auth/project-access';
 
 /**
  * Create a new account
@@ -52,9 +32,9 @@ export async function createAccount(
   }
 
   // Verificar membresía al proyecto
-  const hasAccess = await verifyProjectMembership(parsed.data.projectId, userId);
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   // If this is set as default, unset any existing default in the project
@@ -105,6 +85,22 @@ export async function createAccount(
 }
 
 /**
+ * Cuenta con acceso de escritura del usuario a su proyecto (null si no existe o no tiene acceso)
+ */
+async function findAccountForWrite(
+  accountId: string,
+  userId: string
+): Promise<{ id: string; projectId: string; type: string } | null> {
+  const [account] = await db
+    .select({ id: accounts.id, projectId: accounts.projectId, type: accounts.type })
+    .from(accounts)
+    .innerJoin(projectMembers, eq(accounts.projectId, projectMembers.projectId))
+    .where(and(eq(accounts.id, accountId), memberCondition(userId, { write: true })))
+    .limit(1);
+  return account ?? null;
+}
+
+/**
  * Update an existing account
  * Verifica membresía del usuario al proyecto
  */
@@ -124,23 +120,9 @@ export async function updateAccount(
   }
 
   // Verificar que la cuenta existe y el usuario tiene acceso al proyecto
-  const existing = await db
-    .select({ id: accounts.id, projectId: accounts.projectId })
-    .from(accounts)
-    .innerJoin(
-      projectMembers,
-      eq(accounts.projectId, projectMembers.projectId)
-    )
-    .where(
-      and(
-        eq(accounts.id, accountId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+  const existing = await findAccountForWrite(accountId, userId);
 
-  if (!existing[0]) {
+  if (!existing) {
     return { success: false, error: 'Cuenta no encontrada' };
   }
 
@@ -151,7 +133,7 @@ export async function updateAccount(
       .set({ isDefault: false })
       .where(
         and(
-          eq(accounts.projectId, existing[0].projectId),
+          eq(accounts.projectId, existing.projectId),
           eq(accounts.isDefault, true)
         )
       );
@@ -175,7 +157,10 @@ export async function updateAccount(
     updateData.creditLimit = parsed.data.creditLimit != null ? String(parsed.data.creditLimit) : null;
   }
 
-  await db.update(accounts).set(updateData).where(eq(accounts.id, accountId));
+  await db
+    .update(accounts)
+    .set(updateData)
+    .where(and(eq(accounts.id, accountId), eq(accounts.projectId, existing.projectId)));
 
   invalidateRelatedCache('accounts');
 
@@ -195,30 +180,16 @@ export async function archiveAccount(
   }
 
   // Verificar acceso mediante membresía al proyecto
-  const existing = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .innerJoin(
-      projectMembers,
-      eq(accounts.projectId, projectMembers.projectId)
-    )
-    .where(
-      and(
-        eq(accounts.id, accountId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+  const existing = await findAccountForWrite(accountId, userId);
 
-  if (!existing[0]) {
+  if (!existing) {
     return { success: false, error: 'Cuenta no encontrada' };
   }
 
   await db
     .update(accounts)
     .set({ isArchived: true, isDefault: false, updatedAt: new Date() })
-    .where(eq(accounts.id, accountId));
+    .where(and(eq(accounts.id, accountId), eq(accounts.projectId, existing.projectId)));
 
   invalidateRelatedCache('accounts');
 
@@ -238,30 +209,16 @@ export async function restoreAccount(
   }
 
   // Verificar acceso mediante membresía al proyecto
-  const existing = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .innerJoin(
-      projectMembers,
-      eq(accounts.projectId, projectMembers.projectId)
-    )
-    .where(
-      and(
-        eq(accounts.id, accountId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+  const existing = await findAccountForWrite(accountId, userId);
 
-  if (!existing[0]) {
+  if (!existing) {
     return { success: false, error: 'Cuenta no encontrada' };
   }
 
   await db
     .update(accounts)
     .set({ isArchived: false, updatedAt: new Date() })
-    .where(eq(accounts.id, accountId));
+    .where(and(eq(accounts.id, accountId), eq(accounts.projectId, existing.projectId)));
 
   invalidateRelatedCache('accounts');
 
@@ -270,7 +227,7 @@ export async function restoreAccount(
 
 /**
  * Delete an account permanently
- * Note: This should only be allowed if no transactions reference it
+ * Solo si ninguna transacción la referencia: con movimientos se archiva
  * Verifica membresía del usuario al proyecto
  */
 export async function deleteAccount(
@@ -282,30 +239,26 @@ export async function deleteAccount(
   }
 
   // Verificar acceso mediante membresía al proyecto
-  const existing = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .innerJoin(
-      projectMembers,
-      eq(accounts.projectId, projectMembers.projectId)
-    )
-    .where(
-      and(
-        eq(accounts.id, accountId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+  const existing = await findAccountForWrite(accountId, userId);
 
-  if (!existing[0]) {
+  if (!existing) {
     return { success: false, error: 'Cuenta no encontrada' };
   }
 
-  // TODO: Check if any transactions reference this account
-  // For now, we'll just delete it
+  // Con movimientos no se borra: se perdería el historial (la UI ofrece "Archivar")
+  const [movement] = await db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(eq(transactions.accountId, accountId))
+    .limit(1);
 
-  await db.delete(accounts).where(eq(accounts.id, accountId));
+  if (movement) {
+    return { success: false, error: 'La cuenta tiene movimientos; archívala en vez de borrarla (opción "Archivar")' };
+  }
+
+  await db
+    .delete(accounts)
+    .where(and(eq(accounts.id, accountId), eq(accounts.projectId, existing.projectId)));
 
   invalidateRelatedCache('accounts');
 
@@ -327,24 +280,15 @@ export async function adjustAccountBalance(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Verificar acceso y obtener tipo de cuenta
-  const existing = await db
-    .select({ id: accounts.id, type: accounts.type })
-    .from(accounts)
-    .innerJoin(
-      projectMembers,
-      eq(accounts.projectId, projectMembers.projectId)
-    )
-    .where(
-      and(
-        eq(accounts.id, accountId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+  const parsed = adjustBalanceSchema.safeParse({ newBalance });
+  if (!parsed.success) {
+    return { success: false, error: 'Saldo inválido' };
+  }
 
-  if (!existing[0]) {
+  // Verificar acceso y obtener tipo de cuenta
+  const existing = await findAccountForWrite(accountId, userId);
+
+  if (!existing) {
     return { success: false, error: 'Cuenta no encontrada' };
   }
 
@@ -355,27 +299,28 @@ export async function adjustAccountBalance(
       totalExpense: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount}::numeric ELSE 0 END), 0)`,
     })
     .from(transactions)
-    .where(eq(transactions.accountId, accountId));
+    .where(and(eq(transactions.accountId, accountId), eq(transactions.projectId, existing.projectId)));
 
   const totalIncome = parseFloat(totals?.totalIncome ?? '0');
   const totalExpense = parseFloat(totals?.totalExpense ?? '0');
+  const balance = parsed.data.newBalance;
 
   // Derivar initialBalance para que: recalculate(initialBalance + txns) = newBalance
   // Normal: newBalance = initial + income - expense → initial = newBalance - income + expense
   // TC:     newBalance = initial - income + expense → initial = newBalance + income - expense
-  const isCreditCard = existing[0].type === 'credit_card';
+  const isCreditCard = existing.type === 'credit_card';
   const newInitialBalance = isCreditCard
-    ? newBalance + totalIncome - totalExpense
-    : newBalance - totalIncome + totalExpense;
+    ? balance + totalIncome - totalExpense
+    : balance - totalIncome + totalExpense;
 
   await db
     .update(accounts)
     .set({
       initialBalance: String(newInitialBalance),
-      currentBalance: String(newBalance),
+      currentBalance: String(balance),
       updatedAt: new Date(),
     })
-    .where(eq(accounts.id, accountId));
+    .where(and(eq(accounts.id, accountId), eq(accounts.projectId, existing.projectId)));
 
   invalidateRelatedCache('accounts');
 
@@ -383,82 +328,11 @@ export async function adjustAccountBalance(
 }
 
 /**
- * Recalcula el balance de una cuenta basándose en:
+ * Recalcula el balance de TODAS las cuentas del proyecto en una sola sentencia:
  * - Saldo inicial
- * - Transacciones PAGADAS (isPaid = true)
- * - Transferencias completadas
- * Verifica membresía del usuario al proyecto
- */
-export async function recalculateAccountBalance(
-  accountId: string,
-  userId: string
-): Promise<ActionResult<{ newBalance: number }>> {
-  if (!(await isSessionUser(userId))) {
-    return { success: false, error: UNAUTHORIZED_ERROR };
-  }
-
-  // Verificar acceso y obtener tipo de cuenta
-  const account = await db
-    .select({
-      id: accounts.id,
-      initialBalance: accounts.initialBalance,
-      type: accounts.type,
-    })
-    .from(accounts)
-    .innerJoin(
-      projectMembers,
-      eq(accounts.projectId, projectMembers.projectId)
-    )
-    .where(
-      and(
-        eq(accounts.id, accountId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!account[0]) {
-    return { success: false, error: 'Cuenta no encontrada' };
-  }
-
-  const initialBalance = parseFloat(account[0].initialBalance);
-  const isCreditCard = account[0].type === 'credit_card';
-
-  // Sumar todas las transacciones PAGADAS
-  // - income: suma al balance (incluye transferencias entrantes)
-  // - expense: resta del balance (incluye transferencias salientes)
-  const [transactionTotals] = await db
-    .select({
-      totalIncome: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'income' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount}::numeric ELSE 0 END), 0)`,
-      totalExpense: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'expense' AND ${transactions.isPaid} = true THEN ${transactions.baseAmount}::numeric ELSE 0 END), 0)`,
-    })
-    .from(transactions)
-    .where(eq(transactions.accountId, accountId));
-
-  const totalIncome = parseFloat(transactionTotals?.totalIncome ?? '0');
-  const totalExpense = parseFloat(transactionTotals?.totalExpense ?? '0');
-
-  // Calcular nuevo balance:
-  // - Cuentas normales: inicial + ingresos - gastos
-  // - Tarjetas de crédito: inicial - ingresos + gastos (invertido porque la deuda aumenta con gastos)
-  const newBalance = isCreditCard
-    ? initialBalance - totalIncome + totalExpense
-    : initialBalance + totalIncome - totalExpense;
-
-  // Actualizar el balance
-  await db
-    .update(accounts)
-    .set({ currentBalance: String(newBalance), updatedAt: new Date() })
-    .where(eq(accounts.id, accountId));
-
-  invalidateRelatedCache('accounts');
-
-  return { success: true, data: { newBalance } };
-}
-
-/**
- * Recalcula el balance de TODAS las cuentas del proyecto
+ * - Transacciones PAGADAS (isPaid = true): income suma, expense resta
+ *   (incluye las transferencias entrantes y salientes)
+ * - Tarjetas de crédito: invertido (la deuda aumenta con gastos)
  * Verifica membresía del usuario al proyecto
  */
 export async function recalculateAllAccountBalances(
@@ -469,159 +343,39 @@ export async function recalculateAllAccountBalances(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Verificar membresía
-  const hasAccess = await verifyProjectMembership(projectId, userId);
+  // Verificar membresía con permiso de escritura
+  const hasAccess = await verifyProjectWriteAccess(projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
-  const projectAccounts = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.projectId, projectId));
-
-  let updated = 0;
-  for (const account of projectAccounts) {
-    const result = await recalculateAccountBalance(account.id, userId);
-    if (result.success) {
-      updated++;
-    }
-  }
-
-  // invalidateRelatedCache ya se llama en cada recalculateAccountBalance
-
-  return { success: true, data: { updated } };
-}
-
-/**
- * Registra un aporte mensual a una cuenta previsional (pensión o cesantía).
- * Crea automáticamente:
- * 1. Transacción de ingreso por el aporte
- * 2. Transacción de ajuste por rentabilidad (ingreso si ganancia, gasto si pérdida)
- * Actualiza el saldo de la cuenta al saldo real del proveedor.
- */
-export async function registerProvisionContribution(
-  userId: string,
-  input: {
-    accountId: string;
-    projectId: string;
-    contributionAmount: number;
-    currentProviderBalance: number;
-    date: Date;
-    contributionCategoryId: string;
-    profitabilityCategoryId: string;
-  }
-): Promise<ActionResult<{ contributionId: string; adjustmentId?: string; adjustmentAmount: number }>> {
-  if (!(await isSessionUser(userId))) {
-    return { success: false, error: UNAUTHORIZED_ERROR };
-  }
-
-  // Verificar acceso
-  const hasAccess = await verifyProjectMembership(input.projectId, userId);
-  if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
-  }
-
-  // Verificar que la cuenta existe y es previsional
-  const [account] = await db
-    .select({
-      id: accounts.id,
-      type: accounts.type,
-      currentBalance: accounts.currentBalance,
-      currency: accounts.currency,
-    })
-    .from(accounts)
-    .where(
-      and(
-        eq(accounts.id, input.accountId),
-        eq(accounts.projectId, input.projectId)
-      )
-    )
-    .limit(1);
-
-  if (!account) {
-    return { success: false, error: 'Cuenta no encontrada' };
-  }
-
-  if (account.type !== 'pension' && account.type !== 'unemployment') {
-    return { success: false, error: 'Esta acción solo aplica para cuentas previsionales' };
-  }
-
-  const currentBalance = parseFloat(account.currentBalance);
-  const dateStr = input.date.toISOString().split('T')[0];
-  const typeLabel = account.type === 'pension' ? 'AFP' : 'Cesantía';
-
-  // 1. Crear transacción de aporte (ingreso)
-  const [contribution] = await db
-    .insert(transactions)
-    .values({
-      userId,
-      projectId: input.projectId,
-      accountId: input.accountId,
-      categoryId: input.contributionCategoryId,
-      type: 'income',
-      originalAmount: String(input.contributionAmount),
-      originalCurrency: account.currency,
-      baseAmount: String(input.contributionAmount),
-      baseCurrency: account.currency,
-      exchangeRate: '1',
-      date: input.date,
-      description: `Aporte ${typeLabel}`,
-      isPaid: true,
-      paidAt: input.date,
-    })
-    .returning({ id: transactions.id });
-
-  // 2. Calcular ajuste de rentabilidad
-  const balanceAfterContribution = currentBalance + input.contributionAmount;
-  const adjustmentAmount = input.currentProviderBalance - balanceAfterContribution;
-
-  let adjustmentId: string | undefined;
-
-  // 3. Crear transacción de ajuste si hay diferencia
-  if (Math.abs(adjustmentAmount) >= 1) {
-    const isGain = adjustmentAmount > 0;
-    const [adjustment] = await db
-      .insert(transactions)
-      .values({
-        userId,
-        projectId: input.projectId,
-        accountId: input.accountId,
-        categoryId: input.profitabilityCategoryId,
-        type: isGain ? 'income' : 'expense',
-        originalAmount: String(Math.abs(adjustmentAmount)),
-        originalCurrency: account.currency,
-        baseAmount: String(Math.abs(adjustmentAmount)),
-        baseCurrency: account.currency,
-        exchangeRate: '1',
-        date: input.date,
-        description: `Rentabilidad ${typeLabel}`,
-        isPaid: true,
-        paidAt: input.date,
-      })
-      .returning({ id: transactions.id });
-
-    adjustmentId = adjustment.id;
-  }
-
-  // 4. Actualizar saldo de la cuenta directamente al saldo del proveedor
-  await db
-    .update(accounts)
-    .set({
-      currentBalance: String(input.currentProviderBalance),
-      updatedAt: new Date(),
-    })
-    .where(eq(accounts.id, input.accountId));
+  const updatedRows = (await db.execute(sql`
+    update n1n4_accounts a
+    set current_balance = s.new_balance, updated_at = now()
+    from (
+      select
+        acc.id,
+        case when acc.type = 'credit_card'
+          then acc.initial_balance - coalesce(t.income, 0) + coalesce(t.expense, 0)
+          else acc.initial_balance + coalesce(t.income, 0) - coalesce(t.expense, 0)
+        end as new_balance
+      from n1n4_accounts acc
+      left join (
+        select
+          account_id,
+          sum(case when type = 'income' then base_amount::numeric else 0 end) as income,
+          sum(case when type = 'expense' then base_amount::numeric else 0 end) as expense
+        from n1n4_transactions
+        where project_id = ${projectId} and is_paid = true and account_id is not null
+        group by account_id
+      ) t on t.account_id = acc.id
+      where acc.project_id = ${projectId}
+    ) s
+    where a.id = s.id and a.project_id = ${projectId}
+    returning a.id
+  `)) as unknown as { id: string }[];
 
   invalidateRelatedCache('accounts');
-  invalidateRelatedCache('transactions');
 
-  return {
-    success: true,
-    data: {
-      contributionId: contribution.id,
-      adjustmentId,
-      adjustmentAmount,
-    },
-  };
+  return { success: true, data: { updated: updatedRows.length } };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useTransition } from 'react';
-import { Check, CheckCircle2, ChevronsUpDown, Loader2, Search, User, XCircle } from 'lucide-react';
+import { Check, ChevronsUpDown, Loader2, Search, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,7 +35,6 @@ interface UserSearchSelectorProps {
   searchPlaceholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
-  valid?: boolean;
   invalid?: boolean;
   debounceMs?: number;
 }
@@ -49,7 +48,6 @@ export function UserSearchSelector({
   searchPlaceholder = 'Escribe un correo...',
   emptyMessage = 'No se encontraron usuarios.',
   disabled = false,
-  valid,
   invalid,
   debounceMs = 300,
 }: UserSearchSelectorProps) {
@@ -66,9 +64,8 @@ export function UserSearchSelector({
       clearTimeout(debounceRef.current);
     }
 
-    // Limpiar resultados si la query es muy corta
-    if (searchQuery.length < 2) {
-      setResults([]);
+    // Query muy corta: no se busca (los resultados se limpian en handleSearchChange)
+    if (searchQuery.length < 3) {
       return;
     }
 
@@ -101,10 +98,12 @@ export function UserSearchSelector({
     setResults([]);
   };
 
-  const handleClear = () => {
-    onValueChange(null);
-    setSearchQuery('');
-    setResults([]);
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    // Limpiar resultados si la query es muy corta
+    if (query.length < 3) {
+      setResults([]);
+    }
   };
 
   const getInitials = (name: string | null, email: string) => {
@@ -196,16 +195,16 @@ export function UserSearchSelector({
           <CommandInput
             placeholder={searchPlaceholder}
             value={searchQuery}
-            onValueChange={setSearchQuery}
+            onValueChange={handleSearchChange}
           />
           <CommandList className="max-h-[250px] overflow-y-auto overscroll-contain">
             {isPending ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : searchQuery.length < 2 ? (
+            ) : searchQuery.length < 3 ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                Escribe al menos 2 caracteres para buscar
+                Escribe al menos 3 caracteres para buscar
               </div>
             ) : results.length === 0 ? (
               <CommandEmpty>{emptyMessage}</CommandEmpty>

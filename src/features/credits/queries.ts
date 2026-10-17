@@ -1,6 +1,8 @@
+import { cache } from 'react';
 import { db } from '@/lib/db';
-import { credits, categories, transactions, projectMembers, entities } from '@/lib/db/schema';
+import { credits, categories, transactions, entities } from '@/lib/db/schema';
 import { eq, and, sql, isNotNull, desc } from 'drizzle-orm';
+import { verifyProjectAccess } from '@/lib/auth/project-access';
 import type { CreditWithProgress, CreditSummary } from './types';
 
 /**
@@ -29,27 +31,16 @@ function calculateNextPaymentDate(
 }
 
 /**
- * Obtiene todos los créditos del proyecto con progreso
+ * Obtiene todos los créditos del proyecto con progreso.
+ * Va envuelta en `cache`: el resumen la reutiliza en el mismo request.
  */
-export async function getCreditsWithProgress(
+export const getCreditsWithProgress = cache(async (
   projectId: string,
   userId: string,
   includeArchived: boolean = false
-): Promise<CreditWithProgress[]> {
+): Promise<CreditWithProgress[]> => {
   // Verificar acceso al proyecto
-  const hasAccess = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (hasAccess.length === 0) {
+  if (!(await verifyProjectAccess(projectId, userId))) {
     return [];
   }
 
@@ -161,109 +152,7 @@ export async function getCreditsWithProgress(
       nextPaymentDate,
     };
   });
-}
-
-/**
- * Obtiene un crédito por ID con progreso
- */
-export async function getCreditById(
-  creditId: string,
-  userId: string
-): Promise<CreditWithProgress | null> {
-  const result = await db
-    .select({
-      id: credits.id,
-      userId: credits.userId,
-      projectId: credits.projectId,
-      categoryId: credits.categoryId,
-      entityId: credits.entityId,
-      accountId: credits.accountId,
-      name: credits.name,
-      originalPrincipalAmount: credits.originalPrincipalAmount,
-      originalTotalAmount: credits.originalTotalAmount,
-      originalCurrency: credits.originalCurrency,
-      originalCurrencyId: credits.originalCurrencyId,
-      basePrincipalAmount: credits.basePrincipalAmount,
-      baseTotalAmount: credits.baseTotalAmount,
-      baseCurrency: credits.baseCurrency,
-      baseCurrencyId: credits.baseCurrencyId,
-      exchangeRate: credits.exchangeRate,
-      installments: credits.installments,
-      installmentAmount: credits.installmentAmount,
-      initialPaidInstallments: credits.initialPaidInstallments,
-      startDate: credits.startDate,
-      endDate: credits.endDate,
-      frequency: credits.frequency,
-      description: credits.description,
-      notes: credits.notes,
-      isArchived: credits.isArchived,
-      createdAt: credits.createdAt,
-      updatedAt: credits.updatedAt,
-      categoryName: categories.name,
-      categoryColor: categories.color,
-      entityName: entities.name,
-      entityImageUrl: entities.imageUrl,
-    })
-    .from(credits)
-    .innerJoin(categories, eq(credits.categoryId, categories.id))
-    .leftJoin(entities, eq(credits.entityId, entities.id))
-    .innerJoin(projectMembers, eq(credits.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(credits.id, creditId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!result[0]) {
-    return null;
-  }
-
-  const credit = result[0];
-  const installmentAmount = parseFloat(credit.installmentAmount);
-
-  // Obtener cuotas pagadas (de transacciones)
-  const paidResult = await db
-    .select({
-      paidCount: sql<number>`COUNT(*)`,
-      paidAmount: sql<string>`SUM(${transactions.baseAmount})`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.creditId, creditId),
-        eq(transactions.isPaid, true)
-      )
-    );
-
-  const transactionsPaid = paidResult[0];
-  const totalAmount = parseFloat(credit.baseTotalAmount);
-
-  // Cuotas pagadas = iniciales + transacciones
-  const paidInstallments = credit.initialPaidInstallments + Number(transactionsPaid?.paidCount ?? 0);
-  const remainingInstallments = credit.installments - paidInstallments;
-  // Monto pagado = cuotas iniciales * monto cuota + transacciones pagadas
-  const paidAmount = (credit.initialPaidInstallments * installmentAmount) + parseFloat(transactionsPaid?.paidAmount ?? '0');
-  const remainingAmount = totalAmount - paidAmount;
-  const progressPercentage = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
-
-  const nextPaymentDate =
-    remainingInstallments > 0
-      ? calculateNextPaymentDate(credit.startDate, credit.frequency, paidInstallments)
-      : null;
-
-  return {
-    ...credit,
-    paidInstallments,
-    remainingInstallments,
-    paidAmount,
-    remainingAmount: Math.max(0, remainingAmount),
-    progressPercentage,
-    nextPaymentDate,
-  };
-}
+});
 
 /**
  * Obtiene resumen de créditos del proyecto

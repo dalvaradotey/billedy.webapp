@@ -177,10 +177,10 @@ export function bucketAggregationQuery(
       true as is_real,
       sum(m.amount)::text as total,
       count(*)::int as n
-    from ranges r
-    join n1n4_fund_movements m on m.date between r.start_date and r.end_date
-    join n1n4_account_funds f on f.id = m.fund_id
+    from n1n4_account_funds f
     join n1n4_accounts a on a.id = f.account_id
+    join ranges r on true
+    join n1n4_fund_movements m on m.fund_id = f.id and m.date between r.start_date and r.end_date
     where f.project_id = ${projectId}
       and not f.is_third_party
       and a.type in ('checking', 'cash')

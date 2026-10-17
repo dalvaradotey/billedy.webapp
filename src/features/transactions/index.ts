@@ -17,13 +17,10 @@ export { setTransactionsHistoricallyPaid } from './actions';
 // Components (from components/ folder)
 export {
   TransactionList,
-  PayCreditCardDialog,
-  PayCreditCardButton,
   BulkPayCreditCardDialog,
   TransactionDialogContent,
   TransactionTable,
   TransactionTableSkeleton,
-  TransferForm,
   DeleteTransactionDialog,
   TogglePaidDialog,
   BulkDeleteDialog,

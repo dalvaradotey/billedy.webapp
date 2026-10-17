@@ -23,8 +23,6 @@ function gridCols(count: number): string {
 
 interface SummaryCardsSliderProps {
   children: ReactNode[];
-  /** Items per page on mobile (default: 2) */
-  itemsPerPage?: number;
   /** Max columns on desktop grid (default: 4) */
   desktopMaxCols?: number;
   /** Breakpoint for desktop grid (default: 'lg') */
@@ -34,32 +32,14 @@ interface SummaryCardsSliderProps {
 
 export function SummaryCardsSlider({
   children,
-  itemsPerPage = 2,
   desktopMaxCols = 4,
   desktopBreakpoint = 'lg',
   className,
 }: SummaryCardsSliderProps) {
-  const [currentPage, setCurrentPage] = useState(0);
   const [currentDesktopPage, setCurrentDesktopPage] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const desktopScrollRef = useRef<HTMLDivElement>(null);
-  const totalPages = Math.ceil(children.length / itemsPerPage);
   const totalDesktopPages = Math.ceil(children.length / desktopMaxCols);
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      const scrollLeft = container.scrollLeft;
-      const pageWidth = container.offsetWidth;
-      const newPage = Math.round(scrollLeft / pageWidth);
-      setCurrentPage(newPage);
-    };
-
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     const container = desktopScrollRef.current;
@@ -76,14 +56,6 @@ export function SummaryCardsSlider({
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToPage = (page: number) => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const pageWidth = container.offsetWidth;
-    container.scrollTo({ left: page * pageWidth, behavior: 'smooth' });
-  };
-
   const scrollDesktopToPage = (page: number) => {
     const container = desktopScrollRef.current;
     if (!container) return;
@@ -91,12 +63,6 @@ export function SummaryCardsSlider({
     const pageWidth = container.offsetWidth;
     container.scrollTo({ left: page * pageWidth, behavior: 'smooth' });
   };
-
-  // Create pages by chunking children
-  const pages: ReactNode[][] = [];
-  for (let i = 0; i < children.length; i += itemsPerPage) {
-    pages.push(children.slice(i, i + itemsPerPage));
-  }
 
   const desktopPages: ReactNode[][] = [];
   for (let i = 0; i < children.length; i += desktopMaxCols) {

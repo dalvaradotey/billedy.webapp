@@ -2,6 +2,9 @@ import { db } from '@/lib/db';
 import { accounts } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 
+/** `db` o la `tx` de un `db.transaction(...)`, para escribir dentro de una transacción */
+export type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 /**
  * Ajusta el saldo de una cuenta (uso interno de las actions de transacciones).
  * No es una server action: no debe quedar expuesta como endpoint.
@@ -12,11 +15,12 @@ import { eq, sql } from 'drizzle-orm';
  */
 export async function updateAccountBalance(
   accountId: string,
-  amountDelta: number // Positivo para ingresos, negativo para gastos
+  amountDelta: number, // Positivo para ingresos, negativo para gastos
+  executor: DbExecutor = db
 ): Promise<void> {
   const delta = String(amountDelta);
 
-  await db
+  await executor
     .update(accounts)
     .set({
       currentBalance: sql`${accounts.currentBalance} + case when ${accounts.type} = 'credit_card' then -(${delta}::numeric) else ${delta}::numeric end`,

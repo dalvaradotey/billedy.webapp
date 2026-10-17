@@ -22,7 +22,6 @@ interface SavingsGoalSelectorProps {
   allowNone?: boolean;
   noneLabel?: string;
   disabled?: boolean;
-  valid?: boolean;
   invalid?: boolean;
 }
 
@@ -36,7 +35,6 @@ export function SavingsGoalSelector({
   allowNone = true,
   noneLabel = 'Sin meta de ahorro',
   disabled = false,
-  valid,
   invalid,
 }: SavingsGoalSelectorProps) {
   const options: SearchableSelectOption[] = useMemo(() => {
@@ -60,7 +58,6 @@ export function SavingsGoalSelector({
       noneLabel={noneLabel}
       noneIcon={<PiggyBank className="h-4 w-4 text-muted-foreground" />}
       disabled={disabled}
-      valid={valid}
       invalid={invalid}
     />
   );

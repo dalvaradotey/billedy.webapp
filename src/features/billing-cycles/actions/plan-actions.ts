@@ -17,7 +17,8 @@ import {
   type AvailableAbono,
   type PendingExpense,
 } from '../lib/settlements';
-import { type ActionResult, verifyProjectAccess } from './utils';
+import { NO_PROJECT_ACCESS, verifyProjectAccess, verifyProjectWriteAccess } from '@/lib/auth/project-access';
+import type { ActionResult } from '@/types/action-result';
 
 const planSchema = z.object({
   savingsTarget: z.number().int().nonnegative().nullable(),
@@ -26,6 +27,12 @@ const planSchema = z.object({
 });
 
 export type ProjectPlanInput = z.infer<typeof planSchema>;
+
+const settleSchema = z.object({
+  expenseId: z.string().uuid(),
+  settlingTransactionId: z.string().uuid().nullable(),
+  amount: z.number().positive('Monto inválido').optional(), // zod 4: number ya excluye NaN e Infinity
+});
 
 /**
  * Configura el plan del ciclo: ahorro objetivo, techo de gasto propio en TC y
@@ -162,7 +169,7 @@ export async function fetchPendingSettlements(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
   if (!(await verifyProjectAccess(projectId, userId))) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   const expenses = await getPendingExpenses(projectId);
@@ -183,11 +190,15 @@ export async function settleExpense(
   if (!(await isSessionUser(userId))) {
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
-  if (!(await verifyProjectAccess(projectId, userId))) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+  const parsed = settleSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+  if (!(await verifyProjectWriteAccess(projectId, userId))) {
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
-  const result = await createSettlement({ projectId, ...input });
+  const result = await createSettlement({ projectId, ...parsed.data });
   if (!result.success) return result;
 
   invalidateRelatedCache('billingCycles');
@@ -205,8 +216,8 @@ export async function liquidateFund(
   if (!(await isSessionUser(userId))) {
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
-  if (!(await verifyProjectAccess(projectId, userId))) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+  if (!(await verifyProjectWriteAccess(projectId, userId))) {
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   const result = await liquidateFundLib(projectId, userId);

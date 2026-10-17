@@ -318,3 +318,37 @@ import { createTransactionSchema } from './schemas';
 4. **Lógica de DB va en queries/actions, no en componentes**
 5. **Validar inputs con Zod antes de enviar al servidor**
 6. **Mantener componentes pequeños y enfocados**
+
+---
+
+## Seguridad en server actions (octubre 2026)
+
+Las server actions son endpoints públicos y la BD no usa RLS para la app: cada action verifica todo.
+
+1. **Sesión:** primera línea `isSessionUser(userId)` o `requireUserId()` (`@/lib/auth/guards`).
+2. **Membresía** (`@/lib/auth/project-access`):
+   - Lecturas: `verifyProjectAccess(projectId, userId)`, para cualquier miembro aceptado.
+   - Modificaciones: `verifyProjectWriteAccess(projectId, userId)`, solo para owner o editor (el rol viewer solo lee).
+   - En joins con `projectMembers`: `memberCondition(userId, { write: true })`.
+3. **Ids del input:** toda cuenta, categoría, presupuesto, meta o crédito se valida con `projectRefsError(projectId, {...})` contra el proyecto ya verificado. Nunca se acepta un `projectId` del cliente para mover una fila: se deriva de la fila padre.
+4. **Updates y deletes por id:** el WHERE incluye también `projectId`.
+5. **Resultado:** `ActionResult<T>` de `@/types/action-result`. Los errores son mensajes legibles; los errores internos de la BD van solo a `console.error`.
+6. **Saldos:** las operaciones de varios pasos que tocan saldos van dentro de `db.transaction`. `updateAccountBalance(id, delta, tx)` acepta la transacción.
+
+## Imports entre features
+
+- Se permite importar directo `queries`, `actions` y `types` de otra feature.
+- La lógica de dominio compartida vive en `src/lib/` (acceso, fechas, formato).
+- Los barrels de feature no deben mezclar componentes cliente con código de servidor que no se use en el cliente.
+
+## Pruebas
+
+- Vitest: `npm test`, `npm run test:watch` y `npm run test:coverage`.
+- Se prueba la lógica pura (cascada de ciclos, parsers, bot, previsión, validaciones zod), sin BD.
+- Lo que arma SQL o lee la BD se separa de la lógica pura para poder probarla, como las vistas del bot en `telegram/views.ts`.
+- Los archivos `*.test.ts` van junto al código que prueban.
+
+## Migraciones
+
+- **No usar `drizzle-kit push` ni `generate`.** El journal está desincronizado y borraría las FKs, los CHECKs y `n1n4_schema_migrations`.
+- Los cambios de esquema van como SQL en `src/lib/db/manual-migrations/` y se aplican con `npx tsx scripts/db-migrate.ts --apply`.

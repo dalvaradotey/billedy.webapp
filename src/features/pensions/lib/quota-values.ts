@@ -4,6 +4,8 @@
  * Pensiones como CSV (separado por ";", números con formato chileno, latin1).
  */
 
+import { parseChileanDecimal } from '@/lib/formatting';
+
 export const AFP_PROVIDERS = ['CAPITAL', 'CUPRUM', 'HABITAT', 'MODELO', 'PLANVITAL', 'PROVIDA', 'UNO'] as const;
 export const AFP_FUNDS = ['A', 'B', 'C', 'D', 'E'] as const;
 /** Fondo de la Cuenta Individual de Cesantía */
@@ -13,8 +15,6 @@ export const AFC_FUND = 'CIC';
 export type QuotaValue = { provider: string; fund: string; date: string; value: number };
 
 const BASE = 'https://www.spensiones.cl/apps/valoresCuotaFondo';
-
-const chileanNumber = (s: string) => Number(s.replace(/\./g, '').replace(',', '.'));
 
 async function fetchCsv(url: string): Promise<string[][]> {
   const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 Billedy' }, cache: 'no-store' });
@@ -45,7 +45,7 @@ export async function fetchAfpQuotaValues(year: number, fund: string): Promise<Q
   for (const row of rows) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(row[0])) continue;
     for (const c of columns) {
-      const value = chileanNumber(row[c.i] ?? '');
+      const value = parseChileanDecimal(row[c.i] ?? '');
       if (value > 0) byKey.set(`${c.name}:${row[0]}`, { provider: c.name, fund, date: row[0], value });
     }
   }
@@ -58,7 +58,7 @@ export async function fetchAfcQuotaValues(year: number): Promise<QuotaValue[]> {
   const values: QuotaValue[] = [];
   for (const row of rows) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(row[0])) continue;
-    const value = chileanNumber(row[1] ?? '');
+    const value = parseChileanDecimal(row[1] ?? '');
     if (value > 0) values.push({ provider: AFC_PROVIDER, fund: AFC_FUND, date: row[0], value });
   }
   return values;
