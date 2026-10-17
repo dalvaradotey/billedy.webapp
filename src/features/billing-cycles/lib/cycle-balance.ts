@@ -63,6 +63,8 @@ export type CycleBalance = {
   provisionsIn: Amounts;
   /** Liberado de provisiones o gastado con ellas */
   provisionsOut: Amounts;
+  /** Aportes a inversiones: salen de la caja, pero no son gasto */
+  investmentsIn: Amounts;
   finalBalance: Amounts;
   card: {
     /** Gasto en TC del ciclo, ya cargado (se paga el próximo ciclo) */
@@ -274,6 +276,7 @@ export function buildBalances(
     const savingsOut = cashLine(rangeRows, 'savings_out', isOpen);
     const provisionsIn = cashLine(rangeRows, 'provision_in', isOpen);
     const provisionsOut = cashLine(rangeRows, 'provision_out', isOpen);
+    const investmentsIn = cashLine(rangeRows, 'investment_in', isOpen);
     const paidCardPayment = cashLine(rangeRows, 'card_payment', isOpen);
 
     const payments = paymentsByCard(rangeRows);
@@ -318,7 +321,8 @@ export function buildBalances(
       [savingsIn, -1],
       [savingsOut, 1],
       [provisionsIn, -1],
-      [provisionsOut, 1]
+      [provisionsOut, 1],
+      [investmentsIn, -1]
     );
 
     if (!isOpen) {
@@ -360,6 +364,7 @@ export function buildBalances(
       savingsOut,
       provisionsIn,
       provisionsOut,
+      investmentsIn,
       finalBalance,
       card: {
         spent: sum(rangeRows, (r) => r.bucket === 'card_spend' && r.inRange && r.isReal),

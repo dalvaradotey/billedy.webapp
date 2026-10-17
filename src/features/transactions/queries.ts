@@ -89,6 +89,8 @@ export async function getTransactions(
       isReconciled: transactions.isReconciled,
       nature: transactions.nature,
       accountFundId: transactions.accountFundId,
+      investmentId: transactions.investmentId,
+      investmentRole: transactions.investmentRole,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
@@ -146,6 +148,8 @@ export async function getTransactionById(
       isReconciled: transactions.isReconciled,
       nature: transactions.nature,
       accountFundId: transactions.accountFundId,
+      investmentId: transactions.investmentId,
+      investmentRole: transactions.investmentRole,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
@@ -202,6 +206,7 @@ export async function getTransactionSummary(
       isPaid: transactions.isPaid,
       accountType: accounts.type,
       nature: transactions.nature,
+      investmentRole: transactions.investmentRole,
       totalAmount: sql<string>`SUM(${transactions.baseAmount})`,
       count: sql<number>`COUNT(*)`,
     })
@@ -209,7 +214,7 @@ export async function getTransactionSummary(
     .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
     .leftJoin(accounts, eq(transactions.accountId, accounts.id))
     .where(and(...conditions))
-    .groupBy(transactions.type, transactions.isPaid, accounts.type, transactions.nature);
+    .groupBy(transactions.type, transactions.isPaid, accounts.type, transactions.nature, transactions.investmentRole);
 
   let paidIncome = 0;
   let pendingIncome = 0;
@@ -232,7 +237,8 @@ export async function getTransactionSummary(
           pendingIncome += amount;
         }
       }
-    } else {
+    } else if (row.investmentRole !== 'aporte') {
+      // El aporte a una inversión no es gasto
       if (row.isPaid) {
         paidExpense += amount;
       } else {
@@ -304,6 +310,8 @@ export async function getRecentTransactions(
       isReconciled: transactions.isReconciled,
       nature: transactions.nature,
       accountFundId: transactions.accountFundId,
+      investmentId: transactions.investmentId,
+      investmentRole: transactions.investmentRole,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
@@ -387,6 +395,8 @@ export async function getUnpaidCreditCardTransactions(
       isReconciled: transactions.isReconciled,
       nature: transactions.nature,
       accountFundId: transactions.accountFundId,
+      investmentId: transactions.investmentId,
+      investmentRole: transactions.investmentRole,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,

@@ -131,6 +131,18 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
           </div>
         )}
 
+        {balance.investmentsIn.real > 0 && (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className={t.label}>
+              Inversiones
+              <span className={cn('block text-[11px]', t.muted)}>Aportes a tus inversiones; no son gasto</span>
+            </dt>
+            <dd className={cn('font-medium', t.value)}>
+              −<Amount value={balance.investmentsIn.real} animated={animated} />
+            </dd>
+          </div>
+        )}
+
         <div className={cn('flex items-baseline justify-between gap-3 border-t pt-1.5', t.divider)}>
           <dt className={cn('font-semibold', t.value)}>Saldo final</dt>
           <dd className={cn('text-base font-bold', balanceColor(balance.finalBalance.real, tone))}>

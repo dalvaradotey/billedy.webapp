@@ -76,6 +76,7 @@ export function DailyPulseCard({
       if (t.linkedTransactionId) continue;
       if (t.type === 'income' && creditCardAccountIds.has(t.accountId ?? '')) continue;
       if (t.type === 'income' && t.nature === 'external') continue;
+      if (t.investmentRole === 'aporte') continue;
       const key = new Date(t.date).toISOString().slice(0, 10);
       const cur = byDay.get(key) ?? { spent: 0, income: 0 };
       if (t.type === 'expense') cur.spent += parseFloat(t.baseAmount);

@@ -312,3 +312,17 @@ export const pensionContributions = pgTable(
   },
   (t) => [unique().on(t.accountId, t.period)]
 );
+
+/** Inversiones: proyectos a los que se asocian aportes, costos y retornos */
+export const investments = pgTable('n1n4_investments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  notes: varchar('notes', { length: 1000 }),
+  startedAt: date('started_at'),
+  closedAt: date('closed_at'),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
+});

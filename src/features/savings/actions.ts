@@ -282,6 +282,8 @@ export async function fetchGoalTransactions(
       isReconciled: transactions.isReconciled,
       nature: transactions.nature,
       accountFundId: transactions.accountFundId,
+      investmentId: transactions.investmentId,
+      investmentRole: transactions.investmentRole,
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
       categoryName: categories.name,
