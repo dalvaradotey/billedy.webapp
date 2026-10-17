@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FloatingLabelDateInput } from '@/components/floating-label-date-input';
@@ -284,12 +284,14 @@ export function BulkDateChangeDialog({
 }: BulkDateChangeDialogProps) {
   const [newDate, setNewDate] = useState<Date | undefined>(new Date());
 
-  // Resetear fecha al abrir
-  useEffect(() => {
+  // Resetear fecha al abrir: se ajusta durante el render comparando con el valor anterior de `open`
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setNewDate(new Date());
     }
-  }, [open]);
+  }
 
   return (
     <ConfirmDialog

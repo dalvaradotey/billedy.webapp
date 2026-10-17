@@ -25,7 +25,7 @@ interface TemplateItemRowProps {
 }
 
 export function TemplateItemRow({ item, userId, baseCurrency, onEdit }: TemplateItemRowProps) {
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const handleDelete = () => {
     const { onSuccess, onError } = toastActions.deleting('item');

@@ -450,7 +450,6 @@ function InviteMemberDialogContent({
             label="Usuario"
             searchPlaceholder="Buscar por correo..."
             emptyMessage="No se encontraron usuarios con ese correo."
-            valid={!!selectedUser}
             invalid={!!error && !selectedUser}
           />
           <p className="text-xs text-muted-foreground">
@@ -466,7 +465,6 @@ function InviteMemberDialogContent({
           label="Rol"
           searchPlaceholder="Buscar rol..."
           emptyMessage="No se encontraron roles."
-          valid={!!role}
         />
 
         {error && <p className="text-sm text-destructive">{error}</p>}

@@ -141,7 +141,6 @@ export function TemplateDialogContent({
                     placeholder="Ej: Gastos fijos del mes"
                     value={field.value}
                     onChange={field.onChange}
-                    valid={!!field.value && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -162,7 +161,6 @@ export function TemplateDialogContent({
                     placeholder="Describe el propósito de esta plantilla"
                     value={field.value ?? ''}
                     onChange={field.onChange}
-                    valid={!!field.value && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>

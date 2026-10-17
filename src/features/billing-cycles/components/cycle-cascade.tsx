@@ -241,7 +241,7 @@ function paymentBreakdownText(balance: CycleBalance): string | undefined {
   return [`propio ${formatCurrency(b.own)}`, ...parts].join(' · ');
 }
 
-export function CycleWarnings({ warnings, tone = 'light' }: { warnings: CycleWarning[]; tone?: Tone }) {
+function CycleWarnings({ warnings, tone = 'light' }: { warnings: CycleWarning[]; tone?: Tone }) {
   if (warnings.length === 0) return null;
   const t = TONES[tone];
 

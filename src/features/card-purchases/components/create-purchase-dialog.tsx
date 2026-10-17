@@ -254,7 +254,6 @@ export function CreatePurchaseDialog({
                       label="Tarjeta de crédito"
                       searchPlaceholder="Buscar tarjeta..."
                       filterByType={['credit_card']}
-                      valid={!!field.value}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -275,7 +274,6 @@ export function CreatePurchaseDialog({
                         label="Fecha de compra"
                         value={field.value}
                         onChange={field.onChange}
-                        valid={!!field.value && !fieldState.error}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>
@@ -294,7 +292,6 @@ export function CreatePurchaseDialog({
                         label="Vencimiento 1ra cuota"
                         value={field.value}
                         onChange={field.onChange}
-                        valid={!!field.value && !fieldState.error}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>
@@ -316,7 +313,6 @@ export function CreatePurchaseDialog({
                       placeholder="ej: MacBook Pro M3"
                       value={field.value}
                       onChange={field.onChange}
-                      valid={!!field.value && !fieldState.error}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -342,7 +338,6 @@ export function CreatePurchaseDialog({
                           searchPlaceholder="Buscar tienda..."
                           allowNone
                           noneLabel="Sin tienda"
-                          valid={!!field.value}
                           invalid={!!fieldState.error}
                         />
                       </FormControl>
@@ -377,7 +372,6 @@ export function CreatePurchaseDialog({
                           placeholder="ej: Apple Store"
                           value={field.value ?? ''}
                           onChange={field.onChange}
-                          valid={!!field.value && !fieldState.error}
                           invalid={!!fieldState.error}
                         />
                       </FormControl>
@@ -421,7 +415,6 @@ export function CreatePurchaseDialog({
                       onCategoryCreated={(newCat) => {
                         setLocalCategories((prev) => [...prev, newCat]);
                       }}
-                      valid={!!field.value}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -464,7 +457,6 @@ export function CreatePurchaseDialog({
                       placeholder="0"
                       size="lg"
                       label="Monto total"
-                      valid={field.value !== undefined && field.value > 0 && !fieldState.error}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -511,7 +503,6 @@ export function CreatePurchaseDialog({
                         placeholder="0"
                         value={field.value?.toString() ?? '0'}
                         onChange={(value) => field.onChange(parseFloat(value) || 0)}
-                        valid={!fieldState.error}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>
@@ -623,7 +614,6 @@ export function CreatePurchaseDialog({
                           placeholder="Notas adicionales..."
                           value={field.value ?? ''}
                           onChange={field.onChange}
-                          valid={!!field.value && !fieldState.error}
                           invalid={!!fieldState.error}
                         />
                       </FormControl>

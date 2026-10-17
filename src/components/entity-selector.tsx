@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Check, CheckCircle2, ChevronsUpDown, Store, XCircle } from 'lucide-react';
+import { Check, ChevronsUpDown, Store, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,7 +37,6 @@ interface EntitySelectorProps {
   noneLabel?: string;
   filterByType?: EntityType[];
   disabled?: boolean;
-  valid?: boolean;
   invalid?: boolean;
 }
 
@@ -52,7 +51,6 @@ export function EntitySelector({
   noneLabel = 'Sin entidad',
   filterByType,
   disabled = false,
-  valid,
   invalid,
 }: EntitySelectorProps) {
   const [open, setOpen] = useState(false);

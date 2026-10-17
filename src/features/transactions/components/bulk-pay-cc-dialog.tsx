@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect, useMemo } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { toast } from 'sonner';
 import { CreditCard, Wallet } from 'lucide-react';
 import { SubmitButton } from '@/components/submit-button';
@@ -115,15 +115,17 @@ export function BulkPayCreditCardDialog({
     return accounts.filter((a) => a.type !== 'credit_card' && !a.isArchived);
   }, [accounts]);
 
-  // Reset on open
-  useEffect(() => {
+  // Reset al abrir: se ajusta durante el render comparando con el valor anterior de `open`
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setSourceAccountId('');
       setInterestAmounts(new Map());
       setError(null);
       setPaymentDate(new Date());
     }
-  }, [open]);
+  }
 
   const handleInterestChange = (accountId: string, amount: number | undefined) => {
     setInterestAmounts((prev) => {
@@ -212,7 +214,6 @@ export function BulkPayCreditCardDialog({
             label="Pagar desde"
             placeholder="Selecciona cuenta de origen"
             searchPlaceholder="Buscar cuenta..."
-            valid={!!sourceAccountId}
           />
 
           {/* Payment date */}

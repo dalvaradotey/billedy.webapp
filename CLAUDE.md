@@ -115,15 +115,20 @@ AUTH_GOOGLE_SECRET=...
 ## Comandos Útiles
 
 ```bash
-# Generar migración
-npx drizzle-kit generate
+# Pruebas (Vitest) y tipos
+npm test
+npm run test:coverage
+npm run typecheck
 
-# Aplicar migraciones
-npx drizzle-kit migrate
+# Migraciones: SQL manual en src/lib/db/manual-migrations (NO usar drizzle-kit push/generate)
+npx tsx scripts/db-migrate.ts            # muestra las pendientes
+npx tsx scripts/db-migrate.ts --apply    # las aplica
+
+# Verificar saldos de ciclos (solo lectura)
+npx tsx scripts/verify-cycle-balances.ts
 
 # Abrir Drizzle Studio
 npx drizzle-kit studio
-
-# Seed inicial
-npx tsx src/lib/db/seed.ts
 ```
+
+Seguridad de server actions, imports y pruebas: ver `docs/ARCHITECTURE.md` (sección "Seguridad en server actions").

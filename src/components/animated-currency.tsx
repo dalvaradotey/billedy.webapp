@@ -23,6 +23,7 @@ export function AnimatedCurrency({
   showSign = false,
   prefix = '',
 }: AnimatedCurrencyProps) {
+  // useState/useRef ya parten con el valor inicial: en el primer render no se anima
   const [displayValue, setDisplayValue] = useState(value);
   const previousValue = useRef(value);
   const animationRef = useRef<number | null>(null);
@@ -66,12 +67,6 @@ export function AnimatedCurrency({
       }
     };
   }, [value, duration]);
-
-  // Inicializar con el valor actual si es la primera renderización
-  useEffect(() => {
-    previousValue.current = value;
-    setDisplayValue(value);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const formattedValue = formatCurrency(Math.abs(displayValue));
   const sign = showSign && displayValue < 0 ? '-' : showSign && displayValue > 0 ? '+' : '';

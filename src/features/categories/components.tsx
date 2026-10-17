@@ -4,7 +4,6 @@ import { useState, useTransition, useEffect, useCallback } from 'react';
 import { PULSE_PALETTE, pulseColor } from '@/lib/pulse-tone';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'sonner';
 import { Plus, Pencil, Archive, RotateCcw, Trash2, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
@@ -19,13 +18,6 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Form,
   FormControl,
@@ -237,7 +229,7 @@ function CategoryCard({ category, userId, onEdit }: CategoryCardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar categoría</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de eliminar "{category.name}" permanentemente? Esta acción no se puede deshacer.
+              ¿Estás seguro de eliminar &ldquo;{category.name}&rdquo; permanentemente? Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -415,44 +407,5 @@ function CategoryDialogContent({ projectId, userId, category, onSuccess }: Categ
         </Form>
       </div>
     </DrawerContent>
-  );
-}
-
-interface CategorySelectProps {
-  categories: Category[];
-  value: string;
-  onValueChange: (value: string) => void;
-  placeholder?: string;
-}
-
-export function CategorySelect({
-  categories,
-  value,
-  onValueChange,
-  placeholder = 'Selecciona una categoría',
-}: CategorySelectProps) {
-  const activeCategories = categories.filter((c) => !c.isArchived);
-
-  return (
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger>
-        <SelectValue placeholder={placeholder}>
-          {activeCategories.find((c) => c.id === value)?.name ?? placeholder}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {activeCategories.map((cat) => (
-          <SelectItem key={cat.id} value={cat.id}>
-            <div className="flex items-center gap-2">
-              <div
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: pulseColor(cat.color) }}
-              />
-              {cat.name}
-            </div>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }

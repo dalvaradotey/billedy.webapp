@@ -2,7 +2,7 @@
 import { appDateString } from '@/lib/formatting';
 
 import { forwardRef, useRef, useImperativeHandle, type InputHTMLAttributes } from 'react';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -10,13 +10,12 @@ interface FloatingLabelDateInputProps extends Omit<InputHTMLAttributes<HTMLInput
   label: string;
   value: Date | undefined;
   onChange: (value: Date | undefined) => void;
-  valid?: boolean;
   invalid?: boolean;
 }
 
 export const FloatingLabelDateInput = forwardRef<HTMLInputElement, FloatingLabelDateInputProps>(
   function FloatingLabelDateInput(
-    { label, value, onChange, valid, invalid, className, ...props },
+    { label, value, onChange, invalid, className, ...props },
     ref
   ) {
     const inputRef = useRef<HTMLInputElement>(null);

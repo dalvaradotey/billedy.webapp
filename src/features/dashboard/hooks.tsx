@@ -6,8 +6,6 @@ import {
   useState,
   useCallback,
   useTransition,
-  useEffect,
-  useRef,
   type ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
@@ -174,31 +172,44 @@ export function DashboardProvider({
   }, [router]);
 
   // Track si hubo una actualización optimista pendiente de sincronizar
-  const pendingSync = useRef(false);
+  const [pendingSync, setPendingSync] = useState(false);
 
   // Marcar que hay una actualización pendiente cuando aplicamos optimistic update
   const applyOptimisticTransactionWithSync = useCallback(
     (transaction: OptimisticTransaction) => {
-      pendingSync.current = true;
+      setPendingSync(true);
       applyOptimisticTransaction(transaction);
     },
     [applyOptimisticTransaction]
   );
 
-  // Sincronizar estado cuando cambian los props iniciales (después de router.refresh)
-  useEffect(() => {
+  // Sincronizar estado cuando cambian los props iniciales (después de router.refresh).
+  // Se ajusta durante el render comparando con los props anteriores, sin efecto.
+  const [prevInitial, setPrevInitial] = useState({
+    budgetsProgress: initialBudgetsProgress,
+    cycle: initialCycle,
+    accountsSummary: initialAccountsSummary,
+    totalExternalDebt: initialTotalExternalDebt,
+  });
+  if (
+    prevInitial.budgetsProgress !== initialBudgetsProgress ||
+    prevInitial.cycle !== initialCycle ||
+    prevInitial.accountsSummary !== initialAccountsSummary ||
+    prevInitial.totalExternalDebt !== initialTotalExternalDebt
+  ) {
+    const nextInitial = {
+      budgetsProgress: initialBudgetsProgress,
+      cycle: initialCycle,
+      accountsSummary: initialAccountsSummary,
+      totalExternalDebt: initialTotalExternalDebt,
+    };
+    setPrevInitial(nextInitial);
     // Solo sincronizar si hubo una actualización optimista pendiente
-    // o si los datos del servidor son diferentes
-    if (pendingSync.current) {
-      setState({
-        budgetsProgress: initialBudgetsProgress,
-        cycle: initialCycle,
-        accountsSummary: initialAccountsSummary,
-        totalExternalDebt: initialTotalExternalDebt,
-      });
-      pendingSync.current = false;
+    if (pendingSync) {
+      setState(nextInitial);
+      setPendingSync(false);
     }
-  }, [initialBudgetsProgress, initialCycle, initialAccountsSummary, initialTotalExternalDebt]);
+  }
 
   const value: DashboardContextValue = {
     budgetsProgress: state.budgetsProgress,

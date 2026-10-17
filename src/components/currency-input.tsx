@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -15,7 +15,6 @@ interface CurrencyInputProps {
   /** `hero`: monto protagonista, grande y centrado, sin caja */
   size?: 'default' | 'lg' | 'hero';
   label?: string;
-  valid?: boolean;
   invalid?: boolean;
   autoFocus?: boolean;
 }
@@ -39,7 +38,6 @@ export function CurrencyInput({
   className,
   size = 'default',
   label,
-  valid,
   invalid,
   autoFocus = false,
 }: CurrencyInputProps) {
@@ -89,12 +87,8 @@ export function CurrencyInput({
     return isNaN(num) ? undefined : num;
   };
 
-  // Update display when value prop changes (and not focused)
-  useEffect(() => {
-    if (!isFocused) {
-      setDisplayValue(formatForDisplay(value));
-    }
-  }, [value, currency, isFocused]);
+  // Sin foco se muestra el valor de la prop formateado; con foco, lo que se va escribiendo
+  const shownValue = isFocused ? displayValue : formatForDisplay(value);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
@@ -154,31 +148,28 @@ export function CurrencyInput({
   };
 
   const handleFocus = () => {
+    // Parte editando desde el valor actual formateado
+    setDisplayValue(formatForDisplay(value));
     setIsFocused(true);
   };
 
   const handleBlur = () => {
+    // Al perder el foco vuelve a mostrarse el valor de la prop formateado
     setIsFocused(false);
-    // Format properly on blur
-    if (value !== undefined) {
-      setDisplayValue(formatForDisplay(value));
-    } else {
-      setDisplayValue('');
-    }
   };
 
   if (size === 'hero') {
-    const shown = displayValue || placeholder;
+    const shown = shownValue || placeholder;
     return (
       <label className={cn('flex flex-col items-center gap-0.5 py-1', className)}>
         {label && <span className={cn('text-xs', invalid ? 'text-coral-text' : 'text-muted-foreground')}>{label}</span>}
         <span className={cn('num flex max-w-full items-baseline justify-center font-extrabold leading-[1.05]', invalid ? 'text-coral-text' : 'text-foreground')}>
-          <span className={cn('text-[34px]', !displayValue && 'text-faint')}>{config.symbol}</span>
+          <span className={cn('text-[34px]', !shownValue && 'text-faint')}>{config.symbol}</span>
           <input
             ref={inputRef}
             type="text"
             inputMode="decimal"
-            value={displayValue}
+            value={shownValue}
             onChange={handleChange}
             onFocus={handleFocus}
             onBlur={handleBlur}
@@ -216,7 +207,7 @@ export function CurrencyInput({
         ref={inputRef}
         type="text"
         inputMode="decimal"
-        value={displayValue}
+        value={shownValue}
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}

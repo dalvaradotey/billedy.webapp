@@ -135,24 +135,3 @@ export function EmptyState({
     </div>
   );
 }
-
-/**
- * Variante compacta para espacios pequeños (ej: dentro de cards)
- */
-export function EmptyStateCompact({
-  icon: Icon,
-  title,
-  className,
-}: Pick<EmptyStateProps, 'icon' | 'title' | 'className'>) {
-  return (
-    <div
-      className={cn(
-        'flex flex-col items-center justify-center py-8 text-center',
-        className
-      )}
-    >
-      {Icon && <Icon className="mb-2 h-6 w-6 text-muted-foreground/50" />}
-      <p className="text-sm text-muted-foreground">{title}</p>
-    </div>
-  );
-}

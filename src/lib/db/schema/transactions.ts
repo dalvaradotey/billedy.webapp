@@ -9,7 +9,6 @@ import {
   date,
   text,
   pgEnum,
-  unique,
 } from 'drizzle-orm/pg-core';
 import { users } from './auth';
 import {

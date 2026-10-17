@@ -17,4 +17,4 @@ export type {
 } from './schemas';
 
 // Components
-export { SavingsList, SavingsGoalCardSkeleton } from './components';
+export { SavingsList } from './components';

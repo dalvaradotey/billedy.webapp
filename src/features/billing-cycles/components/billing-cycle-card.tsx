@@ -34,10 +34,9 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import { cardStyles } from '@/components/card-styles';
 
-import { formatCurrency, formatDate } from '@/lib/formatting';
+import { formatCurrency, formatDate, formatDateInput } from '@/lib/formatting';
 import { closeBillingCycle, reopenBillingCycle, deleteBillingCycle } from '../actions';
 import type { BillingCycleWithTotals } from '../types';
-import { formatDateInput } from './utils';
 import { CycleCascade, balanceColor } from './cycle-cascade';
 
 interface BillingCycleCardProps {

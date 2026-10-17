@@ -22,4 +22,4 @@ export type {
 } from './schemas';
 
 // Components
-export { BillingCyclesList, BillingCycleCardSkeleton } from './components';
+export { BillingCyclesList } from './components';

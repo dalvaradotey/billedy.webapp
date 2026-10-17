@@ -8,8 +8,6 @@ export * from './schemas';
 export {
   getEntities,
   getAllEntities,
-  getEntitiesByType,
-  getEntityById,
   isUserAdmin,
 } from './queries';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, forwardRef, type TextareaHTMLAttributes } from 'react';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
@@ -9,13 +9,12 @@ interface FloatingLabelTextareaProps extends Omit<TextareaHTMLAttributes<HTMLTex
   label: string;
   value: string | undefined;
   onChange: (value: string) => void;
-  valid?: boolean;
   invalid?: boolean;
 }
 
 export const FloatingLabelTextarea = forwardRef<HTMLTextAreaElement, FloatingLabelTextareaProps>(
   function FloatingLabelTextarea(
-    { label, value, onChange, valid, invalid, className, onFocus, onBlur, placeholder, rows = 3, ...props },
+    { label, value, onChange, invalid, className, onFocus, onBlur, placeholder, rows = 3, ...props },
     ref
   ) {
     const [isFocused, setIsFocused] = useState(false);

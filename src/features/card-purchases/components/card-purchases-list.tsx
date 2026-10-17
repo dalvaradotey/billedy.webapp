@@ -45,67 +45,57 @@ export function CardPurchasesList({
   const [showActive, setShowActive] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [pendingToast, setPendingToast] = useState<{
+  // Toast de éxito que se muestra cuando termina el refresco (no se renderiza)
+  const pendingToastRef = useRef<{
     id: string | number;
     message: string;
   } | null>(null);
 
-  const prevPurchasesRef = useRef(purchases);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const dataChanged =
-      purchases !== prevPurchasesRef.current ||
-      purchases.length !== prevPurchasesRef.current.length;
-
-    if (isRefreshing && dataChanged) {
-      if (pendingToast) {
-        toast.success(pendingToast.message, { id: pendingToast.id });
-        setPendingToast(null);
-      }
+  // Cuando llegan datos nuevos durante un refresco, se termina el refresco.
+  // Se ajusta durante el render comparando con las compras anteriores.
+  const [prevPurchases, setPrevPurchases] = useState(purchases);
+  if (purchases !== prevPurchases) {
+    setPrevPurchases(purchases);
+    if (isRefreshing) {
       setIsRefreshing(false);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
     }
-
-    prevPurchasesRef.current = purchases;
-  }, [purchases, isRefreshing, pendingToast]);
+  }
 
   useEffect(() => {
-    if (isRefreshing && !timeoutRef.current) {
-      timeoutRef.current = setTimeout(() => {
-        if (pendingToast) {
-          toast.success(pendingToast.message, { id: pendingToast.id });
-          setPendingToast(null);
-        }
-        setIsRefreshing(false);
-        timeoutRef.current = null;
-      }, 5000);
-    }
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+    const flushPendingToast = () => {
+      const pending = pendingToastRef.current;
+      if (pending) {
+        toast.success(pending.message, { id: pending.id });
+        pendingToastRef.current = null;
       }
     };
-  }, [isRefreshing, pendingToast]);
+
+    if (isRefreshing) {
+      // Si los datos no llegan en 5 segundos, se termina el refresco igual
+      const timeout = setTimeout(() => {
+        flushPendingToast();
+        setIsRefreshing(false);
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
+
+    // Terminó el refresco: mostrar el toast pendiente (si hubo error ya se limpió)
+    flushPendingToast();
+  }, [isRefreshing]);
 
   const onMutationStart = useCallback(() => {
     setIsRefreshing(true);
   }, []);
 
   const onMutationSuccess = useCallback((toastId: string | number, message: string) => {
-    setPendingToast({ id: toastId, message });
+    pendingToastRef.current = { id: toastId, message };
     router.refresh();
   }, [router]);
 
   const onMutationError = useCallback((toastId: string | number, error: string) => {
     toast.error(error, { id: toastId });
+    pendingToastRef.current = null;
     setIsRefreshing(false);
-    setPendingToast(null);
   }, []);
 
   const handleRefresh = () => {

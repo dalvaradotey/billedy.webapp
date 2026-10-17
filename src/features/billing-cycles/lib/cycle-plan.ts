@@ -70,7 +70,7 @@ async function rows<T>(query: ReturnType<typeof sql>): Promise<T[]> {
 /**
  * Lo pendiente de compensar del proyecto (Por cobrar / Fondo por liquidar).
  */
-export async function getPendingSettlementSummary(projectId: string): Promise<PendingSettlementSummary> {
+async function getPendingSettlementSummary(projectId: string): Promise<PendingSettlementSummary> {
   const today = toDate(getToday());
   const [r] = await rows<Record<string, string>>(sql`
     with pending as (

@@ -18,7 +18,6 @@ import {
 
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Drawer, DrawerClose, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
 import { cn } from '@/lib/utils';
@@ -29,30 +28,6 @@ import { archiveSavingsGoal, completeSavingsGoal, deleteSavingsGoal } from '../a
 import type { SavingsGoalWithProgress } from '../types';
 import { GOAL_TYPE_LABELS, GOAL_TYPE_ICONS } from './constants';
 import { SavingsGoalTransactions } from './savings-goal-transactions';
-
-// ============================================================================
-// SKELETON
-// ============================================================================
-
-export function SavingsGoalCardSkeleton() {
-  return (
-    <div className={cardStyles.base}>
-      <div className="flex items-start gap-3">
-        <Skeleton className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl flex-shrink-0" />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-7 w-28 sm:hidden" />
-        </div>
-        <Skeleton className="hidden sm:block h-8 w-28" />
-        <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
-      </div>
-      <div className="mt-3">
-        <Skeleton className="h-[72px] w-full rounded-xl" />
-      </div>
-    </div>
-  );
-}
 
 // ============================================================================
 // SAVINGS GOAL CARD

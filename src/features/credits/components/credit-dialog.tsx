@@ -194,7 +194,6 @@ export function CreditDialogContent({
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     placeholder="Ej: Crédito de consumo"
-                    valid={!!field.value && !fieldState.error}
                     invalid={!!fieldState.error}
                   />
                 </FormControl>
@@ -216,7 +215,6 @@ export function CreditDialogContent({
                       placeholder="Detalles adicionales del crédito..."
                       value={field.value ?? ''}
                       onChange={field.onChange}
-                      valid={!!field.value && !fieldState.error}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -248,7 +246,6 @@ export function CreditDialogContent({
                         }
                         projectId={projectId}
                         userId={userId}
-                        valid={!!field.value && !fieldState.error}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>
@@ -268,7 +265,6 @@ export function CreditDialogContent({
                         entities={entities}
                         value={field.value ?? undefined}
                         onValueChange={(val) => field.onChange(val ?? null)}
-                        valid={!!field.value && !fieldState.error}
                         invalid={!!fieldState.error}
                         allowNone
                         noneLabel="Sin tienda"
@@ -296,7 +292,6 @@ export function CreditDialogContent({
                       onValueChange={(value) => field.onChange(value ?? '')}
                       label="Cuenta de cargo"
                       searchPlaceholder="Buscar cuenta..."
-                      valid={!!field.value}
                       invalid={!!fieldState.error}
                     />
                   </FormControl>
@@ -321,7 +316,6 @@ export function CreditDialogContent({
                         value={field.value ?? undefined}
                         onChange={field.onChange}
                         placeholder="0"
-                        valid={field.value != null && field.value > 0 && !fieldState.error}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>
@@ -343,7 +337,6 @@ export function CreditDialogContent({
                         value={field.value ?? undefined}
                         onChange={field.onChange}
                         placeholder="0"
-                        valid={field.value != null && field.value > 0 && !fieldState.error}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>
@@ -395,7 +388,6 @@ export function CreditDialogContent({
                             label="Frecuencia"
                             searchPlaceholder="Buscar..."
                             emptyMessage="No encontrado."
-                            valid={!!field.value}
                             invalid={!!fieldState.error}
                           />
                         </FormControl>
@@ -443,7 +435,6 @@ export function CreditDialogContent({
                         label="Fecha 1ra cuota"
                         value={field.value}
                         onChange={field.onChange}
-                        valid={!!field.value && !fieldState.error}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>
@@ -509,7 +500,6 @@ export function CreditDialogContent({
                         placeholder="Detalles adicionales del crédito..."
                         value={field.value ?? ''}
                         onChange={field.onChange}
-                        valid={!!field.value && !fieldState.error}
                         invalid={!!fieldState.error}
                       />
                     </FormControl>

@@ -51,7 +51,7 @@ export function CreditList({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCredit, setEditingCredit] = useState<CreditWithProgress | null>(null);
 
-  const onMutationStart = useCallback((_toastId: string | number) => {
+  const onMutationStart = useCallback(() => {
     // No-op: los datos se actualizan automáticamente via cache invalidation
   }, []);
 
