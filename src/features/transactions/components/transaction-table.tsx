@@ -521,8 +521,8 @@ export function TransactionTable({
               /* Encabezado del día: queda pegado arriba hasta que llega el siguiente */
               <div className="sticky top-16 z-20 -mx-4 flex items-center gap-2.5 bg-background/95 px-5 py-2 backdrop-blur-sm md:top-0 md:-mx-2 md:px-3">
                 <span className="text-[13px] font-extrabold">{group.label}</span>
-                <span aria-hidden className="h-1 min-w-4 flex-1 overflow-hidden rounded-full bg-surface-2">
-                  <span className="block h-1 rounded-full bg-coral" style={{ width: `${Math.round((group.spent / maxDaySpent) * 100)}%` }} />
+                <span aria-hidden className="h-1.5 min-w-4 flex-1 overflow-hidden rounded-full bg-surface-2 md:h-2">
+                  <span className="block h-full rounded-full bg-coral" style={{ width: `${Math.round((group.spent / maxDaySpent) * 100)}%` }} />
                 </span>
                 {/* Lo que entró y lo que salió ese día (el neto no dice mucho) */}
                 {group.income > 0 && (
