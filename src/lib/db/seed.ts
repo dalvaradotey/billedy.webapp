@@ -15,25 +15,16 @@ async function seed() {
       code: 'CLP',
       symbol: '$',
       name: 'Peso Chileno',
-      decimalSeparator: ',',
-      thousandsSeparator: '.',
-      decimalPlaces: 0,
     },
     {
       code: 'USD',
       symbol: 'US$',
       name: 'Dólar Estadounidense',
-      decimalSeparator: '.',
-      thousandsSeparator: ',',
-      decimalPlaces: 2,
     },
     {
       code: 'EUR',
       symbol: '€',
       name: 'Euro',
-      decimalSeparator: ',',
-      thousandsSeparator: '.',
-      decimalPlaces: 2,
     },
   ];
 

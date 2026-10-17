@@ -10,7 +10,6 @@ export const createCardPurchaseSchema = z.object({
   entityId: z.string().uuid().optional().nullable(),
 
   description: z.string().min(1, 'La descripción es requerida').max(500),
-  storeName: z.string().max(255).optional().nullable(), // Alternative to entityId - user can use one or the other
   purchaseDate: z.date({ message: 'La fecha de compra es requerida' }).transform(toAppDate),
 
   originalAmount: z.number().positive('El monto original debe ser mayor a 0'),
@@ -20,7 +19,6 @@ export const createCardPurchaseSchema = z.object({
   firstChargeDate: z.date({ message: 'La fecha de primer cargo es requerida' }).transform(toAppDate),
   chargedInstallments: z.number().int().min(0).optional().default(0),
 
-  isExternalDebt: z.boolean().optional().default(false), // Deuda externa (familiares, etc.)
   nature: z.enum(EXPENSE_NATURES).optional(), // Las cuotas la heredan
   notes: z.string().max(1000).optional().nullable(),
 });
@@ -29,7 +27,6 @@ export const updateCardPurchaseSchema = z.object({
   categoryId: z.string().uuid().optional().nullable(),
   entityId: z.string().uuid().optional().nullable(),
   description: z.string().min(1).max(500).optional(),
-  storeName: z.string().max(255).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   isActive: z.boolean().optional(),
   nature: z.enum(EXPENSE_NATURES).optional(),
