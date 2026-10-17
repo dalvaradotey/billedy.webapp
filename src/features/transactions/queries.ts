@@ -106,7 +106,7 @@ export async function getTransactions(
     .leftJoin(budgets, eq(transactions.budgetId, budgets.id))
     .leftJoin(entities, eq(transactions.entityId, entities.id))
     .where(and(...conditions))
-    .orderBy(desc(transactions.date), desc(transactions.createdAt));
+    .orderBy(desc(transactions.date), desc(transactions.createdAt), desc(transactions.id));
 
   return result;
 }
@@ -286,7 +286,7 @@ export async function getUnpaidCreditCardTransactions(
         sql`${transactions.paidByTransferId} IS NULL`
       )
     )
-    .orderBy(desc(transactions.date), desc(transactions.createdAt));
+    .orderBy(desc(transactions.date), desc(transactions.createdAt), desc(transactions.id));
 
   return result;
 }

@@ -46,7 +46,9 @@ export async function getTemplatesWithItems(
       .innerJoin(categories, eq(templateItems.categoryId, categories.id))
       .leftJoin(accounts, eq(templateItems.accountId, accounts.id))
       .leftJoin(entities, eq(templateItems.entityId, entities.id))
-      .where(eq(templateItems.projectId, projectId)),
+      .where(eq(templateItems.projectId, projectId))
+      // Orden estable: el de creación (antes dependía del orden físico de la tabla)
+      .orderBy(templateItems.createdAt, templateItems.id),
   ]);
 
   // Agrupar items por plantilla
