@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { Wallet, Plus, RefreshCw } from 'lucide-react';
 
 import { ResponsiveDrawer } from '@/components/ui/drawer';
-import { ScrollRow } from '@/components/ui/scroll-row';
 import { EmptyState } from '@/components/empty-state';
 
 import { formatCurrency } from '@/lib/formatting';
@@ -16,6 +15,7 @@ import type { Entity } from '@/features/entities/types';
 import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
 import { recalculateAllAccountBalances } from '../actions';
 import { AccountDetailPanel } from './account-detail';
+import { AccountsCarousel } from './accounts-carousel';
 import { WalletCard, WalletChip, accountKindLabel } from './wallet-card';
 import { AccountCardSkeleton } from './account-card-skeleton';
 import { AccountDialogContent } from './account-dialog';
@@ -268,13 +268,11 @@ export function AccountsList({
 
           {/* Carrusel (móvil) */}
           <section aria-label="Tus cuentas" className="-mx-4 md:hidden">
-            <ScrollRow className="flex snap-x snap-mandatory scroll-px-4 gap-3 px-4 py-1.5">
-              {ordered.filter((a) => !a.isArchived).map((account) => (
-                <div key={account.id} className="w-[300px] flex-none snap-center">
-                  <WalletCard account={account} selected={selected?.id === account.id} onSelect={() => setSelectedId(account.id)} />
-                </div>
-              ))}
-            </ScrollRow>
+            <AccountsCarousel
+              accounts={ordered.filter((a) => !a.isArchived)}
+              selectedId={selected?.id ?? null}
+              onSelect={setSelectedId}
+            />
           </section>
 
           {/* Detalle de la cuenta elegida */}
