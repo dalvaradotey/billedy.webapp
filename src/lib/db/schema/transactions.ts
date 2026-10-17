@@ -150,6 +150,9 @@ export const transactions = pgTable('n1n4_transactions', {
   linkedTransactionId: uuid('linked_transaction_id'),
   // Para pagos de tarjeta de crédito: referencia a la transferencia que pagó esta transacción
   paidByTransferId: uuid('paid_by_transfer_id'),
+  // Inversión a la que pertenece (ver investments) y su rol: 'aporte', 'costo' o 'retorno'
+  investmentId: uuid('investment_id'),
+  investmentRole: varchar('investment_role', { length: 10 }),
   // Para compras en cuotas: indica si la cuota fue pagada antes de usar la app
   isHistoricallyPaid: boolean('is_historically_paid').default(false).notNull(),
   isReconciled: boolean('is_reconciled').default(false).notNull(),

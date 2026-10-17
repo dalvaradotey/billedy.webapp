@@ -11,6 +11,7 @@ import {
   Tags,
   Send,
   FileCheck,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ export const SECONDARY_NAV: NavItem[] = [
   { href: '/dashboard/budgets', label: 'Presupuestos', icon: Target },
   { href: '/dashboard/saving-goals', label: 'Metas de ahorro', icon: PiggyBank },
   { href: '/dashboard/card-purchases', label: 'Compras en cuotas', icon: CreditCard },
+  { href: '/dashboard/investments', label: 'Inversiones', icon: TrendingUp },
   { href: '/dashboard/credits', label: 'Créditos', icon: Receipt },
   { href: '/dashboard/templates', label: 'Plantillas', icon: FileText },
   { href: '/dashboard/cycles', label: 'Ciclos', icon: CalendarClock },

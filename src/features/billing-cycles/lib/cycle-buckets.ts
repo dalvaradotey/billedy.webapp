@@ -17,6 +17,7 @@ export const BUCKETS = [
   'savings_out', // retiro desde cuenta de ahorro (enlazado)
   'provision_in', // apartar a una provisión (fondo para gastos que vienen)
   'provision_out', // liberar una provisión o pagar con ella
+  'investment_in', // aporte a una inversión: sale de la caja, pero no es gasto
   'card_spend', // gasto en TC (informativo: se paga el próximo ciclo)
   'card_credit', // devolución / abono / ajuste en TC (informativo)
   'ignored', // contrapartes de enlaces y movimientos internos de ahorro
@@ -84,6 +85,7 @@ export function bucketAggregationQuery(
         t.date,
         t.is_paid,
         t.nature::text as nature,
+        t.investment_role,
         t.is_historically_paid,
         t.linked_transaction_id,
         t.card_purchase_id,
@@ -117,6 +119,9 @@ export function bucketAggregationQuery(
             then 'ignored'
           when acc in ('checking', 'cash') and type = 'income' and linked_transaction_id is null
             then 'income'
+          when acc in ('checking', 'cash') and type = 'expense' and linked_transaction_id is null
+               and investment_role = 'aporte'
+            then 'investment_in'
           when acc in ('checking', 'cash') and type = 'expense' and linked_transaction_id is null
             then 'debit_expense'
           when acc in ('checking', 'cash') and type = 'expense' and contra = 'credit_card'

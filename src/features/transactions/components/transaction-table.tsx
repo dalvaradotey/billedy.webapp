@@ -418,6 +418,8 @@ export function TransactionTable({
       if (t.type === 'income' && accountsMap.get(t.accountId ?? '')?.type === 'credit_card') continue;
       // La plata de otra persona que entra no es ingreso tuyo
       if (t.type === 'income' && t.nature === 'external') continue;
+      // El aporte a una inversión no es gasto
+      if (t.investmentRole === 'aporte') continue;
       if (t.type === 'income') g.income += amount;
       if (t.type === 'expense') g.spent += amount;
     }
