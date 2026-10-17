@@ -11,7 +11,7 @@ export const TONE_CLASSES: Record<PulseTone, { soft: string; text: string; bar: 
   sky: { soft: 'bg-sky-soft', text: 'text-sky', bar: 'bg-sky' },
   violet: { soft: 'bg-violet-soft', text: 'text-violet', bar: 'bg-violet' },
   rose: { soft: 'bg-rose-soft', text: 'text-rose', bar: 'bg-rose' },
-  neutral: { soft: 'bg-surface-3', text: 'text-[#CFC6D6]', bar: 'bg-[#CFC6D6]' },
+  neutral: { soft: 'bg-surface-3', text: 'text-subtle', bar: 'bg-subtle' },
 };
 
 export function pulseTone(hex: string | null | undefined): PulseTone {

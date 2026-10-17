@@ -194,7 +194,7 @@ export function DailyPulseCard({
               );
             })}
             {cum.length > 1 && (
-              <polyline points={cum.join(' ')} fill="none" stroke="#F4EFE8" strokeOpacity={0.7} strokeWidth={2} strokeLinejoin="round" pointerEvents="none" />
+              <polyline points={cum.join(' ')} fill="none" className="stroke-foreground" strokeOpacity={0.7} strokeWidth={2} strokeLinejoin="round" pointerEvents="none" />
             )}
             {hovered && hoverIndex != null && (
               <g pointerEvents="none">
@@ -202,22 +202,21 @@ export function DailyPulseCard({
                   cx={hoverX}
                   cy={base - (cumByDay[hoverIndex] / totalSpent) * 92}
                   r={4}
-                  fill="#F4EFE8"
-                  className="stroke-surface"
+                  className="fill-foreground stroke-surface"
                   strokeWidth={2}
                 />
                 <g transform={`translate(${tipX},0)`}>
                   <rect width={tipW} height={tipH} rx={12} className="fill-cream" />
-                  <text x={10} y={15} className="fill-[#6B6172] text-[10px] font-bold uppercase">
+                  <text x={10} y={15} className="fill-cream-muted text-[10px] font-bold uppercase">
                     {WEEKDAYS[hovered.date.getUTCDay()]} {label(hovered.date)}
                   </text>
                   <text x={10} y={31} className="fill-cream-ink text-[13px] font-extrabold">
                     −{formatCLP(hovered.spent, currency)}
                   </text>
                   {hovered.income > 0 && (
-                    <text x={10} y={45} className="fill-[#1F6B55] text-[11px] font-extrabold">+{formatCLP(hovered.income, currency)}</text>
+                    <text x={10} y={45} className="fill-cream-jade text-[11px] font-extrabold">+{formatCLP(hovered.income, currency)}</text>
                   )}
-                  <text x={10} y={tipH - 6} className="fill-[#6B6172] text-[10px] font-bold">
+                  <text x={10} y={tipH - 6} className="fill-cream-muted text-[10px] font-bold">
                     acumulado {compact(cumByDay[hoverIndex])}
                   </text>
                 </g>
@@ -244,16 +243,16 @@ export function DailyPulseCard({
             <X className="h-3.5 w-3.5" />
           </button>
         )}
-        <span className="rounded-full bg-background px-2.5 py-1 text-xs text-[#CFC6D6]">
+        <span className="rounded-full bg-background px-2.5 py-1 text-xs text-subtle">
           {summary.pendingCount} {summary.pendingCount === 1 ? 'pendiente' : 'pendientes'}
         </span>
-        <span className="rounded-full bg-background px-2.5 py-1 text-xs text-[#CFC6D6]">
+        <span className="rounded-full bg-background px-2.5 py-1 text-xs text-subtle">
           {reconciledCount} de {transactions.length} conciliados
         </span>
         <span className="ml-auto hidden items-center gap-3 text-[11px] text-muted-foreground sm:flex">
           <span className="flex items-center gap-1.5"><span aria-hidden className="h-2 w-2 rounded-lg bg-coral" />gasto del día</span>
           <span className="flex items-center gap-1.5"><span aria-hidden className="h-2 w-2 rounded-lg bg-jade" />día con ingreso</span>
-          <span className="flex items-center gap-1.5"><span aria-hidden className="h-0.5 w-3.5 bg-[#CFC6D6]" />acumulado</span>
+          <span className="flex items-center gap-1.5"><span aria-hidden className="h-0.5 w-3.5 bg-subtle" />acumulado</span>
         </span>
       </div>
     </section>

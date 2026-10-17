@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { Plus, ShieldCheck, LogOut, ChevronsUpDown } from 'lucide-react';
+import { Plus, ShieldCheck, LogOut, ChevronsUpDown, Palette } from 'lucide-react';
+import { ThemePicker } from '@/components/theme-picker';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -13,6 +14,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -128,6 +132,15 @@ export function AppSidebar({
               <a href="/admin/entities"><ShieldCheck className="h-4 w-4" />Administrar entidades</a>
             </DropdownMenuItem>
           )}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Palette className="h-4 w-4" />
+              Apariencia
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-[300px] rounded-2xl p-2">
+              <ThemePicker />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-coral-text focus:text-coral-text" onSelect={() => signOut({ callbackUrl: '/login' })}>
             <LogOut className="h-4 w-4" />
@@ -193,7 +206,7 @@ function SidebarGroup({ items, pathname }: { items: NavItem[]; pathname: string 
               'flex min-h-9 items-center gap-3 rounded-full px-3.5 text-sm transition-colors [@media(max-height:860px)]:min-h-8',
               active
                 ? 'bg-jade-soft font-extrabold text-jade-text'
-                : 'font-semibold text-[#CFC6D6] hover:bg-surface-3 hover:text-foreground'
+                : 'font-semibold text-subtle hover:bg-surface-3 hover:text-foreground'
             )}
           >
             <Icon

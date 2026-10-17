@@ -113,7 +113,7 @@ export function CycleHistoryCard({ history }: { history: CycleHistoryPoint[] }) 
       <div ref={ref} className="mt-3 w-full" style={{ height: H }}>
         {W > 0 && (
           <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Saldo final de los últimos ciclos" className="overflow-visible">
-            <line x1="0" x2={W} y1={Y(avg)} y2={Y(avg)} stroke="#4A4253" strokeDasharray="4 5" />
+            <line x1="0" x2={W} y1={Y(avg)} y2={Y(avg)} className="stroke-line-strong" strokeDasharray="4 5" />
             <path d={area} className="fill-jade" fillOpacity={0.12} />
             <polyline points={line} fill="none" className="stroke-jade" strokeWidth={2.5} strokeLinejoin="round" />
             {pts.map((p) => (

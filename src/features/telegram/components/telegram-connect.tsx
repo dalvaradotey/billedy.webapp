@@ -121,7 +121,7 @@ export function TelegramConnect({ userId, projectId, projectName, status }: Tele
         </p>
         <ul className="mt-3 flex flex-wrap gap-1.5">
           {EXAMPLES.map((e) => (
-            <li key={e} className="rounded-full bg-background px-3 py-1.5 font-mono text-xs text-[#CFC6D6]">
+            <li key={e} className="rounded-full bg-background px-3 py-1.5 font-mono text-xs text-subtle">
               {e}
             </li>
           ))}

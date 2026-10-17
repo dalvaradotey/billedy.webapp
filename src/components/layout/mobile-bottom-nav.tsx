@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import { ActionsPopover } from './actions-popover';
 import { PRIMARY_NAV, SECONDARY_NAV, isNavActive } from './nav-items';
+import { ThemePicker } from '@/components/theme-picker';
 
 interface MobileBottomNavProps {
   user: { id: string; name?: string | null; email?: string | null; image?: string | null };
@@ -143,6 +144,11 @@ export function MobileBottomNav({ user, isAdmin = false }: MobileBottomNavProps)
                   );
                 })}
               </div>
+
+              <section aria-label="Apariencia" className="mt-4 border-t border-line pt-4">
+                <h3 className="px-0.5 pb-2.5 text-xs font-bold uppercase tracking-wider text-faint">Apariencia</h3>
+                <ThemePicker />
+              </section>
 
               <div className="mt-4 space-y-1 border-t border-line pt-4">
                 {isAdmin && (
