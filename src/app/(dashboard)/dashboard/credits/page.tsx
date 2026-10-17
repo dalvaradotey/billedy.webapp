@@ -51,7 +51,7 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
     <div className="space-y-5">
       <div>
         <h1 className="text-[28px] font-extrabold tracking-[-0.035em]">Créditos</h1>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">Administra tus préstamos y pagos en cuotas.</p>
+        <p className="mt-0.5 hidden text-[13px] text-muted-foreground md:block">Administra tus préstamos y pagos en cuotas.</p>
       </div>
 
       <CreditList

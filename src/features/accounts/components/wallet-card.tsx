@@ -111,7 +111,7 @@ export function WalletCard({ account, selected, onSelect, className }: WalletCar
           <span className="relative flex items-start justify-between gap-3">
             <span className="min-w-0">
               <span className="block text-[11px] font-extrabold tracking-[0.06em] opacity-70">{accountKindLabel(account.type)}</span>
-              <span className="mt-0.5 block truncate text-lg font-extrabold tracking-[-0.02em]">{account.name}</span>
+              <span className="mt-0.5 line-clamp-2 break-words text-lg font-extrabold leading-tight tracking-[-0.02em]">{account.name}</span>
             </span>
             {account.entity?.imageUrl ? <BankLogo src={account.entity.imageUrl} name={account.entity.name} /> : <Chip />}
           </span>

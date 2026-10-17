@@ -214,7 +214,7 @@ export function PulseHome({
           <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
             <Link
               href="/dashboard/cycles"
-              className="flex min-h-8 items-center gap-1 rounded-full bg-surface-2 px-3 text-xs font-bold text-foreground"
+              className="relative flex min-h-8 items-center gap-1 rounded-full bg-surface-2 px-3 text-xs font-bold text-foreground after:absolute after:-inset-y-1.5 after:inset-x-0 after:content-['']"
             >
               {cycle.name}
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
@@ -406,7 +406,7 @@ export function PulseHome({
             <h2 className="text-lg font-extrabold tracking-[-0.02em]">Señales del ciclo</h2>
             <span className="text-xs text-muted-foreground">{signals.length}</span>
           </div>
-          <ScrollRow className="-mx-4 mt-2.5 flex snap-x gap-2.5 px-4 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
+          <ScrollRow className="-mx-4 mt-2.5 flex snap-x scroll-px-4 gap-2.5 px-4 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
             {signals.map((s) => {
               const Icon = s.icon;
               const content = (

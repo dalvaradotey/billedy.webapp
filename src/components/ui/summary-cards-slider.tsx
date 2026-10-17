@@ -81,7 +81,7 @@ export function SummaryCardsSlider({
     <div className={className}>
       {/* Móvil: fila con scroll libre, una tarjeta asoma para invitar a deslizar */}
       <div className={classes.mobile}>
-        <ScrollRow scrollRef={scrollRef} className="-mx-4 flex snap-x gap-2.5 px-4">
+        <ScrollRow scrollRef={scrollRef} className="-mx-4 flex snap-x scroll-px-4 gap-2.5 px-4">
           {children.map((child, i) => (
             <div key={i} className="w-[46%] min-w-[150px] max-w-[190px] flex-none snap-start">
               {child}

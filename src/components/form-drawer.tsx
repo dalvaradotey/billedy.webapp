@@ -66,7 +66,8 @@ export function FormDrawer({
           ) : (
             <DrawerTitle>{title}</DrawerTitle>
           )}
-          {description && <DrawerDescription>{description}</DrawerDescription>}
+          {/* En el teléfono la descripción queda solo para lectores de pantalla: el espacio es para el formulario */}
+          {description && <DrawerDescription className="max-md:sr-only">{description}</DrawerDescription>}
         </DrawerHeader>
         {children}
       </div>
@@ -184,11 +185,17 @@ interface FormDrawerFooterProps {
 /**
  * FormDrawerFooter - Footer area for submit buttons
  * Should be placed inside FormDrawerBody when using forms.
+ * Queda fijo al fondo del área con scroll: guardar siempre está a mano, aunque
+ * el formulario sea largo o el teclado esté abierto.
  */
 export function FormDrawerFooter({ children, className }: FormDrawerFooterProps) {
   return (
-    <DrawerFooter className={cn('px-0 pb-0', className)}>
+    <DrawerFooter className={cn(STICKY_FOOTER, className)}>
       {children}
     </DrawerFooter>
   );
 }
+
+/** Pie fijo al fondo del scroll del drawer, con un degradado para que el contenido pase por debajo */
+export const STICKY_FOOTER =
+  'sticky bottom-0 z-10 -mx-4 mt-0 bg-gradient-to-t from-surface from-70% to-transparent px-4 pb-4 pt-5';

@@ -22,9 +22,20 @@ export function ActionsPopover({
   const { actions } = usePageActions();
   const [isOpen, setIsOpen] = useState(false);
   const hasActions = actions.length > 0;
+  // Con una sola acción no hay nada que elegir: el botón la ejecuta directo
+  const single = actions.length === 1 ? actions[0] : null;
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (open && single) {
+          if (!single.disabled) single.onClick();
+          return;
+        }
+        setIsOpen(open);
+      }}
+    >
       <PopoverTrigger asChild disabled={!hasActions}>
         {children({ isOpen, hasActions })}
       </PopoverTrigger>

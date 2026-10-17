@@ -295,3 +295,10 @@
     animation: none;
   }
 }
+
+/* Los buscadores son type="search" (teclado con "Buscar"); la X la pone la app */
+input[type='search']::-webkit-search-cancel-button,
+input[type='search']::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}

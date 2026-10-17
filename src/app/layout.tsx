@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist_Mono, Manrope } from 'next/font/google';
 import { SessionProvider } from '@/components/providers/session-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
@@ -19,6 +19,13 @@ export const metadata: Metadata = {
   title: 'Billedy - Gestión Financiera Personal',
   description:
     'Aplicación web de gestión financiera personal. Controla tus ingresos, gastos, presupuestos y ahorros.',
+  appleWebApp: { capable: true, title: 'billedy', statusBarStyle: 'black' },
+};
+
+/** Barra del navegador del color de la app en el teléfono */
+export const viewport: Viewport = {
+  themeColor: '#15121A',
+  colorScheme: 'dark',
 };
 
 export default function RootLayout({

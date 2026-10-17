@@ -168,7 +168,7 @@ export function CurrencyInput({
           <input
             ref={inputRef}
             type="text"
-            inputMode="decimal"
+            inputMode={config.decimals === 0 ? "numeric" : "decimal"}
             value={shownValue}
             onChange={handleChange}
             onFocus={handleFocus}
