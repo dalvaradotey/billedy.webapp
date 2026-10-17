@@ -67,7 +67,7 @@ export function UserSearchSelector({
     }
 
     // Limpiar resultados si la query es muy corta
-    if (searchQuery.length < 2) {
+    if (searchQuery.length < 3) {
       setResults([]);
       return;
     }
@@ -203,9 +203,9 @@ export function UserSearchSelector({
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-            ) : searchQuery.length < 2 ? (
+            ) : searchQuery.length < 3 ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                Escribe al menos 2 caracteres para buscar
+                Escribe al menos 3 caracteres para buscar
               </div>
             ) : results.length === 0 ? (
               <CommandEmpty>{emptyMessage}</CommandEmpty>

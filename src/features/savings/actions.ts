@@ -1,10 +1,12 @@
 'use server';
 
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
+import { memberCondition, NO_PROJECT_ACCESS, verifyProjectWriteAccess } from '@/lib/auth/project-access';
 import { db } from '@/lib/db';
 import { savingsGoals, transactions, projectMembers, categories, accounts, budgets, entities } from '@/lib/db/schema';
-import { eq, and, isNotNull, desc } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
+import type { ActionResult } from '@/types/action-result';
 import type { TransactionWithCategory } from '@/features/transactions/types';
 import {
   createSavingsGoalSchema,
@@ -15,27 +17,20 @@ import type {
   UpdateSavingsGoalInput,
 } from './schemas';
 
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string };
-
 /**
- * Verifica que el usuario tenga acceso al proyecto
+ * Meta del usuario que puede modificar. Las metas son del usuario; si están
+ * asociadas a un proyecto, además exige rol de escritura en ese proyecto.
  */
-async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
-  const member = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
+async function findWritableGoal(goalId: string, userId: string): Promise<{ id: string } | null> {
+  const [goal] = await db
+    .select({ id: savingsGoals.id, projectId: savingsGoals.projectId })
+    .from(savingsGoals)
+    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)))
     .limit(1);
 
-  return member.length > 0;
+  if (!goal) return null;
+  if (goal.projectId && !(await verifyProjectWriteAccess(goal.projectId, userId))) return null;
+  return goal;
 }
 
 // ============================================================================
@@ -61,9 +56,9 @@ export async function createSavingsGoal(
   }
 
   if (parsed.data.projectId) {
-    const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+    const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
     if (!hasAccess) {
-      return { success: false, error: 'No tienes acceso a este proyecto' };
+      return { success: false, error: NO_PROJECT_ACCESS };
     }
   }
 
@@ -103,13 +98,8 @@ export async function updateSavingsGoal(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const existing = await db
-    .select({ id: savingsGoals.id })
-    .from(savingsGoals)
-    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)))
-    .limit(1);
-
-  if (!existing[0]) {
+  const existing = await findWritableGoal(goalId, userId);
+  if (!existing) {
     return { success: false, error: 'Meta de ahorro no encontrada' };
   }
 
@@ -125,7 +115,10 @@ export async function updateSavingsGoal(
   if (parsed.data.isCompleted !== undefined) updateData.isCompleted = parsed.data.isCompleted;
   if (parsed.data.isArchived !== undefined) updateData.isArchived = parsed.data.isArchived;
 
-  await db.update(savingsGoals).set(updateData).where(eq(savingsGoals.id, goalId));
+  await db
+    .update(savingsGoals)
+    .set(updateData)
+    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)));
 
   invalidateRelatedCache('savings');
 
@@ -144,13 +137,8 @@ export async function completeSavingsGoal(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  const existing = await db
-    .select({ id: savingsGoals.id })
-    .from(savingsGoals)
-    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)))
-    .limit(1);
-
-  if (!existing[0]) {
+  const existing = await findWritableGoal(goalId, userId);
+  if (!existing) {
     return { success: false, error: 'Meta de ahorro no encontrada' };
   }
 
@@ -160,7 +148,7 @@ export async function completeSavingsGoal(
       isCompleted,
       updatedAt: new Date(),
     })
-    .where(eq(savingsGoals.id, goalId));
+    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)));
 
   invalidateRelatedCache('savings');
 
@@ -179,13 +167,8 @@ export async function archiveSavingsGoal(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  const existing = await db
-    .select({ id: savingsGoals.id })
-    .from(savingsGoals)
-    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)))
-    .limit(1);
-
-  if (!existing[0]) {
+  const existing = await findWritableGoal(goalId, userId);
+  if (!existing) {
     return { success: false, error: 'Meta de ahorro no encontrada' };
   }
 
@@ -195,7 +178,7 @@ export async function archiveSavingsGoal(
       isArchived,
       updatedAt: new Date(),
     })
-    .where(eq(savingsGoals.id, goalId));
+    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)));
 
   invalidateRelatedCache('savings');
 
@@ -211,17 +194,14 @@ export async function deleteSavingsGoal(goalId: string, userId: string): Promise
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  const existing = await db
-    .select({ id: savingsGoals.id })
-    .from(savingsGoals)
-    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)))
-    .limit(1);
-
-  if (!existing[0]) {
+  const existing = await findWritableGoal(goalId, userId);
+  if (!existing) {
     return { success: false, error: 'Meta de ahorro no encontrada' };
   }
 
-  await db.delete(savingsGoals).where(eq(savingsGoals.id, goalId));
+  await db
+    .delete(savingsGoals)
+    .where(and(eq(savingsGoals.id, goalId), eq(savingsGoals.userId, userId)));
 
   invalidateRelatedCache('savings');
 
@@ -320,20 +300,28 @@ export async function unlinkTransactionFromGoal(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  const existing = await db
-    .select({ id: transactions.id })
+  // Transacción del usuario en un proyecto donde puede modificar
+  const [existing] = await db
+    .select({ id: transactions.id, projectId: transactions.projectId })
     .from(transactions)
-    .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId)))
+    .innerJoin(projectMembers, eq(transactions.projectId, projectMembers.projectId))
+    .where(
+      and(
+        eq(transactions.id, transactionId),
+        eq(transactions.userId, userId),
+        memberCondition(userId, { write: true })
+      )
+    )
     .limit(1);
 
-  if (!existing[0]) {
+  if (!existing) {
     return { success: false, error: 'Transacción no encontrada' };
   }
 
   await db
     .update(transactions)
     .set({ savingsGoalId: null, updatedAt: new Date() })
-    .where(eq(transactions.id, transactionId));
+    .where(and(eq(transactions.id, transactionId), eq(transactions.projectId, existing.projectId)));
 
   invalidateRelatedCache('savings');
   invalidateRelatedCache('transactions');

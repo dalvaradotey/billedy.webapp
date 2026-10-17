@@ -11,7 +11,6 @@ import {
   Receipt,
   Users,
   RefreshCw,
-  Calendar,
   ChevronDown,
   MoreVertical,
   X,
@@ -113,7 +112,7 @@ export function CardPurchaseCard({
       const result = await regenerateInstallments(purchase.id, userId);
       setShowRegenerateDialog(false);
       if (result.success) {
-        onMutationSuccess?.(toastId, `${result.regenerated} cuotas regeneradas`);
+        onMutationSuccess?.(toastId, `${result.data.regenerated} cuotas regeneradas`);
         onUpdate();
       } else {
         onMutationError?.(toastId, result.error ?? 'Error al regenerar cuotas');

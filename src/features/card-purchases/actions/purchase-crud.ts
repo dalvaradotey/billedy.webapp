@@ -1,6 +1,12 @@
 'use server';
 
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
+import {
+  memberCondition,
+  NO_PROJECT_ACCESS,
+  projectRefsError,
+  verifyProjectWriteAccess,
+} from '@/lib/auth/project-access';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { db } from '@/lib/db';
 import {
@@ -11,10 +17,24 @@ import {
   projects,
   currencies,
 } from '@/lib/db/schema';
-import { eq, and, isNotNull, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+import type { ActionResult } from '@/types/action-result';
 import { createCardPurchaseSchema, updateCardPurchaseSchema } from '../schemas';
 import type { CardPurchase } from '../types';
 import { updateAccountBalance } from '@/features/accounts/lib/balance';
+
+/**
+ * Busca la compra si el usuario puede modificarla (miembro con rol de escritura).
+ */
+async function findWritablePurchase(purchaseId: string, userId: string) {
+  const [row] = await db
+    .select({ purchase: cardPurchases })
+    .from(cardPurchases)
+    .innerJoin(projectMembers, eq(cardPurchases.projectId, projectMembers.projectId))
+    .where(and(eq(cardPurchases.id, purchaseId), memberCondition(userId, { write: true })))
+    .limit(1);
+  return row?.purchase ?? null;
+}
 
 /**
  * Crea una nueva compra en cuotas
@@ -36,7 +56,7 @@ export async function createCardPurchase(data: {
   isExternalDebt?: boolean;
   nature?: 'own' | 'external' | 'reimbursable' | 'fund';
   notes?: string | null;
-}): Promise<{ success: boolean; data?: CardPurchase; error?: string }> {
+}): Promise<ActionResult<CardPurchase>> {
   if (!(await isSessionUser(data.userId))) {
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
@@ -47,28 +67,23 @@ export async function createCardPurchase(data: {
     // La naturaleza manda; is_external_debt se mantiene sincronizado por compatibilidad
     const nature = validated.nature ?? (validated.isExternalDebt ? 'external' : 'own');
 
-    // Verificar acceso al proyecto
-    const hasAccess = await db
-      .select({ id: projectMembers.id })
-      .from(projectMembers)
-      .where(
-        and(
-          eq(projectMembers.projectId, validated.projectId),
-          eq(projectMembers.userId, validated.userId),
-          isNotNull(projectMembers.acceptedAt)
-        )
-      )
-      .limit(1);
-
-    if (hasAccess.length === 0) {
-      return { success: false, error: 'No tienes acceso a este proyecto' };
+    // Verificar acceso de escritura al proyecto
+    if (!(await verifyProjectWriteAccess(validated.projectId, validated.userId))) {
+      return { success: false, error: NO_PROJECT_ACCESS };
     }
+
+    // La tarjeta y la categoría deben ser del proyecto
+    const refsError = await projectRefsError(validated.projectId, {
+      accountIds: [validated.accountId],
+      categoryIds: [validated.categoryId],
+    });
+    if (refsError) return { success: false, error: refsError };
 
     // Verificar que la cuenta existe y es una tarjeta de crédito
     const account = await db
       .select({ id: accounts.id, type: accounts.type })
       .from(accounts)
-      .where(eq(accounts.id, validated.accountId))
+      .where(and(eq(accounts.id, validated.accountId), eq(accounts.projectId, validated.projectId)))
       .limit(1);
 
     if (account.length === 0) {
@@ -116,77 +131,83 @@ export async function createCardPurchase(data: {
       }
     }
 
-    // Crear la compra
-    const [purchase] = await db
-      .insert(cardPurchases)
-      .values({
-        userId: validated.userId,
-        projectId: validated.projectId,
-        accountId: validated.accountId,
-        categoryId: validated.categoryId || null,
-        entityId: validated.entityId || null,
-        description: validated.description,
-        storeName: validated.storeName || null,
-        purchaseDate: validated.purchaseDate,
-        originalAmount: validated.originalAmount.toFixed(2),
-        totalAmount: totalAmount.toFixed(2),
-        interestAmount: interestAmount.toFixed(2),
-        interestRate: interestRate.toFixed(2),
-        installments: validated.installments,
-        installmentAmount: installmentAmount.toFixed(2),
-        firstChargeDate: validated.firstChargeDate,
-        chargedInstallments: validated.installments, // Todas las cuotas se crean de inmediato
-        initialPaidInstallments,
-        isExternalDebt: nature === 'external',
-        nature,
-        notes: validated.notes || null,
-        isActive: true, // Activa mientras tenga cuotas pendientes de pago
-      })
-      .returning();
-
-    // Crear TODAS las transacciones de cuotas inmediatamente
-    // isPaid = true para que afecten el balance de la TC
-    // paidByTransferId = null hasta que el usuario pague la TC
-    if (validated.categoryId) {
-      const installmentTransactions = [];
-
-      for (let i = 0; i < validated.installments; i++) {
-        const chargeDate = new Date(validated.firstChargeDate);
-        chargeDate.setMonth(chargeDate.getMonth() + i);
-
-        const installmentNumber = i + 1;
-        // Las primeras initialPaidInstallments cuotas se marcan como históricamente pagadas
-        const isHistorical = i < initialPaidInstallments;
-
-        installmentTransactions.push({
+    // Crear la compra y sus cuotas en una sola transacción
+    const { purchase, insertedInstallments } = await db.transaction(async (tx) => {
+      const [purchase] = await tx
+        .insert(cardPurchases)
+        .values({
           userId: validated.userId,
           projectId: validated.projectId,
           accountId: validated.accountId,
-          categoryId: validated.categoryId,
+          categoryId: validated.categoryId || null,
           entityId: validated.entityId || null,
-          cardPurchaseId: purchase.id,
-          type: 'expense' as const,
+          description: validated.description,
+          storeName: validated.storeName || null,
+          purchaseDate: validated.purchaseDate,
+          originalAmount: validated.originalAmount.toFixed(2),
+          totalAmount: totalAmount.toFixed(2),
+          interestAmount: interestAmount.toFixed(2),
+          interestRate: interestRate.toFixed(2),
+          installments: validated.installments,
+          installmentAmount: installmentAmount.toFixed(2),
+          firstChargeDate: validated.firstChargeDate,
+          chargedInstallments: validated.installments, // Todas las cuotas se crean de inmediato
+          initialPaidInstallments,
+          isExternalDebt: nature === 'external',
           nature,
-          description: `${validated.description} - Cuota ${installmentNumber}/${validated.installments}`,
-          originalAmount: installmentAmount.toFixed(2),
-          originalCurrency: projectInfo.currencyCode,
-          baseAmount: installmentAmount.toFixed(2),
-          baseCurrency: projectInfo.currencyCode,
-          exchangeRate: '1',
-          date: chargeDate,
-          isPaid: true, // Siempre true para TC - afecta balance inmediatamente
-          paidAt: null, // Se establece cuando se paga la TC
-          isHistoricallyPaid: isHistorical, // Cuotas pagadas antes de usar la app
-        });
-      }
+          notes: validated.notes || null,
+          isActive: true, // Activa mientras tenga cuotas pendientes de pago
+        })
+        .returning();
 
-      if (installmentTransactions.length > 0) {
-        await db.insert(transactions).values(installmentTransactions);
+      // Crear TODAS las transacciones de cuotas inmediatamente
+      // isPaid = true para que afecten el balance de la TC
+      // paidByTransferId = null hasta que el usuario pague la TC
+      if (validated.categoryId) {
+        const installmentTransactions = [];
 
-        // Actualizar el balance de la tarjeta de crédito
-        // Para TC, un gasto aumenta la deuda (updateAccountBalance ya maneja esto)
-        await updateAccountBalance(validated.accountId, -totalAmount);
+        for (let i = 0; i < validated.installments; i++) {
+          const chargeDate = new Date(validated.firstChargeDate);
+          chargeDate.setMonth(chargeDate.getMonth() + i);
+
+          const installmentNumber = i + 1;
+          // Las primeras initialPaidInstallments cuotas se marcan como históricamente pagadas
+          const isHistorical = i < initialPaidInstallments;
+
+          installmentTransactions.push({
+            userId: validated.userId,
+            projectId: validated.projectId,
+            accountId: validated.accountId,
+            categoryId: validated.categoryId,
+            entityId: validated.entityId || null,
+            cardPurchaseId: purchase.id,
+            type: 'expense' as const,
+            nature,
+            description: `${validated.description} - Cuota ${installmentNumber}/${validated.installments}`,
+            originalAmount: installmentAmount.toFixed(2),
+            originalCurrency: projectInfo.currencyCode,
+            baseAmount: installmentAmount.toFixed(2),
+            baseCurrency: projectInfo.currencyCode,
+            exchangeRate: '1',
+            date: chargeDate,
+            isPaid: true, // Siempre true para TC - afecta balance inmediatamente
+            paidAt: null, // Se establece cuando se paga la TC
+            isHistoricallyPaid: isHistorical, // Cuotas pagadas antes de usar la app
+          });
+        }
+
+        if (installmentTransactions.length > 0) {
+          await tx.insert(transactions).values(installmentTransactions);
+        }
+        return { purchase, insertedInstallments: installmentTransactions.length };
       }
+      return { purchase, insertedInstallments: 0 };
+    });
+
+    // Actualizar el balance de la tarjeta de crédito
+    // Para TC, un gasto aumenta la deuda (updateAccountBalance ya maneja esto)
+    if (insertedInstallments > 0) {
+      await updateAccountBalance(validated.accountId, -totalAmount);
     }
 
     invalidateRelatedCache('cardPurchases');
@@ -194,10 +215,7 @@ export async function createCardPurchase(data: {
     return { success: true, data: purchase };
   } catch (error) {
     console.error('Error creating card purchase:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error al crear la compra',
-    };
+    return { success: false, error: 'Error al crear la compra' };
   }
 }
 
@@ -215,7 +233,7 @@ export async function updateCardPurchase(
     notes?: string | null;
     nature?: 'own' | 'external' | 'reimbursable' | 'fund';
   }
-): Promise<{ success: boolean; data?: CardPurchase; error?: string }> {
+): Promise<ActionResult<CardPurchase>> {
   if (!(await isSessionUser(userId))) {
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
@@ -223,26 +241,17 @@ export async function updateCardPurchase(
   try {
     const validated = updateCardPurchaseSchema.parse(data);
 
-    // Verificar acceso
-    const existing = await db
-      .select({
-        id: cardPurchases.id,
-        projectId: cardPurchases.projectId,
-      })
-      .from(cardPurchases)
-      .innerJoin(projectMembers, eq(cardPurchases.projectId, projectMembers.projectId))
-      .where(
-        and(
-          eq(cardPurchases.id, purchaseId),
-          eq(projectMembers.userId, userId),
-          isNotNull(projectMembers.acceptedAt)
-        )
-      )
-      .limit(1);
-
-    if (existing.length === 0) {
+    // Verificar acceso de escritura
+    const existing = await findWritablePurchase(purchaseId, userId);
+    if (!existing) {
       return { success: false, error: 'Compra no encontrada' };
     }
+
+    // La categoría nueva debe ser del proyecto de la compra
+    const refsError = await projectRefsError(existing.projectId, {
+      categoryIds: [validated.categoryId],
+    });
+    if (refsError) return { success: false, error: refsError };
 
     const updated = await db.transaction(async (tx) => {
       const [row] = await tx
@@ -252,7 +261,7 @@ export async function updateCardPurchase(
           ...(validated.nature ? { isExternalDebt: validated.nature === 'external' } : {}),
           updatedAt: new Date(),
         })
-        .where(eq(cardPurchases.id, purchaseId))
+        .where(and(eq(cardPurchases.id, purchaseId), eq(cardPurchases.projectId, existing.projectId)))
         .returning();
 
       // Las cuotas heredan la naturaleza de la compra
@@ -272,10 +281,7 @@ export async function updateCardPurchase(
     return { success: true, data: updated };
   } catch (error) {
     console.error('Error updating card purchase:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error al actualizar',
-    };
+    return { success: false, error: 'Error al actualizar' };
   }
 }
 
@@ -285,27 +291,15 @@ export async function updateCardPurchase(
 export async function archiveCardPurchase(
   purchaseId: string,
   userId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<ActionResult> {
   if (!(await isSessionUser(userId))) {
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
   try {
-    // Verificar acceso
-    const existing = await db
-      .select({ id: cardPurchases.id })
-      .from(cardPurchases)
-      .innerJoin(projectMembers, eq(cardPurchases.projectId, projectMembers.projectId))
-      .where(
-        and(
-          eq(cardPurchases.id, purchaseId),
-          eq(projectMembers.userId, userId),
-          isNotNull(projectMembers.acceptedAt)
-        )
-      )
-      .limit(1);
-
-    if (existing.length === 0) {
+    // Verificar acceso de escritura
+    const existing = await findWritablePurchase(purchaseId, userId);
+    if (!existing) {
       return { success: false, error: 'Compra no encontrada' };
     }
 
@@ -315,17 +309,14 @@ export async function archiveCardPurchase(
         isActive: false,
         updatedAt: new Date(),
       })
-      .where(eq(cardPurchases.id, purchaseId));
+      .where(and(eq(cardPurchases.id, purchaseId), eq(cardPurchases.projectId, existing.projectId)));
 
     invalidateRelatedCache('cardPurchases');
 
-    return { success: true };
+    return { success: true, data: undefined };
   } catch (error) {
     console.error('Error archiving card purchase:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error al archivar',
-    };
+    return { success: false, error: 'Error al archivar' };
   }
 }
 
@@ -335,48 +326,40 @@ export async function archiveCardPurchase(
 export async function deleteCardPurchase(
   purchaseId: string,
   userId: string
-): Promise<{ success: boolean; deletedTransactions?: number; error?: string }> {
+): Promise<ActionResult<{ deletedTransactions: number }>> {
   if (!(await isSessionUser(userId))) {
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
   try {
-    // Verificar acceso
-    const existing = await db
-      .select({ id: cardPurchases.id })
-      .from(cardPurchases)
-      .innerJoin(projectMembers, eq(cardPurchases.projectId, projectMembers.projectId))
-      .where(
-        and(
-          eq(cardPurchases.id, purchaseId),
-          eq(projectMembers.userId, userId),
-          isNotNull(projectMembers.acceptedAt)
-        )
-      )
-      .limit(1);
-
-    if (existing.length === 0) {
+    // Verificar acceso de escritura
+    const existing = await findWritablePurchase(purchaseId, userId);
+    if (!existing) {
       return { success: false, error: 'Compra no encontrada' };
     }
 
-    // Primero eliminar todas las transacciones asociadas a esta compra
-    const deletedTransactions = await db
-      .delete(transactions)
-      .where(eq(transactions.cardPurchaseId, purchaseId))
-      .returning({ id: transactions.id });
+    const deletedTransactions = await db.transaction(async (tx) => {
+      // Primero eliminar todas las transacciones asociadas a esta compra
+      const deleted = await tx
+        .delete(transactions)
+        .where(
+          and(eq(transactions.cardPurchaseId, purchaseId), eq(transactions.projectId, existing.projectId))
+        )
+        .returning({ id: transactions.id });
 
-    // Luego eliminar la compra
-    await db.delete(cardPurchases).where(eq(cardPurchases.id, purchaseId));
+      // Luego eliminar la compra
+      await tx
+        .delete(cardPurchases)
+        .where(and(eq(cardPurchases.id, purchaseId), eq(cardPurchases.projectId, existing.projectId)));
+      return deleted.length;
+    });
 
     invalidateRelatedCache('cardPurchases');
 
-    return { success: true, deletedTransactions: deletedTransactions.length };
+    return { success: true, data: { deletedTransactions } };
   } catch (error) {
     console.error('Error deleting card purchase:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error al eliminar',
-    };
+    return { success: false, error: 'Error al eliminar' };
   }
 }
 
@@ -387,31 +370,17 @@ export async function deleteCardPurchase(
 export async function regenerateInstallments(
   purchaseId: string,
   userId: string
-): Promise<{ success: boolean; regenerated?: number; error?: string }> {
+): Promise<ActionResult<{ regenerated: number }>> {
   if (!(await isSessionUser(userId))) {
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
   try {
-    // Obtener la compra con verificación de acceso
-    const [purchase] = await db
-      .select()
-      .from(cardPurchases)
-      .innerJoin(projectMembers, eq(cardPurchases.projectId, projectMembers.projectId))
-      .where(
-        and(
-          eq(cardPurchases.id, purchaseId),
-          eq(projectMembers.userId, userId),
-          isNotNull(projectMembers.acceptedAt)
-        )
-      )
-      .limit(1);
-
-    if (!purchase) {
+    // Obtener la compra con verificación de acceso de escritura
+    const p = await findWritablePurchase(purchaseId, userId);
+    if (!p) {
       return { success: false, error: 'Compra no encontrada' };
     }
-
-    const p = purchase.n1n4_card_purchases;
 
     if (!p.categoryId) {
       return { success: false, error: 'La compra no tiene categoría asignada' };
@@ -439,11 +408,6 @@ export async function regenerateInstallments(
 
     const oldTransactionsTotal = parseFloat(currentTotal?.total ?? '0');
 
-    // Eliminar todas las transacciones existentes
-    await db
-      .delete(transactions)
-      .where(eq(transactions.cardPurchaseId, purchaseId));
-
     // Recalcular cuotas históricamente pagadas
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -462,7 +426,7 @@ export async function regenerateInstallments(
     }
 
     // Crear TODAS las transacciones de cuotas
-    const installmentTransactions = [];
+    const installmentTransactions: (typeof transactions.$inferInsert)[] = [];
 
     for (let i = 0; i < p.installments; i++) {
       const chargeDate = new Date(p.firstChargeDate);
@@ -493,9 +457,27 @@ export async function regenerateInstallments(
       });
     }
 
-    if (installmentTransactions.length > 0) {
-      await db.insert(transactions).values(installmentTransactions);
-    }
+    // Reemplazar las cuotas y actualizar la compra en una sola transacción
+    await db.transaction(async (tx) => {
+      // Eliminar todas las transacciones existentes
+      await tx
+        .delete(transactions)
+        .where(and(eq(transactions.cardPurchaseId, purchaseId), eq(transactions.projectId, p.projectId)));
+
+      if (installmentTransactions.length > 0) {
+        await tx.insert(transactions).values(installmentTransactions);
+      }
+
+      // Actualizar campos en la compra
+      await tx
+        .update(cardPurchases)
+        .set({
+          chargedInstallments: p.installments,
+          initialPaidInstallments,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(cardPurchases.id, purchaseId), eq(cardPurchases.projectId, p.projectId)));
+    });
 
     // Ajustar balance de la cuenta: revertir viejo total + aplicar nuevo total
     // oldTransactionsTotal = suma de baseAmount de las transacciones eliminadas (positivo = gastos)
@@ -505,24 +487,11 @@ export async function regenerateInstallments(
       await updateAccountBalance(p.accountId, balanceDiff);
     }
 
-    // Actualizar campos en la compra
-    await db
-      .update(cardPurchases)
-      .set({
-        chargedInstallments: p.installments,
-        initialPaidInstallments,
-        updatedAt: new Date(),
-      })
-      .where(eq(cardPurchases.id, purchaseId));
-
     invalidateRelatedCache('cardPurchases');
 
-    return { success: true, regenerated: installmentTransactions.length };
+    return { success: true, data: { regenerated: installmentTransactions.length } };
   } catch (error) {
     console.error('Error regenerating installments:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error al regenerar cuotas',
-    };
+    return { success: false, error: 'Error al regenerar cuotas' };
   }
 }

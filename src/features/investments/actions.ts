@@ -6,9 +6,8 @@ import { db } from '@/lib/db';
 import { investments, transactions } from '@/lib/db/schema';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
-import { verifyProjectAccess } from '@/features/transactions/lib/access';
-
-type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string };
+import { NO_PROJECT_ACCESS, verifyProjectAccess, verifyProjectWriteAccess } from '@/lib/auth/project-access';
+import type { ActionResult } from '@/types/action-result';
 
 export type InvestmentRole = 'aporte' | 'costo' | 'retorno';
 
@@ -42,7 +41,7 @@ const iso = (d: Date | string) => (typeof d === 'string' ? d.slice(0, 10) : d.to
 /** Inversiones del proyecto con sus movimientos y totales */
 export async function fetchInvestments(userId: string, projectId: string): Promise<ActionResult<InvestmentSummary[]>> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  if (!(await verifyProjectAccess(projectId, userId))) return { success: false, error: 'No tienes acceso a este proyecto' };
+  if (!(await verifyProjectAccess(projectId, userId))) return { success: false, error: NO_PROJECT_ACCESS };
 
   const [list, moves] = await Promise.all([
     db.select().from(investments).where(eq(investments.projectId, projectId)).orderBy(desc(investments.createdAt)),
@@ -107,7 +106,7 @@ export async function createInvestment(
   input: z.infer<typeof investmentSchema>
 ): Promise<ActionResult<{ id: string }>> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  if (!(await verifyProjectAccess(projectId, userId))) return { success: false, error: 'No tienes acceso a este proyecto' };
+  if (!(await verifyProjectWriteAccess(projectId, userId))) return { success: false, error: NO_PROJECT_ACCESS };
   const parsed = investmentSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   const [row] = await db
@@ -117,11 +116,21 @@ export async function createInvestment(
   return { success: true, data: { id: row.id } };
 }
 
-async function investmentForUser(investmentId: string, userId: string) {
+/** Inversión del usuario con acceso de escritura a su proyecto (para mutaciones) */
+async function investmentForWrite(investmentId: string, userId: string) {
   const [inv] = await db.select().from(investments).where(eq(investments.id, investmentId)).limit(1);
-  if (!inv || !(await verifyProjectAccess(inv.projectId, userId))) return null;
+  if (!inv || !(await verifyProjectWriteAccess(inv.projectId, userId))) return null;
   return inv;
 }
+
+const updateInvestmentSchema = investmentSchema.extend({ closed: z.boolean().optional() });
+
+const linksSchema = z.array(
+  z.object({
+    transactionId: z.string().uuid(),
+    role: z.enum(['aporte', 'costo', 'retorno']),
+  })
+);
 
 export async function updateInvestment(
   userId: string,
@@ -129,30 +138,36 @@ export async function updateInvestment(
   input: z.infer<typeof investmentSchema> & { closed?: boolean }
 ): Promise<ActionResult> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  const inv = await investmentForUser(investmentId, userId);
+  const inv = await investmentForWrite(investmentId, userId);
   if (!inv) return { success: false, error: 'Inversión no encontrada' };
-  const parsed = investmentSchema.safeParse(input);
+  const parsed = updateInvestmentSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+  const { closed } = parsed.data;
   await db
     .update(investments)
     .set({
       name: parsed.data.name,
       notes: parsed.data.notes ?? null,
       startedAt: parsed.data.startedAt ?? null,
-      ...(input.closed !== undefined ? { closedAt: input.closed ? new Date().toISOString().slice(0, 10) : null } : {}),
+      ...(closed !== undefined ? { closedAt: closed ? new Date().toISOString().slice(0, 10) : null } : {}),
       updatedAt: new Date(),
     })
-    .where(eq(investments.id, investmentId));
+    .where(and(eq(investments.id, investmentId), eq(investments.projectId, inv.projectId)));
   return { success: true, data: undefined };
 }
 
 /** Borra la inversión; sus movimientos quedan, pero sin asociar */
 export async function deleteInvestment(userId: string, investmentId: string): Promise<ActionResult> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  const inv = await investmentForUser(investmentId, userId);
+  const inv = await investmentForWrite(investmentId, userId);
   if (!inv) return { success: false, error: 'Inversión no encontrada' };
-  await db.update(transactions).set({ investmentId: null, investmentRole: null }).where(eq(transactions.investmentId, investmentId));
-  await db.delete(investments).where(eq(investments.id, investmentId));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(transactions)
+      .set({ investmentId: null, investmentRole: null })
+      .where(and(eq(transactions.investmentId, investmentId), eq(transactions.projectId, inv.projectId)));
+    await tx.delete(investments).where(and(eq(investments.id, investmentId), eq(investments.projectId, inv.projectId)));
+  });
   invalidateRelatedCache('transactions');
   return { success: true, data: undefined };
 }
@@ -166,7 +181,7 @@ export async function searchLinkCandidates(
   query: string
 ): Promise<ActionResult<LinkCandidate[]>> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  if (!(await verifyProjectAccess(projectId, userId))) return { success: false, error: 'No tienes acceso a este proyecto' };
+  if (!(await verifyProjectAccess(projectId, userId))) return { success: false, error: NO_PROJECT_ACCESS };
   const q = query.trim();
   const rows = (await db.execute(sql`
     select t.id, t.date::text as date, t.description, t.base_amount as amount, t.type::text as type, a.name as account
@@ -202,22 +217,39 @@ export async function linkMovements(
   links: { transactionId: string; role: InvestmentRole }[]
 ): Promise<ActionResult<{ linked: number }>> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  const inv = await investmentForUser(investmentId, userId);
+  const inv = await investmentForWrite(investmentId, userId);
   if (!inv) return { success: false, error: 'Inversión no encontrada' };
-  const ids = links.map((l) => l.transactionId);
+  const parsed = linksSchema.safeParse(links);
+  if (!parsed.success) return { success: false, error: 'Datos inválidos' };
+  const ids = parsed.data.map((l) => l.transactionId);
   if (!ids.length) return { success: true, data: { linked: 0 } };
   const rows = await db
     .select({ id: transactions.id, type: transactions.type })
     .from(transactions)
     .where(and(inArray(transactions.id, ids), eq(transactions.projectId, inv.projectId)));
   const types = new Map(rows.map((r) => [r.id, r.type]));
-  let linked = 0;
-  for (const l of links) {
+
+  // Agrupar por rol final: a lo más 3 UPDATE en vez de uno por movimiento
+  const idsByRole = new Map<InvestmentRole, Set<string>>();
+  for (const l of parsed.data) {
     const type = types.get(l.transactionId);
     if (!type) continue;
     const role: InvestmentRole = type === 'income' ? 'retorno' : l.role === 'costo' ? 'costo' : 'aporte';
-    await db.update(transactions).set({ investmentId, investmentRole: role, updatedAt: new Date() }).where(eq(transactions.id, l.transactionId));
-    linked++;
+    const group = idsByRole.get(role) ?? new Set<string>();
+    group.add(l.transactionId);
+    idsByRole.set(role, group);
+  }
+  const linked = [...idsByRole.values()].reduce((acc, group) => acc + group.size, 0);
+  if (linked > 0) {
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      for (const [role, group] of idsByRole) {
+        await tx
+          .update(transactions)
+          .set({ investmentId, investmentRole: role, updatedAt: now })
+          .where(and(inArray(transactions.id, [...group]), eq(transactions.projectId, inv.projectId)));
+      }
+    });
   }
   invalidateRelatedCache('transactions');
   return { success: true, data: { linked } };
@@ -226,8 +258,11 @@ export async function linkMovements(
 export async function unlinkMovement(userId: string, transactionId: string): Promise<ActionResult> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
   const [tx] = await db.select({ projectId: transactions.projectId }).from(transactions).where(eq(transactions.id, transactionId)).limit(1);
-  if (!tx || !(await verifyProjectAccess(tx.projectId, userId))) return { success: false, error: 'Movimiento no encontrado' };
-  await db.update(transactions).set({ investmentId: null, investmentRole: null, updatedAt: new Date() }).where(eq(transactions.id, transactionId));
+  if (!tx || !(await verifyProjectWriteAccess(tx.projectId, userId))) return { success: false, error: 'Movimiento no encontrado' };
+  await db
+    .update(transactions)
+    .set({ investmentId: null, investmentRole: null, updatedAt: new Date() })
+    .where(and(eq(transactions.id, transactionId), eq(transactions.projectId, tx.projectId)));
   invalidateRelatedCache('transactions');
   return { success: true, data: undefined };
 }

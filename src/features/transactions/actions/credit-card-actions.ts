@@ -2,8 +2,8 @@
 
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
-import { transactions, projects, projectMembers, accounts, categories, cardPurchases } from '@/lib/db/schema';
-import { eq, and, isNotNull, sql, inArray } from 'drizzle-orm';
+import { transactions, projects, accounts, categories, cardPurchases } from '@/lib/db/schema';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
 import {
   payCreditCardSchema,
@@ -13,10 +13,31 @@ import type {
   PayCreditCardInput,
   SetHistoricallyPaidInput,
 } from '../schemas';
-import type { ActionResult } from '../types';
-import { updateAccountBalance } from '@/features/accounts/lib/balance';
+import type { ActionResult } from '@/types/action-result';
+import { updateAccountBalance, type DbExecutor } from '@/features/accounts/lib/balance';
 import { getUnpaidCreditCardTransactions } from '../queries';
-import { verifyProjectAccess } from '../lib/access';
+import { NO_PROJECT_ACCESS, projectRefsError, verifyProjectWriteAccess } from '@/lib/auth/project-access';
+
+/** Busca una categoría del proyecto por nombre o la crea */
+async function findOrCreateCategory(
+  executor: DbExecutor,
+  projectId: string,
+  name: string,
+  color: string
+): Promise<string> {
+  const [existing] = await executor
+    .select({ id: categories.id })
+    .from(categories)
+    .where(and(eq(categories.projectId, projectId), eq(categories.name, name)))
+    .limit(1);
+  if (existing) return existing.id;
+
+  const [created] = await executor
+    .insert(categories)
+    .values({ projectId, name, color })
+    .returning({ id: categories.id });
+  return created.id;
+}
 
 /**
  * Paga múltiples transacciones de tarjeta de crédito mediante una transferencia
@@ -41,10 +62,12 @@ export async function payCreditCardTransactions(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Verificar acceso al proyecto
-  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  const projectId = parsed.data.projectId;
+
+  // Verificar acceso de escritura al proyecto
+  const hasAccess = await verifyProjectWriteAccess(projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   // Verificar que la cuenta origen no es la tarjeta de crédito
@@ -52,12 +75,36 @@ export async function payCreditCardTransactions(
     return { success: false, error: 'La cuenta origen y la tarjeta de crédito deben ser diferentes' };
   }
 
-  // Verificar que la cuenta destino es una tarjeta de crédito
-  const creditCardAccount = await db
-    .select({ id: accounts.id, type: accounts.type, name: accounts.name, entityId: accounts.entityId })
-    .from(accounts)
-    .where(eq(accounts.id, parsed.data.creditCardAccountId))
-    .limit(1);
+  // Cuentas (ambas del proyecto), transacciones seleccionadas de la TC, moneda y categoría de intereses
+  const [creditCardAccount, sourceAccount, transactionsToUpdate, project, refsError] = await Promise.all([
+    db
+      .select({ id: accounts.id, type: accounts.type, name: accounts.name, entityId: accounts.entityId })
+      .from(accounts)
+      .where(and(eq(accounts.id, parsed.data.creditCardAccountId), eq(accounts.projectId, projectId)))
+      .limit(1),
+    db
+      .select({ id: accounts.id, name: accounts.name, entityId: accounts.entityId })
+      .from(accounts)
+      .where(and(eq(accounts.id, parsed.data.sourceAccountId), eq(accounts.projectId, projectId)))
+      .limit(1),
+    db
+      .select({
+        id: transactions.id,
+        baseAmount: transactions.baseAmount,
+        paidByTransferId: transactions.paidByTransferId,
+        cardPurchaseId: transactions.cardPurchaseId,
+      })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.projectId, projectId),
+          eq(transactions.accountId, parsed.data.creditCardAccountId),
+          inArray(transactions.id, parsed.data.transactionIds)
+        )
+      ),
+    db.select({ currency: projects.currency }).from(projects).where(eq(projects.id, projectId)).limit(1),
+    projectRefsError(projectId, { categoryIds: [parsed.data.interestCategoryId] }),
+  ]);
 
   if (!creditCardAccount[0]) {
     return { success: false, error: 'Tarjeta de crédito no encontrada' };
@@ -67,38 +114,13 @@ export async function payCreditCardTransactions(
     return { success: false, error: 'La cuenta destino debe ser una tarjeta de crédito' };
   }
 
-  // Obtener la cuenta origen
-  const sourceAccount = await db
-    .select({ id: accounts.id, name: accounts.name, entityId: accounts.entityId })
-    .from(accounts)
-    .where(eq(accounts.id, parsed.data.sourceAccountId))
-    .limit(1);
-
   if (!sourceAccount[0]) {
     return { success: false, error: 'Cuenta origen no encontrada' };
   }
 
-  // Obtener las transacciones seleccionadas y verificar que pertenecen a la TC
-  const selectedTransactions = await db
-    .select({
-      id: transactions.id,
-      accountId: transactions.accountId,
-      baseAmount: transactions.baseAmount,
-      paidByTransferId: transactions.paidByTransferId,
-      cardPurchaseId: transactions.cardPurchaseId,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.projectId, parsed.data.projectId),
-        eq(transactions.accountId, parsed.data.creditCardAccountId)
-      )
-    );
-
-  // Filtrar solo las transacciones que están en el array de IDs
-  const transactionsToUpdate = selectedTransactions.filter(
-    (t) => parsed.data.transactionIds.includes(t.id)
-  );
+  if (refsError) {
+    return { success: false, error: refsError };
+  }
 
   if (transactionsToUpdate.length === 0) {
     return { success: false, error: 'No se encontraron transacciones válidas para pagar' };
@@ -110,224 +132,160 @@ export async function payCreditCardTransactions(
     return { success: false, error: `${alreadyPaid.length} transacción(es) ya están pagadas` };
   }
 
+  if (!project[0]) {
+    return { success: false, error: 'Proyecto no encontrado' };
+  }
+
+  const currency = project[0].currency;
+
   // Calcular el total
   const totalAmount = transactionsToUpdate.reduce(
     (sum, t) => sum + parseFloat(t.baseAmount),
     0
   );
 
-  // Obtener la moneda del proyecto
-  const project = await db
-    .select({ currency: projects.currency })
-    .from(projects)
-    .where(eq(projects.id, parsed.data.projectId))
-    .limit(1);
-
-  if (!project[0]) {
-    return { success: false, error: 'Proyecto no encontrado' };
-  }
-
-  // Buscar o crear categoría de transferencias
-  const transferCategory = await db
-    .select({ id: categories.id })
-    .from(categories)
-    .where(
-      and(
-        eq(categories.projectId, parsed.data.projectId),
-        eq(categories.name, 'Transferencias')
-      )
-    )
-    .limit(1);
-
-  let transferCategoryId: string;
-  if (!transferCategory[0]) {
-    const [newCategory] = await db
-      .insert(categories)
-      .values({
-        projectId: parsed.data.projectId,
-        name: 'Transferencias',
-        color: '#6B7280',
-      })
-      .returning({ id: categories.id });
-    transferCategoryId = newCategory.id;
-  } else {
-    transferCategoryId = transferCategory[0].id;
-  }
-
   const amount = String(totalAmount.toFixed(2));
-  const description = parsed.data.description || 'Pago de tarjeta de crédito';
-
-  // Crear transacción de salida (expense en cuenta origen)
-  const [outTransaction] = await db
-    .insert(transactions)
-    .values({
-      userId,
-      projectId: parsed.data.projectId,
-      categoryId: transferCategoryId,
-      accountId: parsed.data.sourceAccountId,
-      entityId: sourceAccount[0].entityId,
-      type: 'expense',
-      description: `${description} → ${creditCardAccount[0].name}`,
-      notes: parsed.data.notes,
-      date: parsed.data.date,
-      isPaid: true,
-      originalAmount: amount,
-      originalCurrency: project[0].currency,
-      baseAmount: amount,
-      baseCurrency: project[0].currency,
-      exchangeRate: '1',
-    })
-    .returning({ id: transactions.id });
-
-  // Crear transacción de entrada (income en tarjeta de crédito)
-  const [inTransaction] = await db
-    .insert(transactions)
-    .values({
-      userId,
-      projectId: parsed.data.projectId,
-      categoryId: transferCategoryId,
-      accountId: parsed.data.creditCardAccountId,
-      entityId: creditCardAccount[0].entityId,
-      type: 'income',
-      description: `${description} ← ${sourceAccount[0].name}`,
-      notes: parsed.data.notes,
-      date: parsed.data.date,
-      isPaid: true,
-      originalAmount: amount,
-      originalCurrency: project[0].currency,
-      baseAmount: amount,
-      baseCurrency: project[0].currency,
-      exchangeRate: '1',
-      linkedTransactionId: outTransaction.id,
-    })
-    .returning({ id: transactions.id });
-
-  // Vincular las transacciones de la transferencia
-  await db
-    .update(transactions)
-    .set({ linkedTransactionId: inTransaction.id })
-    .where(eq(transactions.id, outTransaction.id));
-
-  // Actualizar balances de la transferencia
   const amountNum = parseFloat(amount);
-  await updateAccountBalance(parsed.data.sourceAccountId, -amountNum);
-  await updateAccountBalance(parsed.data.creditCardAccountId, amountNum);
+  const description = parsed.data.description || 'Pago de tarjeta de crédito';
+  const interestPaid = parsed.data.interestAmount && parsed.data.interestAmount > 0 ? parsed.data.interestAmount : 0;
+  const idsToMark = transactionsToUpdate.map((t) => t.id);
+  const cardPurchaseIds = [...new Set(
+    transactionsToUpdate
+      .map((t) => t.cardPurchaseId)
+      .filter((id): id is string => id !== null)
+  )];
 
-  // Registrar intereses/cargos si existen (como gasto en cuenta origen)
-  let interestPaid = 0;
-  if (parsed.data.interestAmount && parsed.data.interestAmount > 0) {
-    interestPaid = parsed.data.interestAmount;
+  // Transferencia, intereses, marcas de pago y saldos se guardan juntos
+  const transferId = await db.transaction(async (tx) => {
+    const transferCategoryId = await findOrCreateCategory(tx, projectId, 'Transferencias', '#6B7280');
 
-    // Obtener o crear categoría de intereses
-    let interestCategoryId = parsed.data.interestCategoryId;
-    if (!interestCategoryId) {
-      const interestCategory = await db
-        .select({ id: categories.id })
-        .from(categories)
-        .where(
-          and(
-            eq(categories.projectId, parsed.data.projectId),
-            eq(categories.name, 'Intereses y Cargos TC')
-          )
-        )
-        .limit(1);
-
-      if (!interestCategory[0]) {
-        const [newCategory] = await db
-          .insert(categories)
-          .values({
-            projectId: parsed.data.projectId,
-            name: 'Intereses y Cargos TC',
-            color: '#DC2626', // Red color
-          })
-          .returning({ id: categories.id });
-        interestCategoryId = newCategory.id;
-      } else {
-        interestCategoryId = interestCategory[0].id;
-      }
-    }
-
-    const interestAmountStr = String(interestPaid.toFixed(2));
-    const interestDescription = parsed.data.interestDescription || `Intereses/Cargos ${creditCardAccount[0].name}`;
-
-    // Crear transacción de intereses como gasto en la cuenta origen
-    await db
+    // Crear transacción de salida (expense en cuenta origen)
+    const [outTransaction] = await tx
       .insert(transactions)
       .values({
         userId,
-        projectId: parsed.data.projectId,
-        categoryId: interestCategoryId,
+        projectId,
+        categoryId: transferCategoryId,
         accountId: parsed.data.sourceAccountId,
         entityId: sourceAccount[0].entityId,
         type: 'expense',
-        description: interestDescription,
+        description: `${description} → ${creditCardAccount[0].name}`,
         notes: parsed.data.notes,
         date: parsed.data.date,
         isPaid: true,
-        originalAmount: interestAmountStr,
-        originalCurrency: project[0].currency,
-        baseAmount: interestAmountStr,
-        baseCurrency: project[0].currency,
+        originalAmount: amount,
+        originalCurrency: currency,
+        baseAmount: amount,
+        baseCurrency: currency,
         exchangeRate: '1',
-      });
+      })
+      .returning({ id: transactions.id });
 
-    // Actualizar balance de la cuenta origen por los intereses
-    await updateAccountBalance(parsed.data.sourceAccountId, -interestPaid);
-  }
+    // Crear transacción de entrada (income en tarjeta de crédito)
+    const [inTransaction] = await tx
+      .insert(transactions)
+      .values({
+        userId,
+        projectId,
+        categoryId: transferCategoryId,
+        accountId: parsed.data.creditCardAccountId,
+        entityId: creditCardAccount[0].entityId,
+        type: 'income',
+        description: `${description} ← ${sourceAccount[0].name}`,
+        notes: parsed.data.notes,
+        date: parsed.data.date,
+        isPaid: true,
+        originalAmount: amount,
+        originalCurrency: currency,
+        baseAmount: amount,
+        baseCurrency: currency,
+        exchangeRate: '1',
+        linkedTransactionId: outTransaction.id,
+      })
+      .returning({ id: transactions.id });
 
-  // Actualizar las transacciones seleccionadas con paidByTransferId
-  const now = new Date();
-  for (const t of transactionsToUpdate) {
-    await db
+    // Vincular las transacciones de la transferencia
+    await tx
+      .update(transactions)
+      .set({ linkedTransactionId: inTransaction.id })
+      .where(eq(transactions.id, outTransaction.id));
+
+    // Actualizar balances de la transferencia
+    await updateAccountBalance(parsed.data.sourceAccountId, -amountNum, tx);
+    await updateAccountBalance(parsed.data.creditCardAccountId, amountNum, tx);
+
+    // Registrar intereses/cargos si existen (como gasto en cuenta origen)
+    if (interestPaid > 0) {
+      const interestCategoryId =
+        parsed.data.interestCategoryId ||
+        (await findOrCreateCategory(tx, projectId, 'Intereses y Cargos TC', '#DC2626'));
+
+      const interestAmountStr = String(interestPaid.toFixed(2));
+      const interestDescription = parsed.data.interestDescription || `Intereses/Cargos ${creditCardAccount[0].name}`;
+
+      // Crear transacción de intereses como gasto en la cuenta origen
+      await tx
+        .insert(transactions)
+        .values({
+          userId,
+          projectId,
+          categoryId: interestCategoryId,
+          accountId: parsed.data.sourceAccountId,
+          entityId: sourceAccount[0].entityId,
+          type: 'expense',
+          description: interestDescription,
+          notes: parsed.data.notes,
+          date: parsed.data.date,
+          isPaid: true,
+          originalAmount: interestAmountStr,
+          originalCurrency: currency,
+          baseAmount: interestAmountStr,
+          baseCurrency: currency,
+          exchangeRate: '1',
+        });
+
+      // Actualizar balance de la cuenta origen por los intereses
+      await updateAccountBalance(parsed.data.sourceAccountId, -interestPaid, tx);
+    }
+
+    // Marcar las transacciones seleccionadas con paidByTransferId (una sola sentencia)
+    const now = new Date();
+    await tx
       .update(transactions)
       .set({
         paidByTransferId: outTransaction.id,
         paidAt: now,
         updatedAt: now,
       })
-      .where(eq(transactions.id, t.id));
-  }
+      .where(and(eq(transactions.projectId, projectId), inArray(transactions.id, idsToMark)));
 
-  // Verificar si alguna compra en cuotas quedó completamente pagada
-  const cardPurchaseIds = [...new Set(
-    transactionsToUpdate
-      .filter((t) => t.cardPurchaseId !== null)
-      .map((t) => t.cardPurchaseId as string)
-  )];
-
-  for (const purchaseId of cardPurchaseIds) {
-    // Contar cuotas totales y pagadas de esta compra
-    const [result] = await db
-      .select({
-        totalInstallments: cardPurchases.installments,
-        paidInstallments: sql<number>`(
-          SELECT COUNT(*) FROM ${transactions}
-          WHERE ${transactions.cardPurchaseId} = ${purchaseId}
-          AND ${transactions.paidByTransferId} IS NOT NULL
-        )`,
-      })
-      .from(cardPurchases)
-      .where(eq(cardPurchases.id, purchaseId))
-      .limit(1);
-
-    // Si todas las cuotas están pagadas, desactivar la compra
-    if (result && Number(result.paidInstallments) >= result.totalInstallments) {
-      await db
+    // Desactivar las compras en cuotas que quedaron con todas sus cuotas pagadas
+    if (cardPurchaseIds.length > 0) {
+      await tx
         .update(cardPurchases)
-        .set({
-          isActive: false,
-          updatedAt: now,
-        })
-        .where(eq(cardPurchases.id, purchaseId));
+        .set({ isActive: false, updatedAt: now })
+        .where(
+          and(
+            eq(cardPurchases.projectId, projectId),
+            inArray(cardPurchases.id, cardPurchaseIds),
+            sql`${cardPurchases.installments} <= (
+              SELECT COUNT(*) FROM ${transactions}
+              WHERE ${transactions.cardPurchaseId} = ${cardPurchases.id}
+              AND ${transactions.paidByTransferId} IS NOT NULL
+            )`
+          )
+        );
     }
-  }
+
+    return outTransaction.id;
+  });
 
   invalidateRelatedCache('transactions');
   invalidateRelatedCache('cardPurchases');
 
   return {
     success: true,
-    data: { transferId: outTransaction.id, totalPaid: totalAmount, interestPaid },
+    data: { transferId, totalPaid: totalAmount, interestPaid },
   };
 }
 
@@ -364,10 +322,10 @@ export async function setTransactionsHistoricallyPaid(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Verificar acceso al proyecto
-  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  // Verificar acceso de escritura al proyecto
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   // Obtener las transacciones seleccionadas y verificar que pertenecen al proyecto

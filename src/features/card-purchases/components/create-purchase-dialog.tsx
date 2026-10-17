@@ -23,7 +23,6 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import { CurrencyInput } from '@/components/currency-input';
@@ -191,7 +190,8 @@ export function CreatePurchaseDialog({
   }, [calculatedChargedInstallments, form]);
 
   // Track form progress
-  const calculateProgress = useCallback((values: any) => {
+  type ProgressValues = { accountId?: string; description?: string; originalAmount?: number };
+  const calculateProgress = useCallback((values: ProgressValues) => {
     return [
       !!values.accountId,
       !!values.description,
@@ -210,7 +210,7 @@ export function CreatePurchaseDialog({
     return () => subscription.unsubscribe();
   }, [form, calculateProgress]);
 
-  async function onSubmit(data: any) {
+  async function onSubmit(data: CreateCardPurchaseInput) {
     setError(null);
     const toastId = toast.loading('Creando compra en cuotas...');
 

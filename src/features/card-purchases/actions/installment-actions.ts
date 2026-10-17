@@ -1,6 +1,7 @@
 'use server';
 
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
+import { memberCondition, NO_PROJECT_ACCESS } from '@/lib/auth/project-access';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { db } from '@/lib/db';
 import {
@@ -10,7 +11,8 @@ import {
   projects,
   currencies,
 } from '@/lib/db/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+import type { ActionResult } from '@/types/action-result';
 
 /**
  * Cobra una cuota de una compra, generando una transacción
@@ -19,7 +21,7 @@ export async function chargeInstallment(
   purchaseId: string,
   userId: string,
   date: Date = new Date()
-): Promise<{ success: boolean; error?: string }> {
+): Promise<ActionResult> {
   if (!(await isSessionUser(userId))) {
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
@@ -36,13 +38,7 @@ export async function chargeInstallment(
       .innerJoin(projects, eq(cardPurchases.projectId, projects.id))
       .innerJoin(currencies, eq(projects.baseCurrencyId, currencies.id))
       .innerJoin(projectMembers, eq(cardPurchases.projectId, projectMembers.projectId))
-      .where(
-        and(
-          eq(cardPurchases.id, purchaseId),
-          eq(projectMembers.userId, userId),
-          isNotNull(projectMembers.acceptedAt)
-        )
-      )
+      .where(and(eq(cardPurchases.id, purchaseId), memberCondition(userId, { write: true })))
       .limit(1);
 
     if (!result) {
@@ -66,45 +62,44 @@ export async function chargeInstallment(
 
     const installmentNumber = purchase.chargedInstallments + 1;
 
-    // Crear transacción de gasto
-    await db.insert(transactions).values({
-      userId: purchase.userId,
-      projectId: purchase.projectId,
-      accountId: purchase.accountId,
-      categoryId: purchase.categoryId,
-      cardPurchaseId: purchase.id,
-      type: 'expense',
-      description: `${purchase.description} - Cuota ${installmentNumber}/${purchase.installments}`,
-      originalAmount: purchase.installmentAmount,
-      originalCurrency: projectCurrency,
-      baseAmount: purchase.installmentAmount,
-      baseCurrency: projectCurrency,
-      exchangeRate: '1',
-      date: date,
-    });
-
-    // Actualizar contador de cuotas cobradas
+    // Nuevo contador de cuotas cobradas
     const newChargedInstallments = purchase.chargedInstallments + 1;
     const isComplete = newChargedInstallments >= purchase.installments;
 
-    await db
-      .update(cardPurchases)
-      .set({
-        chargedInstallments: newChargedInstallments,
-        isActive: !isComplete,
-        updatedAt: new Date(),
-      })
-      .where(eq(cardPurchases.id, purchaseId));
+    await db.transaction(async (tx) => {
+      // Crear transacción de gasto
+      await tx.insert(transactions).values({
+        userId: purchase.userId,
+        projectId: purchase.projectId,
+        accountId: purchase.accountId,
+        categoryId: purchase.categoryId,
+        cardPurchaseId: purchase.id,
+        type: 'expense',
+        description: `${purchase.description} - Cuota ${installmentNumber}/${purchase.installments}`,
+        originalAmount: purchase.installmentAmount,
+        originalCurrency: projectCurrency,
+        baseAmount: purchase.installmentAmount,
+        baseCurrency: projectCurrency,
+        exchangeRate: '1',
+        date: date,
+      });
+
+      await tx
+        .update(cardPurchases)
+        .set({
+          chargedInstallments: newChargedInstallments,
+          isActive: !isComplete,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(cardPurchases.id, purchaseId), eq(cardPurchases.projectId, purchase.projectId)));
+    });
 
     invalidateRelatedCache('cardPurchases');
 
-    return { success: true };
+    return { success: true, data: undefined };
   } catch (error) {
     console.error('Error charging installment:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error al cobrar cuota',
-    };
+    return { success: false, error: 'Error al cobrar cuota' };
   }
 }
 
@@ -114,13 +109,13 @@ export async function chargeInstallment(
 export async function chargeAllPendingInstallments(
   projectId: string,
   userId: string
-): Promise<{ success: boolean; charged: number; error?: string }> {
+): Promise<ActionResult<{ charged: number }>> {
   if (!(await isSessionUser(userId))) {
-    return { success: false, charged: 0, error: UNAUTHORIZED_ERROR };
+    return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
   try {
-    // Verificar acceso y obtener info del proyecto
+    // Verificar acceso de escritura y obtener info del proyecto
     const [projectInfo] = await db
       .select({
         id: projects.id,
@@ -130,17 +125,11 @@ export async function chargeAllPendingInstallments(
       .from(projects)
       .innerJoin(currencies, eq(projects.baseCurrencyId, currencies.id))
       .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
-      .where(
-        and(
-          eq(projects.id, projectId),
-          eq(projectMembers.userId, userId),
-          isNotNull(projectMembers.acceptedAt)
-        )
-      )
+      .where(and(eq(projects.id, projectId), memberCondition(userId, { write: true })))
       .limit(1);
 
     if (!projectInfo) {
-      return { success: false, charged: 0, error: 'No tienes acceso a este proyecto' };
+      return { success: false, error: NO_PROJECT_ACCESS };
     }
 
     // Obtener todas las compras activas
@@ -153,14 +142,16 @@ export async function chargeAllPendingInstallments(
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    let totalCharged = 0;
+    const transactionsToInsert: (typeof transactions.$inferInsert)[] = [];
+    // Nuevo contador de cuotas cobradas por compra
+    const purchaseUpdates: { id: string; charged: number; isActive: boolean }[] = [];
 
     for (const purchase of activePurchases) {
       // Skip purchases without category
       if (!purchase.categoryId) continue;
 
       const firstCharge = new Date(purchase.firstChargeDate);
-      const transactionsToInsert = [];
+      let chargedNow = 0;
 
       // Iterar cada cuota restante y verificar si su fecha ya pasó
       for (let i = purchase.chargedInstallments; i < purchase.installments; i++) {
@@ -170,6 +161,7 @@ export async function chargeAllPendingInstallments(
         // Solo cobrar si la fecha ya pasó (antes de hoy)
         if (chargeDate < today) {
           const installmentNumber = i + 1;
+          chargedNow++;
           transactionsToInsert.push({
             userId: purchase.userId,
             projectId: purchase.projectId,
@@ -191,35 +183,38 @@ export async function chargeAllPendingInstallments(
         }
       }
 
-      if (transactionsToInsert.length > 0) {
-        await db.insert(transactions).values(transactionsToInsert);
-        totalCharged += transactionsToInsert.length;
-
-        // Actualizar la compra
-        const newChargedInstallments =
-          purchase.chargedInstallments + transactionsToInsert.length;
-        const isComplete = newChargedInstallments >= purchase.installments;
-
-        await db
-          .update(cardPurchases)
-          .set({
-            chargedInstallments: newChargedInstallments,
-            isActive: !isComplete,
-            updatedAt: new Date(),
-          })
-          .where(eq(cardPurchases.id, purchase.id));
+      if (chargedNow > 0) {
+        const newChargedInstallments = purchase.chargedInstallments + chargedNow;
+        purchaseUpdates.push({
+          id: purchase.id,
+          charged: newChargedInstallments,
+          isActive: newChargedInstallments < purchase.installments,
+        });
       }
+    }
+
+    if (transactionsToInsert.length > 0) {
+      // Un solo insert de cuotas y un solo update de compras (sin N+1)
+      const values = sql.join(
+        purchaseUpdates.map((u) => sql`(${u.id}, ${u.charged}::int, ${u.isActive}::boolean)`),
+        sql`, `
+      );
+      await db.transaction(async (tx) => {
+        await tx.insert(transactions).values(transactionsToInsert);
+        await tx.execute(sql`
+          update ${cardPurchases}
+          set charged_installments = v.charged, is_active = v.is_active, updated_at = now()
+          from (values ${values}) as v(id, charged, is_active)
+          where ${cardPurchases.id} = v.id::uuid and ${cardPurchases.projectId} = ${projectId}
+        `);
+      });
     }
 
     invalidateRelatedCache('cardPurchases');
 
-    return { success: true, charged: totalCharged };
+    return { success: true, data: { charged: transactionsToInsert.length } };
   } catch (error) {
     console.error('Error charging pending installments:', error);
-    return {
-      success: false,
-      charged: 0,
-      error: error instanceof Error ? error.message : 'Error al cobrar cuotas',
-    };
+    return { success: false, error: 'Error al cobrar cuotas' };
   }
 }

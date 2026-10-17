@@ -7,15 +7,12 @@ export * from './schemas';
 // Server-only exports (queries y actions usan la BD)
 // Importar directamente desde './queries' o './actions' en server components
 export {
-  getProjects,
   getActiveProjects,
   getProjectById,
   getLatestProject,
   getCurrencies,
   getProjectMembers,
   getPendingInvitations,
-  countPendingInvitations,
-  findUserByEmail,
   isProjectOwner,
   searchUsersByEmail,
 } from './queries';
@@ -23,8 +20,6 @@ export {
 export {
   createProject,
   updateProject,
-  archiveProject,
-  restoreProject,
   getCurrentProjectId,
   setCurrentProjectId,
   inviteMember,

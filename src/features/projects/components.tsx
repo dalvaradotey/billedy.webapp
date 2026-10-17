@@ -402,7 +402,7 @@ function InviteMemberDialogContent({
 
   // Crear función de búsqueda con userId capturado
   const searchUsers = async (query: string) => {
-    return searchUsersForInvite(query, userId);
+    return searchUsersForInvite(projectId, query, userId);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -454,7 +454,7 @@ function InviteMemberDialogContent({
             invalid={!!error && !selectedUser}
           />
           <p className="text-xs text-muted-foreground">
-            Busca por correo electrónico
+            Escribe el inicio del correo (mínimo 3 caracteres)
           </p>
         </div>
 

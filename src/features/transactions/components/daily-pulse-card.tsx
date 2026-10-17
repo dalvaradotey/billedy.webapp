@@ -4,9 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TransactionWithCategory, TransactionSummary } from '../types';
+import { MONTHS_SHORT as MONTHS, WEEKDAYS_SHORT as WEEKDAYS } from '@/lib/dates';
 
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-const WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 
 function formatCLP(amount: number, currency: string) {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);

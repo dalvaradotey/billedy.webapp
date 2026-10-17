@@ -1,34 +1,26 @@
 'use server';
 
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
+import { memberCondition, NO_PROJECT_ACCESS, verifyProjectWriteAccess } from '@/lib/auth/project-access';
 import { db } from '@/lib/db';
 import { categories, projectMembers } from '@/lib/db/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
+import type { ActionResult } from '@/types/action-result';
 import { createCategorySchema, updateCategorySchema } from './schemas';
 import type { CreateCategoryInput, UpdateCategoryInput } from './schemas';
 
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string };
-
 /**
- * Verifica que el usuario tenga acceso al proyecto
+ * Proyecto de la categoría si el usuario puede modificarla (rol de escritura)
  */
-async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
-  const member = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
+async function findWritableCategoryProject(categoryId: string, userId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ projectId: categories.projectId })
+    .from(categories)
+    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
+    .where(and(eq(categories.id, categoryId), memberCondition(userId, { write: true })))
     .limit(1);
-
-  return member.length > 0;
+  return row?.projectId ?? null;
 }
 
 /**
@@ -48,9 +40,9 @@ export async function createCategory(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   const [newCategory] = await db
@@ -86,21 +78,9 @@ export async function updateCategory(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Verificar que la categoría existe y el usuario tiene acceso al proyecto
-  const existing = await db
-    .select({ projectId: categories.projectId })
-    .from(categories)
-    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(categories.id, categoryId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar que la categoría existe y el usuario puede modificarla
+  const projectId = await findWritableCategoryProject(categoryId, userId);
+  if (!projectId) {
     return { success: false, error: 'Categoría no encontrada' };
   }
 
@@ -110,7 +90,7 @@ export async function updateCategory(
       ...parsed.data,
       updatedAt: new Date(),
     })
-    .where(eq(categories.id, categoryId));
+    .where(and(eq(categories.id, categoryId), eq(categories.projectId, projectId)));
 
   invalidateRelatedCache('categories');
 
@@ -128,21 +108,9 @@ export async function archiveCategory(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Verificar acceso
-  const existing = await db
-    .select({ projectId: categories.projectId })
-    .from(categories)
-    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(categories.id, categoryId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar acceso de escritura
+  const projectId = await findWritableCategoryProject(categoryId, userId);
+  if (!projectId) {
     return { success: false, error: 'Categoría no encontrada' };
   }
 
@@ -152,7 +120,7 @@ export async function archiveCategory(
       isArchived: true,
       updatedAt: new Date(),
     })
-    .where(eq(categories.id, categoryId));
+    .where(and(eq(categories.id, categoryId), eq(categories.projectId, projectId)));
 
   invalidateRelatedCache('categories');
 
@@ -170,21 +138,9 @@ export async function restoreCategory(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Verificar acceso
-  const existing = await db
-    .select({ projectId: categories.projectId })
-    .from(categories)
-    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(categories.id, categoryId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar acceso de escritura
+  const projectId = await findWritableCategoryProject(categoryId, userId);
+  if (!projectId) {
     return { success: false, error: 'Categoría no encontrada' };
   }
 
@@ -194,7 +150,7 @@ export async function restoreCategory(
       isArchived: false,
       updatedAt: new Date(),
     })
-    .where(eq(categories.id, categoryId));
+    .where(and(eq(categories.id, categoryId), eq(categories.projectId, projectId)));
 
   invalidateRelatedCache('categories');
 
@@ -213,25 +169,15 @@ export async function deleteCategory(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Verificar acceso
-  const existing = await db
-    .select({ projectId: categories.projectId })
-    .from(categories)
-    .innerJoin(projectMembers, eq(categories.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(categories.id, categoryId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar acceso de escritura
+  const projectId = await findWritableCategoryProject(categoryId, userId);
+  if (!projectId) {
     return { success: false, error: 'Categoría no encontrada' };
   }
 
-  await db.delete(categories).where(eq(categories.id, categoryId));
+  await db
+    .delete(categories)
+    .where(and(eq(categories.id, categoryId), eq(categories.projectId, projectId)));
 
   invalidateRelatedCache('categories');
 

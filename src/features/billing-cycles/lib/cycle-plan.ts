@@ -263,7 +263,8 @@ export async function getCycleDailySeries(
   const projectId = cycle.projectId;
 
   const daily = await rows<Record<string, string>>(sql`
-    with tx as (
+    with rs as (${reserveRowsQuery(projectId, until)}),
+    tx as (
       select
         t.date,
         t.type,
@@ -327,11 +328,11 @@ export async function getCycleDailySeries(
       union all
       -- Abono reservado (su gasto aún no sale de la caja) y su liberación al pagarse
       select rs.reserved_on::date, -rs.amount, 0
-      from (${reserveRowsQuery(projectId, until)}) rs
+      from rs
       where rs.reserved_on::date between ${start}::date and ${until}::date
       union all
       select rs.released_on::date, rs.amount, 0
-      from (${reserveRowsQuery(projectId, until)}) rs
+      from rs
       where rs.released_on::date between ${start}::date and ${until}::date
     )
     select (date - ${start}::date + 1)::int as day, sum(cash) as cash, sum(savings) as savings

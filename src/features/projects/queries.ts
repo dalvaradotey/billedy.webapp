@@ -5,37 +5,6 @@ import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { Project, ProjectWithCurrency, Currency, ProjectMemberWithUser, PendingInvitation } from './types';
 
 /**
- * Obtiene todos los proyectos donde el usuario es miembro (aceptado)
- */
-export async function getProjects(userId: string): Promise<Project[]> {
-  return db
-    .select({
-      id: projects.id,
-      userId: projects.userId,
-      name: projects.name,
-      description: projects.description,
-      baseCurrencyId: projects.baseCurrencyId,
-      currency: projects.currency,
-      maxInstallmentAmount: projects.maxInstallmentAmount,
-      savingsTarget: projects.savingsTarget,
-      cardSpendingCap: projects.cardSpendingCap,
-      contingencyAccountId: projects.contingencyAccountId,
-      isArchived: projects.isArchived,
-      createdAt: projects.createdAt,
-      updatedAt: projects.updatedAt,
-    })
-    .from(projects)
-    .innerJoin(projectMembers, eq(projects.id, projectMembers.projectId))
-    .where(
-      and(
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .orderBy(desc(projects.createdAt));
-}
-
-/**
  * Query interna para obtener proyectos activos
  */
 async function _getActiveProjects(userId: string): Promise<Project[]> {
@@ -306,36 +275,6 @@ export const getPendingInvitations = cachedQuery(
 );
 
 /**
- * Cuenta las invitaciones pendientes para un usuario
- */
-export async function countPendingInvitations(userId: string): Promise<number> {
-  const result = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.userId, userId),
-        isNull(projectMembers.acceptedAt)
-      )
-    );
-
-  return result.length;
-}
-
-/**
- * Busca un usuario por email
- */
-export async function findUserByEmail(email: string): Promise<{ id: string; name: string | null; email: string } | null> {
-  const result = await db
-    .select({ id: users.id, name: users.name, email: users.email })
-    .from(users)
-    .where(eq(users.email, email.toLowerCase()))
-    .limit(1);
-
-  return result[0] ?? null;
-}
-
-/**
  * Query interna para verificar owner
  */
 async function _isProjectOwner(projectId: string, userId: string): Promise<boolean> {
@@ -365,19 +304,26 @@ export const isProjectOwner = cachedQuery(
   { tags: [CACHE_TAGS.projects], revalidate: 180 }
 );
 
+/** Largo mínimo del prefijo de email para buscar (evita enumerar usuarios) */
+const MIN_EMAIL_PREFIX = 3;
+
 /**
- * Busca usuarios por email parcial (para selector de invitación)
+ * Busca usuarios cuyo email empieza con `query` (para selector de invitación).
+ * Solo por prefijo de email y con un mínimo de caracteres: no por nombre ni
+ * por coincidencia parcial en cualquier parte.
  */
 export async function searchUsersByEmail(
   query: string,
   excludeUserId: string,
   limit: number = 5
 ): Promise<{ id: string; name: string | null; email: string; image: string | null }[]> {
-  if (!query || query.length < 2) {
+  const prefix = query?.trim().toLowerCase() ?? '';
+  if (prefix.length < MIN_EMAIL_PREFIX) {
     return [];
   }
 
-  const searchPattern = `%${query.toLowerCase()}%`;
+  // Escapar comodines de LIKE para que el input se trate como texto literal
+  const searchPattern = `${prefix.replace(/[\\%_]/g, '\\$&')}%`;
 
   return db
     .select({

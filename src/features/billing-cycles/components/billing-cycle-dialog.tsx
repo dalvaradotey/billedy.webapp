@@ -77,7 +77,7 @@ export function BillingCycleDialogContent({
   });
 
   // Track form progress
-  const calculateProgress = useCallback((values: any) => {
+  const calculateProgress = useCallback((values: Partial<CreateBillingCycleInput>) => {
     return [
       !!values.name,
       !!values.startDate,

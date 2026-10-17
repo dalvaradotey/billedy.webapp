@@ -1,27 +1,9 @@
 import { db } from '@/lib/db';
-import { budgets, categories, projectMembers, accounts, transactions } from '@/lib/db/schema';
-import { eq, and, isNotNull, isNull, sql, gte, lte, or, asc } from 'drizzle-orm';
+import { budgets, categories, accounts, transactions } from '@/lib/db/schema';
+import { eq, and, isNull, sql, gte, lte, or, asc } from 'drizzle-orm';
+import { verifyProjectAccess } from '@/lib/auth/project-access';
 import { cachedQuery, CACHE_TAGS } from '@/lib/cache';
 import type { BudgetWithCategory, BudgetProgress } from './types';
-
-/**
- * Verifica acceso al proyecto (helper interno)
- */
-async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
-  const hasAccess = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  return hasAccess.length > 0;
-}
 
 /**
  * Query interna para obtener presupuestos con categoría

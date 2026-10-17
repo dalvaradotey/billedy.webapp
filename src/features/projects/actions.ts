@@ -3,17 +3,31 @@
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { projects, currencies, projectMembers, users } from '@/lib/db/schema';
-import { eq, and, isNotNull, isNull } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, ne } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { cookies } from 'next/headers';
+import type { ActionResult } from '@/types/action-result';
 import { createProjectSchema, updateProjectSchema, inviteMemberSchema } from './schemas';
 import type { CreateProjectInput, UpdateProjectInput, InviteMemberInput } from './schemas';
 
 const CURRENT_PROJECT_COOKIE = 'billedy_current_project';
 
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+/** Miembro aceptado con rol owner: solo él gestiona miembros e invitaciones */
+async function isAcceptedOwner(projectId: string, userId: string): Promise<boolean> {
+  const owner = await db
+    .select({ id: projectMembers.id })
+    .from(projectMembers)
+    .where(
+      and(
+        eq(projectMembers.projectId, projectId),
+        eq(projectMembers.userId, userId),
+        eq(projectMembers.role, 'owner'),
+        isNotNull(projectMembers.acceptedAt)
+      )
+    )
+    .limit(1);
+  return owner.length > 0;
+}
 
 /**
  * Crea un nuevo proyecto
@@ -48,21 +62,25 @@ export async function createProject(
     baseCurrencyId = clpCurrency[0].id;
   }
 
-  const [newProject] = await db
-    .insert(projects)
-    .values({
-      ...parsed.data,
-      baseCurrencyId,
-      userId,
-    })
-    .returning({ id: projects.id });
+  const newProject = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(projects)
+      .values({
+        ...parsed.data,
+        baseCurrencyId,
+        userId,
+      })
+      .returning({ id: projects.id });
 
-  // Agregar al creador como miembro owner
-  await db.insert(projectMembers).values({
-    projectId: newProject.id,
-    userId,
-    role: 'owner',
-    acceptedAt: new Date(),
+    // Agregar al creador como miembro owner
+    await tx.insert(projectMembers).values({
+      projectId: created.id,
+      userId,
+      role: 'owner',
+      acceptedAt: new Date(),
+    });
+
+    return created;
   });
 
   invalidateRelatedCache('projects');
@@ -92,54 +110,6 @@ export async function updateProject(
     .update(projects)
     .set({
       ...parsed.data,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
-
-  invalidateRelatedCache('projects');
-
-  return { success: true, data: undefined };
-}
-
-/**
- * Archiva un proyecto
- */
-export async function archiveProject(
-  projectId: string,
-  userId: string
-): Promise<ActionResult> {
-  if (!(await isSessionUser(userId))) {
-    return { success: false, error: UNAUTHORIZED_ERROR };
-  }
-
-  await db
-    .update(projects)
-    .set({
-      isArchived: true,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
-
-  invalidateRelatedCache('projects');
-
-  return { success: true, data: undefined };
-}
-
-/**
- * Restaura un proyecto archivado
- */
-export async function restoreProject(
-  projectId: string,
-  userId: string
-): Promise<ActionResult> {
-  if (!(await isSessionUser(userId))) {
-    return { success: false, error: UNAUTHORIZED_ERROR };
-  }
-
-  await db
-    .update(projects)
-    .set({
-      isArchived: false,
       updatedAt: new Date(),
     })
     .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
@@ -194,20 +164,7 @@ export async function inviteMember(
   }
 
   // Verificar que el invitador sea owner del proyecto
-  const isOwner = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, inviterId),
-        eq(projectMembers.role, 'owner'),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!isOwner[0]) {
+  if (!(await isAcceptedOwner(projectId, inviterId))) {
     return { success: false, error: 'No tienes permisos para invitar miembros' };
   }
 
@@ -355,42 +312,35 @@ export async function removeMember(
   }
 
   // Verificar que el solicitante sea owner
-  const isOwner = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, ownerId),
-        eq(projectMembers.role, 'owner'),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!isOwner[0]) {
+  if (!(await isAcceptedOwner(projectId, ownerId))) {
     return { success: false, error: 'No tienes permisos para eliminar miembros' };
   }
 
-  // Verificar que el miembro exista y no sea el owner
+  // Verificar que el miembro exista en ESTE proyecto y no sea el owner
   const member = await db
     .select({ id: projectMembers.id, role: projectMembers.role, userId: projectMembers.userId })
     .from(projectMembers)
-    .where(eq(projectMembers.id, memberId))
+    .where(and(eq(projectMembers.id, memberId), eq(projectMembers.projectId, projectId)))
     .limit(1);
 
   if (!member[0]) {
     return { success: false, error: 'Miembro no encontrado' };
   }
 
-  if (member[0].role === 'owner') {
+  if (member[0].role === 'owner' || member[0].userId === ownerId) {
     return { success: false, error: 'No puedes eliminar al dueño del proyecto' };
   }
 
-  // Eliminar el miembro
+  // Eliminar el miembro (el WHERE repite proyecto y rol por si cambió entre medio)
   await db
     .delete(projectMembers)
-    .where(eq(projectMembers.id, memberId));
+    .where(
+      and(
+        eq(projectMembers.id, memberId),
+        eq(projectMembers.projectId, projectId),
+        ne(projectMembers.role, 'owner')
+      )
+    );
 
   invalidateRelatedCache('projects');
 
@@ -398,14 +348,20 @@ export async function removeMember(
 }
 
 /**
- * Busca usuarios por email para el selector de invitación
+ * Busca usuarios por prefijo de email para el selector de invitación.
+ * Solo el owner del proyecto puede buscar (evita enumerar usuarios).
  */
 export async function searchUsersForInvite(
+  projectId: string,
   query: string,
   currentUserId: string
 ): Promise<ActionResult<{ id: string; name: string | null; email: string; image: string | null }[]>> {
   if (!(await isSessionUser(currentUserId))) {
     return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
+  if (!(await isAcceptedOwner(projectId, currentUserId))) {
+    return { success: false, error: 'No tienes permisos para invitar miembros' };
   }
 
   // Importar la query dinámicamente para evitar imports circulares

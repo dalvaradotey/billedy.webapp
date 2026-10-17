@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { billingCycles, projectMembers } from '@/lib/db/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { billingCycles } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { requireUserId } from '@/lib/auth/guards';
 import { closeBillingCycleSchema, type CloseBillingCycleInput } from '../schemas';
@@ -10,6 +10,7 @@ import { getCycleBalances, toClosingSnapshot } from '../lib/cycle-balance';
 import {
   type ActionResult,
   UNAUTHORIZED_ERROR,
+  getCycleForWrite,
   findOverlappingCycle,
   overlapError,
 } from './utils';
@@ -34,33 +35,14 @@ export async function closeBillingCycle(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Validar input si existe
-  if (input) {
-    const parsed = closeBillingCycleSchema.safeParse(input);
-    if (!parsed.success) {
-      return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
-    }
+  // Validar input (opcional)
+  const parsed = closeBillingCycleSchema.safeParse(input ?? {});
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Verificar que el ciclo existe y el usuario tiene acceso
-  const [existing] = await db
-    .select({
-      id: billingCycles.id,
-      projectId: billingCycles.projectId,
-      status: billingCycles.status,
-      startDate: billingCycles.startDate,
-      endDate: billingCycles.endDate,
-    })
-    .from(billingCycles)
-    .innerJoin(projectMembers, eq(billingCycles.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(billingCycles.id, cycleId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+  // Verificar que el ciclo existe y el usuario puede modificarlo
+  const existing = await getCycleForWrite(cycleId, userId);
 
   if (!existing) {
     return { success: false, error: 'Ciclo no encontrado' };
@@ -71,7 +53,7 @@ export async function closeBillingCycle(
   }
 
   // Usar la fecha de fin proporcionada o la existente
-  const finalEndDate = input?.endDate ?? new Date(existing.endDate);
+  const finalEndDate = parsed.data.endDate ?? new Date(existing.endDate);
   const startDate = new Date(existing.startDate);
 
   // Validar que endDate >= startDate
@@ -123,7 +105,7 @@ export async function closeBillingCycle(
       closingSnapshot: toClosingSnapshot(balance),
       updatedAt: new Date(),
     })
-    .where(eq(billingCycles.id, cycleId));
+    .where(and(eq(billingCycles.id, cycleId), eq(billingCycles.projectId, existing.projectId)));
 
   invalidateRelatedCache('billingCycles');
 
@@ -139,22 +121,7 @@ export async function reopenBillingCycle(cycleId: string): Promise<ActionResult>
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  const [existing] = await db
-    .select({
-      id: billingCycles.id,
-      projectId: billingCycles.projectId,
-      status: billingCycles.status,
-    })
-    .from(billingCycles)
-    .innerJoin(projectMembers, eq(billingCycles.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(billingCycles.id, cycleId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
+  const existing = await getCycleForWrite(cycleId, userId);
 
   if (!existing) {
     return { success: false, error: 'Ciclo no encontrado' };
@@ -191,7 +158,7 @@ export async function reopenBillingCycle(cycleId: string): Promise<ActionResult>
       closingSnapshot: null,
       updatedAt: new Date(),
     })
-    .where(eq(billingCycles.id, cycleId));
+    .where(and(eq(billingCycles.id, cycleId), eq(billingCycles.projectId, existing.projectId)));
 
   invalidateRelatedCache('billingCycles');
 

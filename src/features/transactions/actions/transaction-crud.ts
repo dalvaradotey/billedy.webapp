@@ -3,11 +3,11 @@
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
 import { db } from '@/lib/db';
 import { transactions, projectMembers } from '@/lib/db/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
-import { inArray } from 'drizzle-orm';
 import {
   updateTransactionSchema,
+  bulkDeleteSchema,
   togglePaidSchema,
   toggleReconciledSchema,
   bulkTogglePaidSchema,
@@ -22,13 +22,23 @@ import type {
   BulkTogglePaidInput,
   BulkToggleReconciledInput,
   BulkUpdateDateInput,
+  BulkDeleteInput,
 } from '../schemas';
-import type { ActionResult } from '../types';
+import type { ActionResult } from '@/types/action-result';
 import { updateAccountBalance } from '@/features/accounts/lib/balance';
-import { verifyProjectAccess } from '../lib/access';
+import {
+  memberCondition,
+  NO_PROJECT_ACCESS,
+  projectRefsError,
+  verifyProjectWriteAccess,
+} from '@/lib/auth/project-access';
 import { normalizeNature } from '../nature';
 import { validateFundPayment } from '../lib/fund-validation';
-import { insertTransaction, removeTransaction } from '../lib/write-transaction';
+import {
+  deleteTransactionsWithLinked,
+  insertTransaction,
+  removeTransaction,
+} from '../lib/write-transaction';
 
 /**
  * Crea una nueva transacción
@@ -77,8 +87,7 @@ export async function updateTransaction(
     .where(
       and(
         eq(transactions.id, transactionId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
+        memberCondition(userId, { write: true })
       )
     )
     .limit(1);
@@ -88,6 +97,17 @@ export async function updateTransaction(
   }
 
   const oldTransaction = existing[0];
+
+  // Los ids nuevos deben ser del proyecto de la transacción (no se cambia de proyecto)
+  const refsError = await projectRefsError(oldTransaction.projectId, {
+    accountIds: [parsed.data.accountId],
+    categoryIds: [parsed.data.categoryId],
+    budgetIds: [parsed.data.budgetId],
+    savingsGoalIds: [parsed.data.savingsGoalId],
+  });
+  if (refsError) {
+    return { success: false, error: refsError };
+  }
 
   const updateData: Record<string, unknown> = {
     ...parsed.data,
@@ -139,11 +159,6 @@ export async function updateTransaction(
     updateData.baseAmount = amount;
   }
 
-  await db
-    .update(transactions)
-    .set(updateData)
-    .where(eq(transactions.id, transactionId));
-
   // Update account balances - solo si la transacción está/estaba pagada
   const newAmount = parsed.data.originalAmount ?? parseFloat(oldTransaction.originalAmount);
   const newType = parsed.data.type ?? oldTransaction.type;
@@ -151,17 +166,25 @@ export async function updateTransaction(
   const newIsPaid = parsed.data.isPaid ?? oldTransaction.isPaid;
   const oldAmount = parseFloat(oldTransaction.originalAmount);
 
-  // Revertir balance anterior solo si estaba pagada
-  if (oldTransaction.isPaid && oldTransaction.accountId) {
-    const oldDelta = oldTransaction.type === 'income' ? -oldAmount : oldAmount;
-    await updateAccountBalance(oldTransaction.accountId, oldDelta);
-  }
+  // La edición y el ajuste de saldos se guardan juntos
+  await db.transaction(async (tx) => {
+    await tx
+      .update(transactions)
+      .set(updateData)
+      .where(and(eq(transactions.id, transactionId), eq(transactions.projectId, oldTransaction.projectId)));
 
-  // Aplicar nuevo balance solo si está pagada
-  if (newIsPaid && newAccountId) {
-    const newDelta = newType === 'income' ? newAmount : -newAmount;
-    await updateAccountBalance(newAccountId, newDelta);
-  }
+    // Revertir balance anterior solo si estaba pagada
+    if (oldTransaction.isPaid && oldTransaction.accountId) {
+      const oldDelta = oldTransaction.type === 'income' ? -oldAmount : oldAmount;
+      await updateAccountBalance(oldTransaction.accountId, oldDelta, tx);
+    }
+
+    // Aplicar nuevo balance solo si está pagada
+    if (newIsPaid && newAccountId) {
+      const newDelta = newType === 'income' ? newAmount : -newAmount;
+      await updateAccountBalance(newAccountId, newDelta, tx);
+    }
+  });
 
   invalidateRelatedCache('transactions');
   invalidateRelatedCache('savings');
@@ -201,8 +224,7 @@ export async function toggleTransactionPaid(
     .where(
       and(
         eq(transactions.id, transactionId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
+        memberCondition(userId, { write: true })
       )
     )
     .limit(1);
@@ -218,28 +240,30 @@ export async function toggleTransactionPaid(
     return { success: true, data: undefined };
   }
 
-  await db
-    .update(transactions)
-    .set({
-      isPaid: parsed.data.isPaid,
-      paidAt: parsed.data.isPaid ? (parsed.data.paidAt ?? new Date()) : null,
-      updatedAt: new Date(),
-    })
-    .where(eq(transactions.id, transactionId));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(transactions)
+      .set({
+        isPaid: parsed.data.isPaid,
+        paidAt: parsed.data.isPaid ? (parsed.data.paidAt ?? new Date()) : null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(transactions.id, transactionId), eq(transactions.projectId, transaction.projectId)));
 
-  // Ajustar balance de la cuenta según el cambio de estado
-  if (transaction.accountId) {
-    const amount = parseFloat(transaction.originalAmount);
-    if (parsed.data.isPaid) {
-      // Marcar como pagada: aplicar el delta
-      const delta = transaction.type === 'income' ? amount : -amount;
-      await updateAccountBalance(transaction.accountId, delta);
-    } else {
-      // Marcar como no pagada: revertir el delta
-      const delta = transaction.type === 'income' ? -amount : amount;
-      await updateAccountBalance(transaction.accountId, delta);
+    // Ajustar balance de la cuenta según el cambio de estado
+    if (transaction.accountId) {
+      const amount = parseFloat(transaction.originalAmount);
+      if (parsed.data.isPaid) {
+        // Marcar como pagada: aplicar el delta
+        const delta = transaction.type === 'income' ? amount : -amount;
+        await updateAccountBalance(transaction.accountId, delta, tx);
+      } else {
+        // Marcar como no pagada: revertir el delta
+        const delta = transaction.type === 'income' ? -amount : amount;
+        await updateAccountBalance(transaction.accountId, delta, tx);
+      }
     }
-  }
+  });
 
   invalidateRelatedCache('transactions');
 
@@ -274,8 +298,7 @@ export async function toggleTransactionReconciled(
     .where(
       and(
         eq(transactions.id, transactionId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
+        memberCondition(userId, { write: true })
       )
     )
     .limit(1);
@@ -294,7 +317,7 @@ export async function toggleTransactionReconciled(
       isReconciled: parsed.data.isReconciled,
       updatedAt: new Date(),
     })
-    .where(eq(transactions.id, transactionId));
+    .where(and(eq(transactions.id, transactionId), eq(transactions.projectId, existing[0].projectId)));
 
   invalidateRelatedCache('transactions');
 
@@ -318,9 +341,9 @@ export async function bulkToggleTransactionsReconciled(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   const selectedTransactions = await db
@@ -372,6 +395,43 @@ export async function deleteTransaction(
 }
 
 /**
+ * Elimina varias transacciones del proyecto (y sus vinculadas si son transferencias)
+ * en una sola operación, revirtiendo los saldos agrupados por cuenta
+ */
+export async function bulkDeleteTransactions(
+  userId: string,
+  input: BulkDeleteInput
+): Promise<ActionResult<{ deletedCount: number }>> {
+  if (!(await isSessionUser(userId))) {
+    return { success: false, error: UNAUTHORIZED_ERROR };
+  }
+
+  const parsed = bulkDeleteSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
+  }
+
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
+  if (!hasAccess) {
+    return { success: false, error: NO_PROJECT_ACCESS };
+  }
+
+  const deletedCount = await db.transaction((tx) =>
+    deleteTransactionsWithLinked(tx, parsed.data.projectId, parsed.data.transactionIds)
+  );
+
+  if (deletedCount === 0) {
+    return { success: false, error: 'No se encontraron transacciones válidas' };
+  }
+
+  invalidateRelatedCache('transactions');
+  invalidateRelatedCache('savings');
+
+  return { success: true, data: { deletedCount } };
+}
+
+/**
  * Marca/desmarca múltiples transacciones como pagadas en lote
  */
 export async function bulkToggleTransactionsPaid(
@@ -388,9 +448,9 @@ export async function bulkToggleTransactionsPaid(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   // Obtener transacciones que realmente necesitan cambio
@@ -420,21 +480,6 @@ export async function bulkToggleTransactionsPaid(
   const now = new Date();
   const idsToUpdate = toUpdate.map(t => t.id);
 
-  // Actualizar en batch
-  await db
-    .update(transactions)
-    .set({
-      isPaid: parsed.data.isPaid,
-      paidAt: parsed.data.isPaid ? now : null,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(transactions.projectId, parsed.data.projectId),
-        inArray(transactions.id, idsToUpdate)
-      )
-    );
-
   // Agrupar deltas por accountId para minimizar llamadas
   const deltasByAccount = new Map<string, number>();
   for (const t of toUpdate) {
@@ -449,12 +494,26 @@ export async function bulkToggleTransactionsPaid(
     deltasByAccount.set(t.accountId, (deltasByAccount.get(t.accountId) ?? 0) + delta);
   }
 
-  // Aplicar ajustes de balance por cuenta
-  await Promise.all(
-    Array.from(deltasByAccount.entries()).map(([accountId, delta]) =>
-      updateAccountBalance(accountId, delta)
-    )
-  );
+  // Actualizar en batch y aplicar los ajustes de balance por cuenta, todo junto
+  await db.transaction(async (tx) => {
+    await tx
+      .update(transactions)
+      .set({
+        isPaid: parsed.data.isPaid,
+        paidAt: parsed.data.isPaid ? now : null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(transactions.projectId, parsed.data.projectId),
+          inArray(transactions.id, idsToUpdate)
+        )
+      );
+
+    for (const [accountId, delta] of deltasByAccount) {
+      await updateAccountBalance(accountId, delta, tx);
+    }
+  });
 
   invalidateRelatedCache('transactions');
 
@@ -478,9 +537,9 @@ export async function bulkUpdateTransactionDates(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
   const selected = await db

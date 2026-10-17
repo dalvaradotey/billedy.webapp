@@ -1,19 +1,19 @@
 'use server';
 
 import { and, eq, inArray, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { accounts, cardStatements, merchantAliases, templateItems, transactions } from '@/lib/db/schema';
 import { invalidateRelatedCache } from '@/lib/cache';
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
-import { verifyProjectAccess } from '@/features/transactions/lib/access';
+import { NO_PROJECT_ACCESS, projectRefsError, verifyProjectWriteAccess } from '@/lib/auth/project-access';
+import type { ActionResult } from '@/types/action-result';
 import { insertTransaction } from '@/features/transactions/lib/write-transaction';
 import { updateTransaction } from '@/features/transactions/actions/transaction-crud';
-import { normalizeNature, type TransactionNature } from '@/features/transactions/nature';
+import { normalizeNature, TRANSACTION_NATURES, type TransactionNature } from '@/features/transactions/nature';
 import { pdfToLines } from './lib/pdf-lines';
 import { parseSantanderStatement, type ParsedStatement, type StatementLine } from './lib/parse-santander';
 import { matchStatement, merchantKey, type Alias, type AppTransaction, type MatchResult } from './lib/match';
-
-type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string };
 
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
@@ -90,7 +90,8 @@ export async function analyzeStatement(
   formData: FormData
 ): Promise<ActionResult<StatementReview>> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  if (!(await verifyProjectAccess(projectId, userId))) return { success: false, error: 'No tienes acceso a este proyecto' };
+  // Guarda el estado de cuenta: es una escritura
+  if (!(await verifyProjectWriteAccess(projectId, userId))) return { success: false, error: NO_PROJECT_ACCESS };
 
   const file = formData.get('file');
   if (!(file instanceof File)) return { success: false, error: 'Sube el PDF del estado de cuenta' };
@@ -152,15 +153,28 @@ export async function analyzeStatement(
   };
 }
 
-export type ApplyReconciliationInput = {
+const applyReconciliationSchema = z.object({
   /** Movimientos que calzan (y los de monto corregido) a marcar como conciliados */
-  reconcileIds: string[];
+  reconcileIds: z.array(z.string().uuid()),
   /** Líneas que faltan en la app: se crean como gasto (o abono) pagado y conciliado */
-  create: { lineIndex: number; description: string; budgetId: string | null; categoryId: string | null; nature: string }[];
+  create: z.array(
+    z.object({
+      lineIndex: z.number().int().nonnegative(),
+      description: z.string().max(500),
+      budgetId: z.string().uuid().nullable(),
+      categoryId: z.string().uuid().nullable(),
+      nature: z.enum(TRANSACTION_NATURES),
+    })
+  ),
   /** Corregir el monto de un movimiento al del estado de cuenta */
-  amountFixes: { txId: string; amount: number }[];
+  amountFixes: z.array(z.object({ txId: z.string().uuid(), amount: z.number() })),
   /** Actualizar el monto de un ítem de plantilla */
-  templateUpdates: { itemId: string; amount: number }[];
+  templateUpdates: z.array(z.object({ itemId: z.string().uuid(), amount: z.number() })),
+});
+
+/** `nature` llega como texto desde la sugerencia del cruce; el schema lo valida */
+export type ApplyReconciliationInput = Omit<z.input<typeof applyReconciliationSchema>, 'create'> & {
+  create: (Omit<z.input<typeof applyReconciliationSchema>['create'][number], 'nature'> & { nature: string })[];
 };
 
 /**
@@ -170,16 +184,27 @@ export type ApplyReconciliationInput = {
 export async function applyReconciliation(
   userId: string,
   statementId: string,
-  input: ApplyReconciliationInput
+  rawInput: ApplyReconciliationInput
 ): Promise<ActionResult<{ reconciled: number; created: number; fixed: number; templates: number }>> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
 
+  const parsedInput = applyReconciliationSchema.safeParse(rawInput);
+  if (!parsedInput.success) return { success: false, error: 'Datos inválidos' };
+  const input = parsedInput.data;
+
   const [statement] = await db.select().from(cardStatements).where(eq(cardStatements.id, statementId)).limit(1);
-  if (!statement || !(await verifyProjectAccess(statement.projectId, userId))) {
+  if (!statement || !(await verifyProjectWriteAccess(statement.projectId, userId))) {
     return { success: false, error: 'Estado de cuenta no encontrado' };
   }
   const lines = statement.lines as StatementLine[];
   const { projectId, accountId } = statement;
+
+  // Presupuestos y categorías de lo que se crea deben ser del proyecto del estado de cuenta
+  const refsError = await projectRefsError(projectId, {
+    budgetIds: input.create.map((c) => c.budgetId),
+    categoryIds: input.create.map((c) => c.categoryId),
+  });
+  if (refsError) return { success: false, error: refsError };
 
   // Solo movimientos de esta tarjeta y este proyecto
   const ownIds = async (ids: string[]) => {
@@ -201,7 +226,7 @@ export async function applyReconciliation(
   }
 
   const createdIds: string[] = [];
-  const learned: { key: string; description: string; budgetId: string | null; categoryId: string | null; entityId: string | null; nature: string }[] = [];
+  const learned: { key: string; description: string; budgetId: string | null; categoryId: string | null; entityId: string | null; nature: TransactionNature }[] = [];
   for (const item of input.create) {
     const line = lines[item.lineIndex];
     if (!line || line.kind === 'installment' || line.kind === 'payment') continue;
@@ -217,7 +242,7 @@ export async function applyReconciliation(
         description: item.description.trim() || line.description,
         budgetId: type === 'expense' ? item.budgetId : null,
         categoryId: item.categoryId,
-        nature: normalizeNature(item.nature as TransactionNature, type),
+        nature: normalizeNature(item.nature, type),
         isPaid: true,
       },
       invalidateRelatedCache
@@ -243,15 +268,22 @@ export async function applyReconciliation(
       .where(and(inArray(transactions.id, reconcileIds), eq(transactions.projectId, projectId)));
   }
 
+  // Montos de plantilla: un solo UPDATE con CASE (si un ítem viene repetido, gana el último)
   let templates = 0;
-  for (const update of input.templateUpdates) {
-    if (!(update.amount > 0)) continue;
+  const templateAmounts = new Map(
+    input.templateUpdates.filter((u) => u.amount > 0).map((u) => [u.itemId, String(u.amount)])
+  );
+  if (templateAmounts.size) {
+    const amountCase = sql`(case ${sql.join(
+      [...templateAmounts].map(([id, amount]) => sql`when ${templateItems.id} = ${id} then ${amount}`),
+      sql` `
+    )} end)::numeric`;
     const rows = await db
       .update(templateItems)
-      .set({ originalAmount: String(update.amount), baseAmount: String(update.amount), updatedAt: new Date() })
-      .where(and(eq(templateItems.id, update.itemId), eq(templateItems.projectId, projectId)))
+      .set({ originalAmount: amountCase, baseAmount: amountCase, updatedAt: new Date() })
+      .where(and(inArray(templateItems.id, [...templateAmounts.keys()]), eq(templateItems.projectId, projectId)))
       .returning({ id: templateItems.id });
-    templates += rows.length;
+    templates = rows.length;
   }
 
   // Aprender cómo registras cada comercio: de lo que calzó y de lo que creaste
@@ -270,29 +302,39 @@ export async function applyReconciliation(
       budgetId: tx.budgetId,
       categoryId: tx.categoryId,
       entityId: tx.entityId,
-      nature: tx.nature,
+      nature: tx.nature as TransactionNature,
     });
   }
+  // Un solo upsert multi-fila. Postgres no deja tocar dos veces la misma fila
+  // en un INSERT … ON CONFLICT, así que se agrupa por comercio: gana la última
+  // forma de registrarlo y `times` suma cuántas veces apareció.
+  const aliasByKey = new Map<string, (typeof learned)[number] & { times: number }>();
   for (const alias of learned) {
     if (!alias.key) continue;
+    aliasByKey.set(alias.key, { ...alias, times: (aliasByKey.get(alias.key)?.times ?? 0) + 1 });
+  }
+  if (aliasByKey.size) {
     await db
       .insert(merchantAliases)
-      .values({ projectId, ...alias, nature: alias.nature as TransactionNature })
+      .values([...aliasByKey.values()].map((alias) => ({ projectId, ...alias })))
       .onConflictDoUpdate({
         target: [merchantAliases.projectId, merchantAliases.key],
         set: {
-          description: alias.description,
-          budgetId: alias.budgetId,
-          categoryId: alias.categoryId,
-          entityId: alias.entityId,
-          nature: alias.nature as TransactionNature,
-          times: sql`${merchantAliases.times} + 1`,
+          description: sql`excluded.description`,
+          budgetId: sql`excluded.budget_id`,
+          categoryId: sql`excluded.category_id`,
+          entityId: sql`excluded.entity_id`,
+          nature: sql`excluded.nature`,
+          times: sql`${merchantAliases.times} + excluded.times`,
           updatedAt: new Date(),
         },
       });
   }
 
-  await db.update(cardStatements).set({ reconciledAt: new Date(), updatedAt: new Date() }).where(eq(cardStatements.id, statementId));
+  await db
+    .update(cardStatements)
+    .set({ reconciledAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(cardStatements.id, statementId), eq(cardStatements.projectId, projectId)));
 
   invalidateRelatedCache('transactions');
   if (templates) invalidateRelatedCache('templates');

@@ -5,9 +5,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { telegramLinks } from '@/lib/db/schema';
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
-import { verifyProjectAccess } from '@/features/transactions/lib/access';
-
-type ActionResult<T = void> = { success: true; data: T } | { success: false; error: string };
+import { NO_PROJECT_ACCESS, verifyProjectWriteAccess } from '@/lib/auth/project-access';
+import type { ActionResult } from '@/types/action-result';
 
 /** Sin letras que se confunden (0/O, 1/I/L) */
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -22,7 +21,8 @@ export async function createTelegramLinkCode(
   projectId: string
 ): Promise<ActionResult<{ code: string; expiresAt: Date }>> {
   if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
-  if (!(await verifyProjectAccess(projectId, userId))) return { success: false, error: 'No tienes acceso a este proyecto' };
+  // El bot registra movimientos en el proyecto: exige rol que pueda modificar
+  if (!(await verifyProjectWriteAccess(projectId, userId))) return { success: false, error: NO_PROJECT_ACCESS };
 
   const code = Array.from({ length: 8 }, () => ALPHABET[randomInt(ALPHABET.length)]).join('');
   const expiresAt = new Date(Date.now() + CODE_TTL_MS);

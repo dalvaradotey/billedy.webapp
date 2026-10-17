@@ -36,4 +36,3 @@ export const updateCardPurchaseSchema = z.object({
 });
 
 export type CreateCardPurchaseInput = z.infer<typeof createCardPurchaseSchema>;
-export type UpdateCardPurchaseInput = z.infer<typeof updateCardPurchaseSchema>;

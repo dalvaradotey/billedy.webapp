@@ -1,10 +1,18 @@
 'use server';
 
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
+import {
+  memberCondition,
+  NO_PROJECT_ACCESS,
+  projectRefsError,
+  verifyProjectWriteAccess,
+} from '@/lib/auth/project-access';
 import { db } from '@/lib/db';
 import { budgets, projectMembers, transactions, categories, accounts, entities } from '@/lib/db/schema';
-import { eq, and, isNotNull, sql, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, sql, gte, lte, desc } from 'drizzle-orm';
+import { z } from 'zod';
 import { invalidateRelatedCache } from '@/lib/cache';
+import type { ActionResult } from '@/types/action-result';
 import {
   createBudgetSchema,
   updateBudgetSchema,
@@ -14,27 +22,19 @@ import type {
   UpdateBudgetInput,
 } from './schemas';
 
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+const orderedIdsSchema = z.array(z.string().uuid()).min(1, 'No se proporcionaron presupuestos');
 
 /**
- * Verifica que el usuario tenga acceso al proyecto
+ * Proyecto del presupuesto si el usuario tiene acceso (con `write`, rol de escritura)
  */
-async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
-  const member = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
+async function findBudget(budgetId: string, userId: string, write: boolean) {
+  const [row] = await db
+    .select({ projectId: budgets.projectId, defaultAmount: budgets.defaultAmount })
+    .from(budgets)
+    .innerJoin(projectMembers, eq(budgets.projectId, projectMembers.projectId))
+    .where(and(eq(budgets.id, budgetId), memberCondition(userId, { write })))
     .limit(1);
-
-  return member.length > 0;
+  return row ?? null;
 }
 
 /**
@@ -54,10 +54,17 @@ export async function createBudget(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
+
+  // La categoría y la cuenta por defecto deben ser del proyecto
+  const refsError = await projectRefsError(parsed.data.projectId, {
+    categoryIds: [parsed.data.categoryId],
+    accountIds: [parsed.data.defaultAccountId],
+  });
+  if (refsError) return { success: false, error: refsError };
 
   // Calcular siguiente sort_order
   const [maxOrder] = await db
@@ -103,23 +110,18 @@ export async function updateBudget(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Verificar que el presupuesto existe y el usuario tiene acceso
-  const existing = await db
-    .select({ projectId: budgets.projectId })
-    .from(budgets)
-    .innerJoin(projectMembers, eq(budgets.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(budgets.id, budgetId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar que el presupuesto existe y el usuario puede modificarlo
+  const existing = await findBudget(budgetId, userId, true);
+  if (!existing) {
     return { success: false, error: 'Presupuesto no encontrado' };
   }
+
+  // La categoría y la cuenta por defecto nuevas deben ser del proyecto del presupuesto
+  const refsError = await projectRefsError(existing.projectId, {
+    categoryIds: [parsed.data.categoryId],
+    accountIds: [parsed.data.defaultAccountId],
+  });
+  if (refsError) return { success: false, error: refsError };
 
   const updateData: Record<string, unknown> = {
     updatedAt: new Date(),
@@ -137,7 +139,7 @@ export async function updateBudget(
   await db
     .update(budgets)
     .set(updateData)
-    .where(eq(budgets.id, budgetId));
+    .where(and(eq(budgets.id, budgetId), eq(budgets.projectId, existing.projectId)));
 
   invalidateRelatedCache('budgets');
 
@@ -155,25 +157,15 @@ export async function deleteBudget(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Verificar acceso
-  const existing = await db
-    .select({ projectId: budgets.projectId })
-    .from(budgets)
-    .innerJoin(projectMembers, eq(budgets.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(budgets.id, budgetId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar acceso de escritura
+  const existing = await findBudget(budgetId, userId, true);
+  if (!existing) {
     return { success: false, error: 'Presupuesto no encontrado' };
   }
 
-  await db.delete(budgets).where(eq(budgets.id, budgetId));
+  await db
+    .delete(budgets)
+    .where(and(eq(budgets.id, budgetId), eq(budgets.projectId, existing.projectId)));
 
   invalidateRelatedCache('budgets');
 
@@ -207,26 +199,27 @@ export async function reorderBudgets(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  const hasAccess = await verifyProjectAccess(projectId, userId);
+  const hasAccess = await verifyProjectWriteAccess(projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
 
-  if (orderedIds.length === 0) {
-    return { success: false, error: 'No se proporcionaron presupuestos' };
+  const parsedIds = orderedIdsSchema.safeParse(orderedIds);
+  if (!parsedIds.success) {
+    return { success: false, error: parsedIds.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  const updates = orderedIds.map((id, index) =>
-    db
-      .update(budgets)
-      .set({
-        sortOrder: (index + 1) * 1000,
-        updatedAt: new Date(),
-      })
-      .where(eq(budgets.id, id))
+  // Un solo UPDATE con los pares (id, orden); solo toca presupuestos del proyecto
+  const values = sql.join(
+    parsedIds.data.map((id, index) => sql`(${id}, ${(index + 1) * 1000}::int)`),
+    sql`, `
   );
-
-  await Promise.all(updates);
+  await db.execute(sql`
+    update ${budgets}
+    set sort_order = v.o, updated_at = now()
+    from (values ${values}) as v(id, o)
+    where ${budgets.id} = v.id::uuid and ${budgets.projectId} = ${projectId}
+  `);
 
   invalidateRelatedCache('budgets');
 
@@ -263,25 +256,13 @@ export async function fetchBudgetDetail(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Verificar que el presupuesto existe y el usuario tiene acceso
-  const existing = await db
-    .select({ projectId: budgets.projectId, defaultAmount: budgets.defaultAmount })
-    .from(budgets)
-    .innerJoin(projectMembers, eq(budgets.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(budgets.id, budgetId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar que el presupuesto existe y el usuario tiene acceso (lectura)
+  const existing = await findBudget(budgetId, userId, false);
+  if (!existing) {
     return { success: false, error: 'Presupuesto no encontrado' };
   }
 
-  const budgetedAmount = parseFloat(existing[0].defaultAmount);
+  const budgetedAmount = parseFloat(existing.defaultAmount);
   const start = new Date(startDate + 'T00:00:00Z');
   const end = new Date(endDate + 'T23:59:59Z');
 
@@ -306,6 +287,7 @@ export async function fetchBudgetDetail(
     .where(
       and(
         eq(transactions.budgetId, budgetId),
+        eq(transactions.projectId, existing.projectId),
         eq(transactions.type, 'expense'),
         gte(transactions.date, start),
         lte(transactions.date, end)

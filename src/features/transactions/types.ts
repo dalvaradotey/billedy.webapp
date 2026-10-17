@@ -1,5 +1,5 @@
 import type { InferSelectModel } from 'drizzle-orm';
-import type { transactions, categories } from '@/lib/db/schema';
+import type { transactions } from '@/lib/db/schema';
 
 export type Transaction = InferSelectModel<typeof transactions>;
 
@@ -38,9 +38,4 @@ export type TransactionSummary = {
   pendingCount: number;
 };
 
-/**
- * Generic result type for server actions
- */
-export type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+export type { ActionResult } from '@/types/action-result';

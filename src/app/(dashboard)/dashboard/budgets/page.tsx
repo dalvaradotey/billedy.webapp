@@ -5,7 +5,7 @@ import { getCurrentProjectId } from '@/features/projects/actions';
 import { getLatestProject, getProjectById } from '@/features/projects/queries';
 import { getAllCurrencies } from '@/features/savings/queries';
 import { getAccounts } from '@/features/accounts/queries';
-import { getBillingCycles } from '@/features/billing-cycles/queries';
+import { getBillingCycleOptions } from '@/features/billing-cycles/queries';
 import { BudgetList } from '@/features/budgets/components';
 
 export default async function BudgetsPage() {
@@ -32,7 +32,7 @@ export default async function BudgetsPage() {
     getAccounts(projectId, session.user.id),
     getAllCurrencies(),
     getProjectById(projectId, session.user.id),
-    getBillingCycles(projectId, session.user.id),
+    getBillingCycleOptions(projectId, session.user.id),
   ]);
 
   const defaultCurrency = project?.currency ?? 'CLP';
@@ -52,13 +52,7 @@ export default async function BudgetsPage() {
         projectId={projectId}
         userId={session.user.id}
         defaultCurrency={defaultCurrency}
-        cycles={cycles.map((c) => ({
-          id: c.id,
-          name: c.name,
-          startDate: new Date(c.startDate).toISOString().split('T')[0],
-          endDate: new Date(c.endDate).toISOString().split('T')[0],
-          status: c.status,
-        }))}
+        cycles={cycles}
       />
     </div>
   );

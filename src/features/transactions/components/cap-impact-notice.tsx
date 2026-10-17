@@ -6,11 +6,11 @@ import { PulseChart } from '@/components/pulse-chart';
 import { formatCurrency } from '@/lib/formatting';
 import { cn } from '@/lib/utils';
 import type { CardImpactData } from '@/features/billing-cycles/actions';
+import { MONTHS_SHORT as MONTHS } from '@/lib/dates';
 
 /** Umbral de "cerca del techo": el gasto te deja sobre este porcentaje del techo. */
 const NEAR_CAP_RATIO = 0.9;
 
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const label = (iso: string) => {
   const d = new Date(`${iso}T00:00:00Z`);
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;

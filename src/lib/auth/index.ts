@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import type { NextAuthOptions } from 'next-auth';
 import { getServerSession } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
@@ -28,4 +29,8 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-export const auth = () => getServerSession(authOptions);
+/**
+ * Sesión del request. Con `strategy: 'database'` cada lectura consulta la BD:
+ * `cache` la comparte entre el layout, la página y las actions del mismo request.
+ */
+export const auth = cache(() => getServerSession(authOptions));

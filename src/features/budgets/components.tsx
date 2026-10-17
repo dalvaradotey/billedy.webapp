@@ -79,18 +79,8 @@ import { createBudgetSchema } from './schemas';
 import type { CreateBudgetInput, UpdateBudgetInput } from './schemas';
 import type { BudgetWithCategory } from './types';
 import { useRegisterPageActions, type PageAction } from '@/components/layout/bottom-nav-context';
-import { getToday, toCalendarDate, daysBetween } from '@/lib/formatting';
+import { getToday, toCalendarDate, daysBetween, formatCurrency } from '@/lib/formatting';
 import { BudgetDetail, type CycleOption } from './components/budget-detail';
-
-function formatCurrency(amount: number | string, currency: string = 'CLP'): string {
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(num);
-}
 
 function startOfDay(d: Date): Date {
   return toCalendarDate(d);

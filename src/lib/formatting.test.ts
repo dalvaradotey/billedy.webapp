@@ -9,7 +9,10 @@ import {
   formatNumber,
   formatPercentage,
   getToday,
+  parseChileanDecimal,
+  parseClp,
   parseCurrencyToNumber,
+  parseFlexibleDecimal,
   toAppDate,
   toCalendarDate,
 } from './formatting';
@@ -86,5 +89,20 @@ describe('fechas de Chile', () => {
     expect(toCalendarDate('2026-10-16T22:10:00Z').toISOString()).toBe('2026-10-16T00:00:00.000Z');
     expect(daysBetween('2026-09-25', '2026-10-25T23:00:00Z')).toBe(30);
     expect(daysBetween(new Date('2026-10-25'), new Date('2026-09-25'))).toBe(-30);
+  });
+});
+
+describe('números con formato chileno', () => {
+  it('parseClp y parseChileanDecimal', () => {
+    expect(parseClp('$ 1.234.567')).toBe(1_234_567);
+    expect(parseChileanDecimal('77.542,73')).toBe(77542.73);
+  });
+
+  it('parseFlexibleDecimal entiende coma o punto decimal', () => {
+    expect(parseFlexibleDecimal('566,17')).toBe(566.17);
+    expect(parseFlexibleDecimal('566.17')).toBe(566.17);
+    expect(parseFlexibleDecimal(' 1.234,5678 ')).toBe(1234.5678);
+    expect(parseFlexibleDecimal('56.617')).toBe(56.617);
+    expect(parseFlexibleDecimal('1.234.567')).toBe(1_234_567);
   });
 });

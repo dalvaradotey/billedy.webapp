@@ -8,14 +8,11 @@ export {
   bulkToggleTransactionsReconciled,
   bulkUpdateTransactionDates,
   deleteTransaction,
+  bulkDeleteTransactions,
 } from './transaction-crud';
 
 // Account transfer operations
-export {
-  createAccountTransfer,
-  updateAccountTransfer,
-  deleteAccountTransfer,
-} from './transfer-actions';
+export { createAccountTransfer } from './transfer-actions';
 
 // Credit card operations
 export {

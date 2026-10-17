@@ -36,6 +36,7 @@ import {
   bulkToggleTransactionsReconciled,
   bulkUpdateTransactionDates,
   deleteTransaction,
+  bulkDeleteTransactions,
   setTransactionsHistoricallyPaid,
 } from '../actions';
 import type { TransactionWithCategory } from '../types';
@@ -56,6 +57,7 @@ import {
   HistoricallyPaidDialog,
   BulkToggleReconciledDialog,
 } from './confirmation-dialogs';
+import { MONTHS_SHORT as MONTHS, WEEKDAYS_LONG as WEEKDAYS } from '@/lib/dates';
 
 export function TransactionTableSkeleton({ rowCount = 5 }: { rowCount?: number }) {
   const tones = ['amber', 'sky', 'jade', 'rose', 'violet'] as const;
@@ -276,21 +278,15 @@ export function TransactionTable({
     onMutationStart?.();
     setShowBulkDeleteDialog(false);
     startTransition(async () => {
-      let successCount = 0;
-      let errorCount = 0;
-      for (const id of selectedIds) {
-        const result = await deleteTransaction(id, userId);
-        if (result.success) {
-          successCount++;
-        } else {
-          errorCount++;
-        }
-      }
+      const result = await bulkDeleteTransactions(userId, {
+        projectId,
+        transactionIds: Array.from(selectedIds),
+      });
       setSelectedIds(new Set());
-      if (errorCount === 0) {
-        onMutationSuccess?.(toastId, `${successCount} transacciones eliminadas`);
+      if (result.success) {
+        onMutationSuccess?.(toastId, `${result.data.deletedCount} transacciones eliminadas`);
       } else {
-        onMutationError?.(toastId, `${successCount} eliminadas, ${errorCount} errores`);
+        onMutationError?.(toastId, result.error);
       }
     });
   };
@@ -662,8 +658,6 @@ const SORT_LABELS: Record<SortColumn, string> = {
   amount: 'Monto',
 };
 
-const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 /** "Domingo 11 oct" (fecha como día calendario, sin zona horaria) */
 function dayLabel(iso: string) {

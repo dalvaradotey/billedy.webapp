@@ -1,34 +1,31 @@
 'use server';
 
 import { isSessionUser, UNAUTHORIZED_ERROR } from '@/lib/auth/guards';
+import {
+  memberCondition,
+  NO_PROJECT_ACCESS,
+  projectRefsError,
+  verifyProjectWriteAccess,
+} from '@/lib/auth/project-access';
 import { db } from '@/lib/db';
 import { credits, transactions, projects, projectMembers } from '@/lib/db/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { invalidateRelatedCache } from '@/lib/cache';
+import type { ActionResult } from '@/types/action-result';
 import { createCreditSchema, updateCreditSchema } from './schemas';
 import type { CreateCreditInput, UpdateCreditInput } from './schemas';
 
-type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string };
-
 /**
- * Verifica que el usuario tenga acceso al proyecto
+ * Proyecto del crédito si el usuario puede modificarlo (rol de escritura)
  */
-async function verifyProjectAccess(projectId: string, userId: string): Promise<boolean> {
-  const member = await db
-    .select({ id: projectMembers.id })
-    .from(projectMembers)
-    .where(
-      and(
-        eq(projectMembers.projectId, projectId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
+async function findWritableCreditProject(creditId: string, userId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ projectId: credits.projectId })
+    .from(credits)
+    .innerJoin(projectMembers, eq(credits.projectId, projectMembers.projectId))
+    .where(and(eq(credits.id, creditId), memberCondition(userId, { write: true })))
     .limit(1);
-
-  return member.length > 0;
+  return row?.projectId ?? null;
 }
 
 /**
@@ -73,11 +70,18 @@ export async function createCredit(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Verificar acceso al proyecto
-  const hasAccess = await verifyProjectAccess(parsed.data.projectId, userId);
+  // Verificar acceso de escritura al proyecto
+  const hasAccess = await verifyProjectWriteAccess(parsed.data.projectId, userId);
   if (!hasAccess) {
-    return { success: false, error: 'No tienes acceso a este proyecto' };
+    return { success: false, error: NO_PROJECT_ACCESS };
   }
+
+  // La cuenta y la categoría deben ser del proyecto
+  const refsError = await projectRefsError(parsed.data.projectId, {
+    accountIds: [parsed.data.accountId],
+    categoryIds: [parsed.data.categoryId],
+  });
+  if (refsError) return { success: false, error: refsError };
 
   // Obtener la moneda base del proyecto
   const project = await db
@@ -182,31 +186,24 @@ export async function updateCredit(
     return { success: false, error: parsed.error.issues[0]?.message ?? 'Datos inválidos' };
   }
 
-  // Verificar que el crédito existe y el usuario tiene acceso
-  const existing = await db
-    .select({ projectId: credits.projectId })
-    .from(credits)
-    .innerJoin(projectMembers, eq(credits.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(credits.id, creditId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar que el crédito existe y el usuario puede modificarlo
+  const projectId = await findWritableCreditProject(creditId, userId);
+  if (!projectId) {
     return { success: false, error: 'Crédito no encontrado' };
   }
 
+  // La cuenta nueva debe ser del proyecto del crédito
+  const refsError = await projectRefsError(projectId, { accountIds: [parsed.data.accountId] });
+  if (refsError) return { success: false, error: refsError };
+
+  // El schema de update no incluye projectId: el crédito no puede cambiar de proyecto
   await db
     .update(credits)
     .set({
       ...parsed.data,
       updatedAt: new Date(),
     })
-    .where(eq(credits.id, creditId));
+    .where(and(eq(credits.id, creditId), eq(credits.projectId, projectId)));
 
   invalidateRelatedCache('credits');
 
@@ -225,21 +222,9 @@ export async function archiveCredit(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Verificar acceso
-  const existing = await db
-    .select({ projectId: credits.projectId })
-    .from(credits)
-    .innerJoin(projectMembers, eq(credits.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(credits.id, creditId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar acceso de escritura
+  const projectId = await findWritableCreditProject(creditId, userId);
+  if (!projectId) {
     return { success: false, error: 'Crédito no encontrado' };
   }
 
@@ -249,7 +234,7 @@ export async function archiveCredit(
       isArchived,
       updatedAt: new Date(),
     })
-    .where(eq(credits.id, creditId));
+    .where(and(eq(credits.id, creditId), eq(credits.projectId, projectId)));
 
   invalidateRelatedCache('credits');
 
@@ -267,132 +252,26 @@ export async function deleteCredit(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Verificar acceso
-  const existing = await db
-    .select({ projectId: credits.projectId })
-    .from(credits)
-    .innerJoin(projectMembers, eq(credits.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(credits.id, creditId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!existing[0]) {
+  // Verificar acceso de escritura
+  const projectId = await findWritableCreditProject(creditId, userId);
+  if (!projectId) {
     return { success: false, error: 'Crédito no encontrado' };
   }
 
-  // Primero eliminar las transacciones asociadas (cuotas)
-  await db.delete(transactions).where(eq(transactions.creditId, creditId));
+  await db.transaction(async (tx) => {
+    // Primero eliminar las transacciones asociadas (cuotas)
+    await tx
+      .delete(transactions)
+      .where(and(eq(transactions.creditId, creditId), eq(transactions.projectId, projectId)));
 
-  // Luego eliminar el crédito
-  await db.delete(credits).where(eq(credits.id, creditId));
+    // Luego eliminar el crédito
+    await tx.delete(credits).where(and(eq(credits.id, creditId), eq(credits.projectId, projectId)));
+  });
 
   invalidateRelatedCache('credits');
   invalidateRelatedCache('transactions');
 
   return { success: true, data: undefined };
-}
-
-/**
- * Genera la transacción de la próxima cuota de un crédito
- */
-export async function generateCreditInstallment(
-  creditId: string,
-  userId: string
-): Promise<ActionResult<{ transactionId: string }>> {
-  if (!(await isSessionUser(userId))) {
-    return { success: false, error: UNAUTHORIZED_ERROR };
-  }
-
-  // Obtener crédito con verificación de acceso
-  const creditResult = await db
-    .select({
-      id: credits.id,
-      projectId: credits.projectId,
-      categoryId: credits.categoryId,
-      accountId: credits.accountId,
-      name: credits.name,
-      installmentAmount: credits.installmentAmount,
-      baseCurrency: credits.baseCurrency,
-      baseCurrencyId: credits.baseCurrencyId,
-      frequency: credits.frequency,
-      startDate: credits.startDate,
-      installments: credits.installments,
-    })
-    .from(credits)
-    .innerJoin(projectMembers, eq(credits.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(credits.id, creditId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
-    .limit(1);
-
-  if (!creditResult[0]) {
-    return { success: false, error: 'Crédito no encontrado' };
-  }
-
-  const credit = creditResult[0];
-
-  // Contar cuotas ya generadas
-  const paidResult = await db
-    .select({
-      count: db.$count(transactions, eq(transactions.creditId, creditId)),
-    })
-    .from(transactions)
-    .where(eq(transactions.creditId, creditId));
-
-  const paidCount = paidResult[0]?.count ?? 0;
-
-  if (paidCount >= credit.installments) {
-    return { success: false, error: 'El crédito ya tiene todas las cuotas generadas' };
-  }
-
-  // Calcular fecha de la siguiente cuota
-  const nextPaymentDate = new Date(credit.startDate);
-  switch (credit.frequency) {
-    case 'monthly':
-      nextPaymentDate.setMonth(nextPaymentDate.getMonth() + paidCount);
-      break;
-    case 'biweekly':
-      nextPaymentDate.setDate(nextPaymentDate.getDate() + paidCount * 14);
-      break;
-    case 'weekly':
-      nextPaymentDate.setDate(nextPaymentDate.getDate() + paidCount * 7);
-      break;
-  }
-
-  // Crear transacción para la cuota
-  const [newTransaction] = await db
-    .insert(transactions)
-    .values({
-      userId,
-      projectId: credit.projectId,
-      categoryId: credit.categoryId,
-      accountId: credit.accountId,
-      creditId: credit.id,
-      type: 'expense',
-      description: `${credit.name} - Cuota ${paidCount + 1}/${credit.installments}`,
-      originalAmount: credit.installmentAmount,
-      originalCurrency: credit.baseCurrency,
-      baseAmount: credit.installmentAmount,
-      baseCurrency: credit.baseCurrency,
-      exchangeRate: '1',
-      date: nextPaymentDate,
-      isPaid: false,
-    })
-    .returning({ id: transactions.id });
-
-  invalidateRelatedCache('credits');
-  invalidateRelatedCache('transactions');
-
-  return { success: true, data: { transactionId: newTransaction.id } };
 }
 
 /**
@@ -406,7 +285,7 @@ export async function generateAllCreditInstallments(
     return { success: false, error: UNAUTHORIZED_ERROR };
   }
 
-  // Obtener crédito con verificación de acceso
+  // Obtener crédito con verificación de acceso de escritura
   const creditResult = await db
     .select({
       id: credits.id,
@@ -423,13 +302,7 @@ export async function generateAllCreditInstallments(
     })
     .from(credits)
     .innerJoin(projectMembers, eq(credits.projectId, projectMembers.projectId))
-    .where(
-      and(
-        eq(credits.id, creditId),
-        eq(projectMembers.userId, userId),
-        isNotNull(projectMembers.acceptedAt)
-      )
-    )
+    .where(and(eq(credits.id, creditId), memberCondition(userId, { write: true })))
     .limit(1);
 
   if (!creditResult[0]) {

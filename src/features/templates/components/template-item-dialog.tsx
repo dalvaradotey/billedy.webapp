@@ -165,7 +165,6 @@ export function TemplateItemDialogContent({
         const result = await createTemplateItem({
           templateId,
           userId,
-          projectId,
           categoryId: data.categoryId,
           accountId: data.accountId,
           entityId: data.entityId,

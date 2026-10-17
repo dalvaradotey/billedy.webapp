@@ -7,13 +7,16 @@ import {
   projects,
   currencies,
 } from '@/lib/db/schema';
-import { eq, and, sql, isNotNull } from 'drizzle-orm';
+import { eq, and, isNotNull } from 'drizzle-orm';
 
 /**
  * Carga transacciones automáticas al crear un ciclo:
  * - Items de plantillas activas
  * - Cuotas de créditos que caigan en el rango
  * - Cuotas de compras en cuotas que caigan en el rango
+ *
+ * `projectId` debe venir ya verificado (acceso de escritura): todas las
+ * transacciones se crean en ese proyecto, nunca en el que diga cada ítem.
  */
 export async function loadCycleTransactions(
   projectId: string,
@@ -21,39 +24,54 @@ export async function loadCycleTransactions(
   startDate: Date,
   endDate: Date
 ): Promise<void> {
-  // Obtener moneda del proyecto
-  const [projectInfo] = await db
-    .select({
-      currencyCode: currencies.code,
-    })
-    .from(projects)
-    .innerJoin(currencies, eq(projects.baseCurrencyId, currencies.id))
-    .where(eq(projects.id, projectId))
-    .limit(1);
+  // Lecturas independientes en paralelo: moneda del proyecto, ítems de
+  // plantillas activas, créditos activos y cuotas ya generadas
+  const [[projectInfo], activeTemplateItems, activeCredits, existingCreditTxs] = await Promise.all([
+    db
+      .select({
+        currencyCode: currencies.code,
+      })
+      .from(projects)
+      .innerJoin(currencies, eq(projects.baseCurrencyId, currencies.id))
+      .where(eq(projects.id, projectId))
+      .limit(1),
+    db
+      .select({
+        item: templateItems,
+      })
+      .from(templateItems)
+      .innerJoin(templates, eq(templateItems.templateId, templates.id))
+      .where(
+        and(
+          eq(templates.projectId, projectId),
+          eq(templateItems.projectId, projectId),
+          eq(templates.isActive, true),
+          eq(templates.isArchived, false)
+        )
+      ),
+    db
+      .select()
+      .from(credits)
+      .where(and(eq(credits.projectId, projectId), eq(credits.isArchived, false))),
+    // Transacciones de crédito existentes (creditId + date) para evitar duplicados
+    db
+      .select({
+        creditId: transactions.creditId,
+        date: transactions.date,
+      })
+      .from(transactions)
+      .where(and(eq(transactions.projectId, projectId), isNotNull(transactions.creditId))),
+  ]);
 
   if (!projectInfo) return;
 
   const transactionsToInsert: Array<typeof transactions.$inferInsert> = [];
 
-  // 1. Cargar items de plantillas activas
-  const activeTemplateItems = await db
-    .select({
-      item: templateItems,
-    })
-    .from(templateItems)
-    .innerJoin(templates, eq(templateItems.templateId, templates.id))
-    .where(
-      and(
-        eq(templates.projectId, projectId),
-        eq(templates.isActive, true),
-        eq(templates.isArchived, false)
-      )
-    );
-
+  // 1. Items de plantillas activas
   for (const { item } of activeTemplateItems) {
     transactionsToInsert.push({
       userId: item.userId,
-      projectId: item.projectId,
+      projectId,
       categoryId: item.categoryId,
       accountId: item.accountId,
       entityId: item.entityId,
@@ -70,27 +88,7 @@ export async function loadCycleTransactions(
     });
   }
 
-  // 2. Generar cuotas de créditos activos
-  const activeCredits = await db
-    .select()
-    .from(credits)
-    .where(and(eq(credits.projectId, projectId), eq(credits.isArchived, false)));
-
-  // Obtener todas las transacciones de crédito existentes (creditId + date)
-  // para evitar duplicados
-  const existingCreditTxs = await db
-    .select({
-      creditId: transactions.creditId,
-      date: transactions.date,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.projectId, projectId),
-        isNotNull(transactions.creditId)
-      )
-    );
-
+  // 2. Cuotas de créditos activos
   // Crear un Set de "creditId|date" para búsqueda rápida
   const existingCreditDates = new Set(
     existingCreditTxs.map((tx) => {
@@ -129,7 +127,7 @@ export async function loadCycleTransactions(
 
       transactionsToInsert.push({
         userId: credit.userId,
-        projectId: credit.projectId,
+        projectId,
         categoryId: credit.categoryId,
         accountId: credit.accountId,
         entityId: credit.entityId,
