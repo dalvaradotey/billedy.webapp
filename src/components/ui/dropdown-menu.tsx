@@ -6,10 +6,27 @@ import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
+/** Abre o cierra el menú desde el trigger cuando se toca con el dedo (ver DropdownMenuTrigger) */
+const TouchToggleContext = React.createContext<(() => void) | null>(null)
+
 function DropdownMenu({
+  open: openProp,
+  defaultOpen,
+  onOpenChange,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(defaultOpen ?? false)
+  const open = openProp ?? uncontrolledOpen
+  const setOpen = (next: boolean) => {
+    if (openProp === undefined) setUncontrolledOpen(next)
+    onOpenChange?.(next)
+  }
+
+  return (
+    <TouchToggleContext.Provider value={() => setOpen(!open)}>
+      <DropdownMenuPrimitive.Root data-slot="dropdown-menu" open={open} onOpenChange={setOpen} {...props} />
+    </TouchToggleContext.Provider>
+  )
 }
 
 function DropdownMenuPortal({
@@ -20,12 +37,35 @@ function DropdownMenuPortal({
   )
 }
 
+/**
+ * Radix abre el menú en pointerdown, también con el dedo: si un scroll empieza
+ * sobre el botón, el menú se abre solo. Con touch se abre en el click (el
+ * navegador no lo dispara si el gesto fue scroll); con mouse queda igual.
+ */
 function DropdownMenuTrigger({
+  onPointerDown,
+  onClick,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
+  const toggle = React.useContext(TouchToggleContext)
+  const touchStarted = React.useRef(false)
+
   return (
     <DropdownMenuPrimitive.Trigger
       data-slot="dropdown-menu-trigger"
+      onPointerDown={(event) => {
+        onPointerDown?.(event)
+        touchStarted.current = event.pointerType !== "mouse"
+        // preventDefault salta el handler de Radix que abriría el menú de inmediato
+        if (touchStarted.current) event.preventDefault()
+      }}
+      onClick={(event) => {
+        onClick?.(event)
+        if (touchStarted.current && !event.defaultPrevented) {
+          touchStarted.current = false
+          toggle?.()
+        }
+      }}
       {...props}
     />
   )
