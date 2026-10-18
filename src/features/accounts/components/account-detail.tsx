@@ -165,6 +165,11 @@ export function AccountDetailPanel({
                   PRINCIPAL
                 </span>
               )}
+              {account.isLocked && (
+                <span className="shrink-0 rounded-full bg-surface-3 px-1.5 py-px text-[10px] font-extrabold tracking-[0.04em] text-muted-foreground">
+                  BLOQUEADA
+                </span>
+              )}
             </span>
             <span className="block truncate text-xs text-muted-foreground">{description}</span>
           </span>

@@ -13,6 +13,7 @@ export const createAccountSchema = z.object({
   creditLimit: z.number().optional().nullable(), // Solo para tarjetas de crédito
   cardDesign: z.string().max(40).optional().nullable(),
   isDefault: z.boolean(),
+  isLocked: z.boolean().optional(),
 });
 
 export const updateAccountSchema = z.object({
@@ -25,6 +26,7 @@ export const updateAccountSchema = z.object({
   creditLimit: z.number().optional().nullable(),
   cardDesign: z.string().max(40).optional().nullable(),
   isDefault: z.boolean().optional(),
+  isLocked: z.boolean().optional(),
 });
 
 export const adjustBalanceSchema = z.object({

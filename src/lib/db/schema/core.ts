@@ -196,6 +196,8 @@ export const accounts = pgTable('n1n4_accounts', {
   quotaCount: decimal('quota_count', { precision: 18, scale: 4 }),
   quotaCountDate: date('quota_count_date'),
   isDefault: boolean('is_default').default(false).notNull(),
+  // Plata que de momento no se puede usar: el simulador no la ofrece (migración 0028)
+  isLocked: boolean('is_locked').default(false).notNull(),
   isArchived: boolean('is_archived').default(false).notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),

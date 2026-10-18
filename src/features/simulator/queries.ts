@@ -8,8 +8,8 @@ import type { PlanInput, SimulatorData, Source } from './lib/plan';
 /**
  * Fuentes para el simulador:
  * - fondos propios (no provisiones: esas ya tienen destino);
- * - cuentas de ahorro, descontando la plata de terceros que guardan y sin la
- *   cuenta de imprevistos del plan;
+ * - cuentas de ahorro, descontando la plata de terceros que guardan, sin la
+ *   cuenta de imprevistos del plan ni las bloqueadas;
  * - plata de terceros (como préstamo sin interés).
  * Lo que ahorras al mes es la meta de ahorro del plan.
  */
@@ -21,7 +21,15 @@ export async function getSimulatorData(projectId: string, userId: string): Promi
     db
       .select({ id: accounts.id, name: accounts.name, balance: accounts.currentBalance })
       .from(accounts)
-      .where(and(eq(accounts.projectId, projectId), eq(accounts.type, 'savings'), eq(accounts.isArchived, false))),
+      .where(
+        and(
+          eq(accounts.projectId, projectId),
+          eq(accounts.type, 'savings'),
+          eq(accounts.isArchived, false),
+          // Bloqueada: plata que de momento no se puede sacar
+          eq(accounts.isLocked, false)
+        )
+      ),
     db
       .select({ savingsTarget: projects.savingsTarget, contingencyAccountId: projects.contingencyAccountId })
       .from(projects)
