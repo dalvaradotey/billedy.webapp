@@ -26,6 +26,9 @@ export * from './telegram';
 // Estados de cuenta de TC
 export * from './statements';
 
+// Simulaciones "¿Me alcanza?"
+export * from './simulations';
+
 // ============================================================================
 // RELATIONS
 // ============================================================================
