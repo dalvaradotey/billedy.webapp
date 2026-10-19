@@ -17,6 +17,7 @@ import { warningText } from '@/features/billing-cycles/components/cycle-cascade'
 import type { CyclePlanStatus, CardPaceSeries, CycleDailyPoint } from '@/features/billing-cycles/lib/cycle-plan';
 import { PlanSettingsDrawerContent } from './plan-settings-drawer';
 import { SettlementsDrawerContent } from './settlements-drawer';
+import { FreeExplainer } from './free-explainer';
 import { useDashboard } from '../hooks';
 import { shortDate, addDays } from '../lib/dates';
 
@@ -221,7 +222,16 @@ export function PulseHome({
             </Link>
             día {cycle.daysElapsed} de {cycle.daysTotal}
           </div>
-          <p className="mt-4 text-sm text-muted-foreground">Te quedan libres</p>
+          <p className="mt-4 flex items-center gap-1.5 text-sm text-muted-foreground">
+            Te quedan libres
+            <FreeExplainer
+              balance={cycle.balance}
+              free={free}
+              savingsRemaining={plan.free != null ? savings.remaining : 0}
+              daysRemaining={cycle.daysRemaining}
+              perDay={perDay}
+            />
+          </p>
           <p className={cn('num text-[52px] font-extrabold leading-[1.05]', free < 0 && 'text-coral-text')}>
             {formatCurrency(free)}
           </p>
