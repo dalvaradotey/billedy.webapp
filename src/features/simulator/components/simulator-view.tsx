@@ -112,20 +112,14 @@ export function SimulatorView({ userId, projectId, data, saved }: SimulatorViewP
         <section ref={planRef} className="scroll-mt-20 space-y-3">
           <h2 className="text-lg font-extrabold tracking-[-0.02em]">Arma tu plan</h2>
           <PlanBuilder
-            name={name}
             plan={{ ...plan, target }}
             sources={data.sources}
+            cards={data.cards}
             monthlySaving={data.monthlySaving}
             onChange={(next) => setPlan({ ...next, optionId: plan.optionId })}
+            onSave={handleSave}
+            isSaving={isPending}
           />
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isPending}
-            className="flex min-h-12 w-full items-center justify-center rounded-full bg-jade text-sm font-extrabold text-jade-ink disabled:opacity-50"
-          >
-            Guardar simulación
-          </button>
         </section>
       )}
 

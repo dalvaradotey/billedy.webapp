@@ -9,7 +9,7 @@
  * - lo que ahorras al mes (meta de ahorro del plan), para juntar o reponer.
  */
 
-export type SourceKind = 'fund' | 'savings' | 'third_party';
+export type SourceKind = 'fund' | 'checking' | 'savings' | 'third_party';
 
 export type Source = {
   id: string;
@@ -20,8 +20,12 @@ export type Source = {
   available: number;
 };
 
+/** Tarjeta de crédito para un avance en efectivo */
+export type CardOption = { id: string; name: string; available: number };
+
 export type SimulatorData = {
   sources: Source[];
+  cards: CardOption[];
   /** Lo que ahorras al mes según tu plan */
   monthlySaving: number;
 };
@@ -46,6 +50,8 @@ export type PlanInput = {
   /** Monto que se saca de cada fuente (id → monto) */
   allocations: Record<string, number>;
   bank: BankLoan;
+  /** Avance en efectivo con la tarjeta (mismos datos que un préstamo) */
+  cardAdvance?: BankLoan & { cardId?: string | null };
   /** Cuánto destinas al mes a reponer (por defecto, tu ahorro mensual) */
   monthlyRepay: number;
   /** Fondo apartado para este gasto: lo que sale de él no se repone */
@@ -54,6 +60,16 @@ export type PlanInput = {
 
 export const DEFAULT_MONTHLY_RATE = 0.018;
 export const DEFAULT_LOAN_MONTHS = 24;
+/** El avance en efectivo suele ser más caro y a menos plazo */
+export const DEFAULT_ADVANCE_RATE = 0.028;
+export const DEFAULT_ADVANCE_MONTHS = 12;
+
+export const emptyAdvance = (cardId: string | null = null): NonNullable<PlanInput['cardAdvance']> => ({
+  amount: 0,
+  months: DEFAULT_ADVANCE_MONTHS,
+  monthlyRate: DEFAULT_ADVANCE_RATE,
+  cardId,
+});
 
 /** Cuota mensual de un préstamo (sistema francés) */
 export function loanInstallment(amount: number, months: number, monthlyRate: number): number {
@@ -268,6 +284,15 @@ export type ScheduleMonth = {
   savingsLeft: number;
 };
 
+export type LoanSummary = {
+  amount: number;
+  installment: number;
+  extraCost: number;
+  cae: number | null;
+  /** Mes de la última cuota (0 = sin préstamo) */
+  doneMonth: number;
+};
+
 export type PlanResult = {
   covered: number;
   /** Falta (+) o sobra (−) para llegar al monto */
@@ -280,7 +305,9 @@ export type PlanResult = {
   extraCost: number;
   /** CAE del préstamo (con todos sus costos), si hay préstamo */
   cae: number | null;
-  /** La cuota del banco no cabe en lo que destinas al mes */
+  /** Avance en efectivo con la tarjeta */
+  advance: LoanSummary;
+  /** Las cuotas (banco + avance) no caben en lo que destinas al mes */
   installmentTooHigh: boolean;
   schedule: ScheduleMonth[];
   /** Mes en que terminas de devolver a terceros / reponer ahorros / pagar el banco (0 = no aplica, −1 = no alcanza) */
@@ -306,16 +333,24 @@ export function computePlan(input: PlanInput, sources: Source[]): PlanResult {
     const source = byId.get(id);
     const amount = Math.max(0, Math.min(raw || 0, source?.available ?? 0));
     if (!source || amount === 0) continue;
-    // Solo el fondo apartado para este gasto queda usado; otro fondo tenía otro destino y se repone
+    // Solo el fondo apartado para este gasto queda usado; otro fondo, la cuenta corriente
+    // y los ahorros tenían otro destino y se reponen
     if (source.kind === 'fund' && source.id === input.earmarkedId) fromFunds += amount;
-    else if (source.kind === 'fund' || source.kind === 'savings') fromSavings += amount;
+    else if (source.kind !== 'third_party') fromSavings += amount;
     else fromThirdParty += amount;
   }
-  const loanAmount = Math.max(0, input.bank.amount || 0);
-  const loan = { ...input.bank, amount: loanAmount };
-  const installment = loanPayment(loan);
-  const grace = loanAmount > 0 ? Math.max(0, input.bank.graceMonths ?? 0) : 0;
-  const covered = fromFunds + fromSavings + fromThirdParty + loanAmount;
+  const summarize = (raw: BankLoan | undefined): LoanSummary & { grace: number } => {
+    const amount = Math.max(0, raw?.amount || 0);
+    if (!raw || amount === 0) return { amount: 0, installment: 0, extraCost: 0, cae: null, doneMonth: 0, grace: 0 };
+    const loan = { ...raw, amount };
+    const grace = Math.max(0, raw.graceMonths ?? 0);
+    return { amount, installment: loanPayment(loan), extraCost: loanCost(loan), cae: loanCAE(loan), doneMonth: grace + raw.months, grace };
+  };
+  const bank = summarize(input.bank);
+  const advance = summarize(input.cardAdvance);
+  const loanAmount = bank.amount;
+  const installment = bank.installment;
+  const covered = fromFunds + fromSavings + fromThirdParty + bank.amount + advance.amount;
   const repay = Math.max(0, input.monthlyRepay || 0);
 
   const schedule: ScheduleMonth[] = [];
@@ -323,11 +358,12 @@ export function computePlan(input: PlanInput, sources: Source[]): PlanResult {
   let savingsLeft = fromSavings;
   let thirdPartyDoneMonth = fromThirdParty > 0 ? -1 : 0;
   let savingsDoneMonth = fromSavings > 0 ? -1 : 0;
-  // Las cuotas van entre el mes grace + 1 y grace + plazo
-  const loanMonths = loanAmount > 0 ? grace + input.bank.months : 0;
+  // Las cuotas de cada préstamo van entre el mes grace + 1 y grace + plazo
+  const loanMonths = Math.max(bank.doneMonth, advance.doneMonth);
+  const paymentIn = (l: typeof bank, month: number) => (l.amount > 0 && month > l.grace && month <= l.doneMonth ? l.installment : 0);
 
   for (let month = 1; month <= MAX_MONTHS; month++) {
-    const payment = month > grace && month <= loanMonths ? installment : 0;
+    const payment = paymentIn(bank, month) + paymentIn(advance, month);
     if (month > loanMonths && thirdPartyLeft <= 0 && savingsLeft <= 0) break;
     let budget = Math.max(0, repay - payment);
     const toThirdParty = Math.min(thirdPartyLeft, budget);
@@ -350,12 +386,13 @@ export function computePlan(input: PlanInput, sources: Source[]): PlanResult {
     fromThirdParty,
     loanAmount,
     installment,
-    extraCost: loanCost(loan),
-    cae: loanAmount > 0 ? loanCAE(loan) : null,
-    installmentTooHigh: installment > repay && loanAmount > 0,
+    extraCost: bank.extraCost,
+    cae: bank.cae,
+    advance: { amount: advance.amount, installment: advance.installment, extraCost: advance.extraCost, cae: advance.cae, doneMonth: advance.doneMonth },
+    installmentTooHigh: bank.installment + advance.installment > repay && bank.amount + advance.amount > 0,
     schedule,
     thirdPartyDoneMonth,
     savingsDoneMonth,
-    loanDoneMonth: loanMonths,
+    loanDoneMonth: bank.doneMonth,
   };
 }

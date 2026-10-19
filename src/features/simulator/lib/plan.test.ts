@@ -4,7 +4,9 @@ import { buildOptions, computePlan, loanCAE, loanCost, loanInstallment, loanPaym
 // Los datos de la conversación: maquinaria apartada, ahorros y la plata de la abuelita
 const data: SimulatorData = {
   monthlySaving: 400_000,
+  cards: [{ id: 'wm', name: 'WorldMember', available: 28_000_000 }],
   sources: [
+    { id: 'cc', kind: 'checking', name: 'Santander Corriente #6114', accountName: 'Santander Corriente #6114', available: 1_408_286 },
     { id: 'maq', kind: 'fund', name: 'Maquinaria terreno', accountName: '#7343', available: 800_000 },
     { id: 'dental', kind: 'fund', name: 'Tratamiento dental Yoha', accountName: '#7343', available: 1_400_000 },
     { id: 'a1', kind: 'savings', name: 'Fondo Ahorro #1', accountName: 'Fondo Ahorro #1', available: 2_000_000 },
@@ -112,6 +114,32 @@ describe('computePlan', () => {
       data.sources
     );
     expect(r).toMatchObject({ fromFunds: 0, fromSavings: 1_000_000, savingsDoneMonth: 2 });
+  });
+
+  it('lo sacado de la cuenta corriente se repone como ahorro', () => {
+    const r = computePlan(
+      { target: 400_000, allocations: { cc: 400_000 }, bank: { amount: 0, months: 12, monthlyRate: 0 }, monthlyRepay: 400_000 },
+      data.sources
+    );
+    expect(r).toMatchObject({ fromSavings: 400_000, savingsDoneMonth: 1 });
+  });
+
+  it('el avance en efectivo suma su cuota a la del banco y tiene su propio costo', () => {
+    const r = computePlan(
+      {
+        target: 2_000_000,
+        allocations: {},
+        bank: { amount: 1_200_000, months: 12, monthlyRate: 0 },
+        cardAdvance: { amount: 800_000, months: 8, monthlyRate: 0, upfrontCosts: 20_000, cardId: 'wm' },
+        monthlyRepay: 300_000,
+      },
+      data.sources
+    );
+    expect(r.covered).toBe(2_000_000);
+    expect(r.advance).toMatchObject({ amount: 800_000, installment: 100_000, extraCost: 20_000, doneMonth: 8 });
+    expect(r.schedule[0].loanPayment).toBe(200_000);
+    expect(r.schedule[8].loanPayment).toBe(100_000);
+    expect(r.installmentTooHigh).toBe(false);
   });
 
   it('los meses de gracia corren la primera cuota', () => {

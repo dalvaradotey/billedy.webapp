@@ -83,6 +83,7 @@ export function AccountDialogContent({
         creditLimit: account.creditLimit ? parseFloat(account.creditLimit) : undefined,
         cardDesign: account.cardDesign ?? null,
         isDefault: account.isDefault,
+        isLocked: account.isLocked,
       };
     }
     return {
@@ -96,6 +97,7 @@ export function AccountDialogContent({
       creditLimit: undefined as number | undefined,
       cardDesign: null as string | null,
       isDefault: false,
+      isLocked: false,
     };
   }, [account, projectId]);
 
@@ -131,6 +133,7 @@ export function AccountDialogContent({
             creditLimit: data.type === 'credit_card' ? data.creditLimit : null,
             cardDesign: data.cardDesign ?? null,
             isDefault: data.isDefault,
+            isLocked: data.isLocked ?? false,
           })
         : await createAccount(userId, data);
 
@@ -421,6 +424,26 @@ export function AccountDialogContent({
                   </FormItem>
                 )}
               />
+
+              {/* Bloqueada: no se ofrece en el simulador */}
+              {watchType !== 'credit_card' && (
+                <FormField
+                  control={form.control}
+                  name="isLocked"
+                  render={({ field }) => (
+                    <FormItem data-field="isLocked">
+                      <FormControl>
+                        <SwitchCard
+                          title="Cuenta bloqueada"
+                          description="Plata que de momento no se puede usar: sigue en tu patrimonio, pero el simulador no la ofrece"
+                          checked={field.value ?? false}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
 
               {/* Currency Selector */}
               <div className="space-y-3">
