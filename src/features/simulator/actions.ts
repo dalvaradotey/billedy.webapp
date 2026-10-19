@@ -10,19 +10,23 @@ import type { ActionResult } from '@/types/action-result';
 
 const money = z.number().finite().nonnegative();
 
+const loanSchema = z.object({
+  amount: money,
+  months: z.number().int().min(1).max(120),
+  monthlyRate: z.number().finite().min(0).max(0.2),
+  offerInstallment: money.nullable().optional(),
+  monthlyInsurance: money.optional(),
+  upfrontCosts: money.optional(),
+  graceMonths: z.number().int().min(0).max(24).optional(),
+});
+
 const planSchema = z.object({
   target: z.number().finite().positive(),
   allocations: z.record(z.string(), money),
-  bank: z.object({
-    amount: money,
-    months: z.number().int().min(1).max(120),
-    monthlyRate: z.number().finite().min(0).max(0.2),
-    offerInstallment: money.nullable().optional(),
-    monthlyInsurance: money.optional(),
-    upfrontCosts: money.optional(),
-    graceMonths: z.number().int().min(0).max(24).optional(),
-  }),
+  bank: loanSchema,
+  cardAdvance: loanSchema.extend({ cardId: z.string().uuid().nullable().optional() }).optional(),
   monthlyRepay: money,
+  earmarkedId: z.string().uuid().nullable().optional(),
   optionId: z.string().max(20).optional(),
 });
 

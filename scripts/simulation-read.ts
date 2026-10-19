@@ -40,6 +40,7 @@ async function main() {
     for (const [id, amount] of Object.entries(plan.allocations)) {
       if (amount > 0) console.log(`   ${names.get(id) ?? `${id} (ya no existe)`}: ${fmt(amount)}`);
     }
+    if (r.advance.amount > 0) console.log(`   avance: ${fmt(r.advance.amount)} · cuota ${fmt(r.advance.installment)} · extra ${fmt(r.advance.extraCost)} · CAE ${r.advance.cae != null ? (r.advance.cae * 100).toFixed(1) + '%' : '-'}`);
     if (r.loanAmount > 0) console.log(`   banco: ${fmt(r.loanAmount)} · cuota ${fmt(r.installment)} · extra ${fmt(r.extraCost)} · CAE ${r.cae != null ? (r.cae * 100).toFixed(1) + '%' : '-'}`);
     console.log(`   destina ${fmt(plan.monthlyRepay)}/mes · falta ${fmt(r.missing)} · terceros listo mes ${r.thirdPartyDoneMonth} · ahorros listo mes ${r.savingsDoneMonth} · banco termina mes ${r.loanDoneMonth}`);
     const { options } = buildOptions(sim.name, Number(sim.target), data);
