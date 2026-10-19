@@ -203,21 +203,19 @@ function StickySummary({
     <div className="sticky bottom-[calc(6rem+env(safe-area-inset-bottom))] z-20 rounded-[22px] border border-line-strong bg-surface-2 p-3 shadow-[0_12px_32px_rgba(8,6,12,0.45)] md:bottom-4">
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm">
-            {result.missing > 0 ? (
-              <>
-                Faltan <b className="num text-amber-text">{formatCurrency(result.missing)}</b>
-                <span className="text-xs text-muted-foreground"> de {formatCurrency(plan.target)}</span>
-              </>
-            ) : result.missing < 0 ? (
-              <>
-                <b className="text-jade-text">Completo</b>
-                <span className="text-xs text-muted-foreground"> · sobran {formatCurrency(-result.missing)}</span>
-              </>
-            ) : (
-              <b className="text-jade-text">¡Completo! ✓</b>
-            )}
-          </p>
+          {/* Lo que llevas y lo que falta, los dos siempre visibles */}
+          <div className="flex items-end justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[11px] text-muted-foreground">Llevas</p>
+              <p className="num text-[15px] font-extrabold leading-tight">{formatCurrency(result.covered)}</p>
+            </div>
+            <div className="min-w-0 text-right">
+              <p className="text-[11px] text-muted-foreground">{result.missing > 0 ? 'Faltan' : result.missing < 0 ? 'Sobran' : 'Completo'}</p>
+              <p className={cn('num text-[15px] font-extrabold leading-tight', result.missing > 0 ? 'text-amber-text' : 'text-jade-text')}>
+                {result.missing === 0 ? '✓' : formatCurrency(Math.abs(result.missing))}
+              </p>
+            </div>
+          </div>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3">
             <div className={cn('h-full rounded-full transition-[width]', result.missing > 0 ? 'bg-amber' : 'bg-jade')} style={{ width: `${progress}%` }} />
           </div>
