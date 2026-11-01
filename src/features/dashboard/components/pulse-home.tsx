@@ -116,7 +116,7 @@ export function PulseHome({
   if (!cycle) return null;
 
   const { card, savings, pending } = plan;
-  const free = plan.free ?? cycle.balance.finalBalance.projected;
+  const free = plan.free;
   const perDay = cycle.daysRemaining > 0 ? Math.round(free / cycle.daysRemaining) : free;
   const start = new Date(cycle.startDate);
   const end = new Date(cycle.endDate);
@@ -224,21 +224,15 @@ export function PulseHome({
           </div>
           <p className="mt-4 flex items-center gap-1.5 text-sm text-muted-foreground">
             Te quedan libres
-            <FreeExplainer
-              balance={cycle.balance}
-              free={free}
-              savingsRemaining={plan.free != null ? savings.remaining : 0}
-              daysRemaining={cycle.daysRemaining}
-              perDay={perDay}
-            />
+            <FreeExplainer balance={cycle.balance} free={free} savings={savings} daysRemaining={cycle.daysRemaining} perDay={perDay} />
           </p>
           <p className={cn('num text-[52px] font-extrabold leading-[1.05]', free < 0 && 'text-coral-text')}>
             {formatCurrency(free)}
           </p>
           <p className="mt-0.5 text-[13px] text-muted-foreground">
             ≈ <span className="num font-bold text-foreground">{formatCurrency(perDay)}</span> por día hasta el {shortDate(end)}
-            {plan.free != null ? ' · después de ahorrar' : ''}
           </p>
+          <SavingsGoalLine savings={savings} free={free} />
 
           <div className="flex-1" />
           <dl className="mt-5 grid grid-cols-3 gap-2 md:grid-cols-1">
@@ -248,7 +242,14 @@ export function PulseHome({
             </div>
             <div className="rounded-2xl bg-violet-soft p-3 md:flex md:items-center md:justify-between">
               <dt className="text-[11px] font-semibold text-violet-text md:text-[13px]">
-                Ahorrado{savings.target != null && <span className="hidden md:inline"> · meta {formatCurrency(savings.target)}</span>}
+                Ahorrado
+                {savings.target != null && (
+                  <span className="hidden md:inline">
+                    {' '}
+                    · mín {formatCurrency(savings.target)}
+                    {savings.ideal != null && <> · ideal {formatCurrency(savings.ideal)}</>}
+                  </span>
+                )}
               </dt>
               <dd className="num text-[15px] font-extrabold md:text-base">
                 {formatCurrency(savings.done)}
@@ -377,7 +378,9 @@ export function PulseHome({
                 <span className="text-[13px] text-muted-foreground">
                   {savings.target != null ? (
                     savings.remaining > 0 ? (
-                      <>faltan <span className="num font-extrabold text-foreground">{formatCurrency(savings.remaining)}</span> para la meta</>
+                      <>faltan <span className="num font-extrabold text-foreground">{formatCurrency(savings.remaining)}</span> para la meta mínima</>
+                    ) : savings.idealRemaining > 0 ? (
+                      <>mínima cumplida · faltan <span className="num font-extrabold text-foreground">{formatCurrency(savings.idealRemaining)}</span> para la ideal</>
                     ) : (
                       'meta cumplida'
                     )
@@ -452,6 +455,7 @@ export function PulseHome({
           plan={plan}
           savingsAccounts={savingsAccounts}
           savingsTargetValue={savingsTargetValue}
+          savingsIdealValue={savings.ideal}
           cardSpendingCapValue={cardSpendingCapValue}
           onSuccess={() => {
             setShowSettings(false);
@@ -479,4 +483,34 @@ export function PulseHome({
       />
     </>
   );
+}
+
+/**
+ * Debajo de "Te quedan libres": la meta de ahorro en palabras. La mínima que falta
+ * no se resta del libre; se recuerda aquí con lo que quedaría si la apartas.
+ */
+function SavingsGoalLine({ savings, free }: { savings: CyclePlanStatus['savings']; free: number }) {
+  if (savings.target == null) return null;
+  if (savings.remaining > 0) {
+    const after = free - savings.remaining;
+    return (
+      <p className="mt-1.5 text-[13px] text-amber-text">
+        Para tu meta mínima faltan <b className="num">{formatCurrency(savings.remaining)}</b>
+        {' · '}
+        {after >= 0 ? (
+          <>si los apartas, te quedan {formatCurrency(after)}</>
+        ) : (
+          <>si los apartas, te faltarían {formatCurrency(-after)}</>
+        )}
+      </p>
+    );
+  }
+  if (savings.idealRemaining > 0) {
+    return (
+      <p className="mt-1.5 text-[13px] text-muted-foreground">
+        Meta mínima cumplida ✓ · para la ideal faltan <b className="num text-foreground">{formatCurrency(savings.idealRemaining)}</b>
+      </p>
+    );
+  }
+  return <p className="mt-1.5 text-[13px] text-jade-text">Meta de ahorro cumplida ✓</p>;
 }

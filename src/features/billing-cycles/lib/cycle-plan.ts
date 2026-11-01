@@ -22,12 +22,21 @@ export type PendingSettlementSummary = {
 
 export type CyclePlanStatus = {
   savings: {
+    /** Meta mínima del ciclo */
     target: number | null;
+    /** Meta ideal (sobre la mínima): solo como objetivo */
+    ideal: number | null;
     done: number;
+    /** Lo que falta para la meta mínima */
     remaining: number;
+    /** Lo que falta para la meta ideal */
+    idealRemaining: number;
   };
-  /** Saldo final proyectado menos el ahorro que falta hacer (null sin ahorro objetivo) */
-  free: number | null;
+  /**
+   * Lo que de verdad te queda libre en el ciclo (el saldo final proyectado).
+   * La meta de ahorro que falta no se descuenta: se muestra aparte.
+   */
+  free: number;
   card: {
     cap: number;
     /** true si el usuario definió el techo; false si se usa el máximo calculado */
@@ -116,7 +125,7 @@ export async function getCyclePlanStatus(cycle: CycleInput): Promise<CyclePlanSt
 
   const [[project], templateRows, creditRows, pending] = await Promise.all([
     rows<Record<string, string | null>>(sql`
-      select p.savings_target, p.card_spending_cap, p.contingency_account_id, a.name as contingency_name
+      select p.savings_target, p.savings_ideal_target, p.card_spending_cap, p.contingency_account_id, a.name as contingency_name
       from n1n4_projects p
       left join n1n4_accounts a on a.id = p.contingency_account_id
       where p.id = ${projectId}`),
@@ -169,10 +178,12 @@ export async function getCyclePlanStatus(cycle: CycleInput): Promise<CyclePlanSt
 
   const savingsDone = balance.savingsIn.real - balance.savingsOut.real;
   const savingsRemaining = savingsTarget != null ? Math.max(0, savingsTarget - savingsDone) : 0;
+  const savingsIdeal = project?.savings_ideal_target != null ? num(project.savings_ideal_target) : null;
+  const idealRemaining = savingsIdeal != null ? Math.max(0, savingsIdeal - savingsDone) : 0;
 
   return {
-    savings: { target: savingsTarget, done: savingsDone, remaining: savingsRemaining },
-    free: savingsTarget != null ? balance.finalBalance.projected - savingsRemaining : null,
+    savings: { target: savingsTarget, ideal: savingsIdeal, done: savingsDone, remaining: savingsRemaining, idealRemaining },
+    free: balance.finalBalance.projected,
     card: {
       cap,
       isCustomCap: customCap != null,

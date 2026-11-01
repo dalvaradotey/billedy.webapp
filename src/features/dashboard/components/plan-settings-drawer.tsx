@@ -23,6 +23,7 @@ interface PlanSettingsDrawerContentProps {
   plan: CyclePlanStatus;
   savingsAccounts: Array<{ id: string; name: string }>;
   savingsTargetValue: number | null;
+  savingsIdealValue: number | null;
   cardSpendingCapValue: number | null;
   onSuccess: () => void;
 }
@@ -33,11 +34,13 @@ export function PlanSettingsDrawerContent({
   plan,
   savingsAccounts,
   savingsTargetValue,
+  savingsIdealValue,
   cardSpendingCapValue,
   onSuccess,
 }: PlanSettingsDrawerContentProps) {
   const [isPending, startTransition] = useTransition();
   const [savingsTarget, setSavingsTarget] = useState<number | undefined>(savingsTargetValue ?? undefined);
+  const [savingsIdeal, setSavingsIdeal] = useState<number | undefined>(savingsIdealValue ?? undefined);
   const [cardCap, setCardCap] = useState<number | undefined>(cardSpendingCapValue ?? undefined);
   const [contingencyAccountId, setContingencyAccountId] = useState<string | null>(plan.contingencyAccount?.id ?? null);
 
@@ -49,6 +52,7 @@ export function PlanSettingsDrawerContent({
     startTransition(async () => {
       const result = await updateProjectPlan(projectId, userId, {
         savingsTarget: savingsTarget ?? null,
+        savingsIdealTarget: savingsIdeal ?? null,
         cardSpendingCap: cardCap ?? null,
         contingencyAccountId,
       });
@@ -71,8 +75,13 @@ export function PlanSettingsDrawerContent({
 
         <div className="space-y-5 px-4 pb-4 max-h-[70vh] overflow-y-auto">
           <div className="space-y-2">
-            <CurrencyInput value={savingsTarget} onChange={setSavingsTarget} label="Ahorro objetivo por ciclo" placeholder="0" />
-            <p className="text-xs text-muted-foreground">Incluye APV, ahorro mínimo y el aporte al fondo de imprevistos.</p>
+            <CurrencyInput value={savingsTarget} onChange={setSavingsTarget} label="Meta mínima de ahorro por ciclo" placeholder="0" />
+            <p className="text-xs text-muted-foreground">Incluye APV, ahorro mínimo y el aporte al fondo de imprevistos. Define cuánto puedes gastar con la tarjeta.</p>
+          </div>
+
+          <div className="space-y-2">
+            <CurrencyInput value={savingsIdeal} onChange={setSavingsIdeal} label="Meta ideal de ahorro (opcional)" placeholder="0" />
+            <p className="text-xs text-muted-foreground">Un objetivo sobre la mínima: se muestra como meta, pero no se descuenta de lo libre.</p>
           </div>
 
           <div className="space-y-2">
