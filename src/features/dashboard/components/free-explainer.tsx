@@ -6,13 +6,14 @@ import { DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, Responsive
 import { formatCurrency } from '@/lib/formatting';
 import { cn } from '@/lib/utils';
 import type { CycleBalance } from '@/features/billing-cycles/types';
+import type { CyclePlanStatus } from '@/features/billing-cycles/lib/cycle-plan';
 
 interface FreeExplainerProps {
   balance: CycleBalance;
-  /** Lo que te queda libre (saldo final menos lo que falta para la meta de ahorro) */
+  /** Lo que te queda libre (el saldo final del ciclo) */
   free: number;
-  /** Lo que falta para la meta de ahorro del ciclo */
-  savingsRemaining: number;
+  /** Metas de ahorro (mínima e ideal) y cuánto llevas */
+  savings: CyclePlanStatus['savings'];
   daysRemaining: number;
   perDay: number;
 }
@@ -21,7 +22,7 @@ interface FreeExplainerProps {
  * Botón ⓘ junto a "Te quedan libres": explica qué es ese monto con el desglose
  * del ciclo (los mismos valores de la cascada, así que siempre cuadra).
  */
-export function FreeExplainer({ balance, free, savingsRemaining, daysRemaining, perDay }: FreeExplainerProps) {
+export function FreeExplainer({ balance, free, savings, daysRemaining, perDay }: FreeExplainerProps) {
   const [open, setOpen] = useState(false);
   const b = balance;
   const savingsNet = b.savingsIn.projected - b.savingsOut.projected;
@@ -41,7 +42,6 @@ export function FreeExplainer({ balance, free, savingsRemaining, daysRemaining, 
       hint: 'Abonos que ya llegaron por gastos de la tarjeta que aún no pagas',
       value: -reservedNet,
     },
-    { label: 'Falta para tu meta de ahorro', hint: 'Se aparta antes de considerarlo libre', value: -savingsRemaining },
   ].filter((r) => Math.round(r.value) !== 0);
 
   return (
@@ -61,7 +61,7 @@ export function FreeExplainer({ balance, free, savingsRemaining, daysRemaining, 
             <DrawerHeader className="px-0 text-left">
               <DrawerTitle>¿Qué es «Te quedan libres»?</DrawerTitle>
               <DrawerDescription>
-                Lo que te sobra en este ciclo después de pagar todo lo que ya salió de tu cuenta y apartar tu ahorro. Puedes gastarlo o
+                Lo que te sobra en este ciclo después de pagar todo lo que ya salió de tu cuenta y lo que ya ahorraste. Puedes gastarlo o
                 guardarlo sin afectar lo que viene.
               </DrawerDescription>
             </DrawerHeader>
@@ -84,6 +84,27 @@ export function FreeExplainer({ balance, free, savingsRemaining, daysRemaining, 
                 <dd className={cn('num text-base font-extrabold', free < 0 && 'text-coral-text')}>{formatCurrency(free)}</dd>
               </div>
             </dl>
+
+            {savings.target != null && (
+              <>
+                <h3 className="mt-5 text-sm font-extrabold">Tu meta de ahorro</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Llevas <b className="text-foreground">{formatCurrency(savings.done)}</b> ahorrados. Tu meta mínima es{' '}
+                  {formatCurrency(savings.target)}
+                  {savings.ideal != null && <> y la ideal, {formatCurrency(savings.ideal)}</>}.{' '}
+                  {savings.remaining > 0 ? (
+                    <>
+                      Para la mínima faltan <b className="text-amber-text">{formatCurrency(savings.remaining)}</b>: no se restan de lo libre, pero
+                      conviene apartarlos.
+                    </>
+                  ) : savings.idealRemaining > 0 ? (
+                    <>La mínima está cumplida; para la ideal faltan {formatCurrency(savings.idealRemaining)}.</>
+                  ) : (
+                    <>Meta cumplida ✓</>
+                  )}
+                </p>
+              </>
+            )}
 
             <h3 className="mt-5 text-sm font-extrabold">Lo que no descuenta</h3>
             <ul className="mt-2 space-y-2 text-sm text-muted-foreground">

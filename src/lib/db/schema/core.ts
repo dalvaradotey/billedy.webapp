@@ -109,6 +109,8 @@ export const projects = pgTable('n1n4_projects', {
   }),
   // Plan del ciclo: ahorro objetivo, techo de gasto propio en TC y cuenta del fondo de imprevistos
   savingsTarget: decimal('savings_target', { precision: 15, scale: 2 }),
+  // Meta ideal sobre la mínima: solo se muestra como objetivo (migración 0029)
+  savingsIdealTarget: decimal('savings_ideal_target', { precision: 15, scale: 2 }),
   cardSpendingCap: decimal('card_spending_cap', { precision: 15, scale: 2 }),
   contingencyAccountId: uuid('contingency_account_id'),
   isArchived: boolean('is_archived').default(false).notNull(),

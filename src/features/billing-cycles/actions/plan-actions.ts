@@ -22,6 +22,7 @@ import type { ActionResult } from '@/types/action-result';
 
 const planSchema = z.object({
   savingsTarget: z.number().int().nonnegative().nullable(),
+  savingsIdealTarget: z.number().int().nonnegative().nullable().optional(),
   cardSpendingCap: z.number().int().nonnegative().nullable(),
   contingencyAccountId: z.string().uuid().nullable(),
 });
@@ -73,6 +74,9 @@ export async function updateProjectPlan(
     .update(projects)
     .set({
       savingsTarget: parsed.data.savingsTarget != null ? String(parsed.data.savingsTarget) : null,
+      ...(parsed.data.savingsIdealTarget !== undefined
+        ? { savingsIdealTarget: parsed.data.savingsIdealTarget != null ? String(parsed.data.savingsIdealTarget) : null }
+        : {}),
       cardSpendingCap: parsed.data.cardSpendingCap != null ? String(parsed.data.cardSpendingCap) : null,
       contingencyAccountId: parsed.data.contingencyAccountId,
       updatedAt: new Date(),
