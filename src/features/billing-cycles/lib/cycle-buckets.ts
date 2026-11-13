@@ -18,6 +18,8 @@ export const BUCKETS = [
   'provision_in', // apartar a una provisión (fondo para gastos que vienen)
   'provision_out', // liberar una provisión o pagar con ella
   'investment_in', // aporte a una inversión: sale de la caja, pero no es gasto
+  'fund_used', // gasto pagado con un fondo (no provisión): se compensa sin bajar el ahorro del ciclo
+  'debt_repay', // devolver a un fondo de terceros lo que se usó: baja lo libre, no es ahorro
   'card_spend', // gasto en TC (informativo: se paga el próximo ciclo)
   'card_credit', // devolución / abono / ajuste en TC (informativo)
   'ignored', // contrapartes de enlaces y movimientos internos de ahorro
@@ -161,11 +163,13 @@ export function bucketAggregationQuery(
 
     -- Fondos dentro de cuentas corrientes: apartar = aporte de ahorro, liberar = retiro.
     -- Las provisiones van aparte: bajan lo libre igual, pero no son ahorro.
-    -- Los fondos de terceros no son tu ahorro; en cuentas de ahorro el fondo es solo una etiqueta.
+    -- Los fondos de terceros no son tu ahorro (solo cuenta devolverles lo que usaste);
+    -- en cuentas de ahorro el fondo es solo una etiqueta.
     union all
     select
       r.key,
       case
+        when m.kind = 'repay' then 'debt_repay'
         when f.is_provision then case when m.kind = 'allocate' then 'provision_in' else 'provision_out' end
         else case when m.kind = 'allocate' then 'savings_in' else 'savings_out' end
       end as bucket,
@@ -182,16 +186,20 @@ export function bucketAggregationQuery(
     join ranges r on true
     join n1n4_fund_movements m on m.fund_id = f.id and m.date between r.start_date and r.end_date
     where f.project_id = ${projectId}
-      and not f.is_third_party
       and a.type in ('checking', 'cash')
-      and m.kind in ('allocate', 'release')
+      and (
+        (not f.is_third_party and m.kind in ('allocate', 'release'))
+        or (f.is_third_party and m.kind = 'repay')
+      )
     group by r.key, m.kind, f.is_provision
 
-    -- Gasto pagado con un fondo: se compensa (la plata se apartó antes, o no es tuya)
+    -- Gasto pagado con un fondo: se compensa (la plata se apartó antes, o no es tuya).
+    -- Usar un fondo de ahorro en lo que era no baja el ahorro del ciclo; si el fondo
+    -- es de terceros, queda como deuda hasta que se devuelve (debt_repay).
     union all
     select
       r.key,
-      case when f.is_provision then 'provision_out' else 'savings_out' end as bucket,
+      case when f.is_provision then 'provision_out' else 'fund_used' end as bucket,
       'own' as nature,
       null as card_account_id,
       true as in_range,

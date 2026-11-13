@@ -4,8 +4,11 @@ import { db } from '@/lib/db';
 /**
  * Fondos dentro de una cuenta ("sobres" que solo existen en la app).
  *
- *   Saldo del fondo = initial + allocate − release − gastos pagados con el fondo
+ *   Saldo del fondo = initial + allocate + repay − release − gastos pagados con el fondo
  *   Libre de la cuenta = saldo de la cuenta − saldo de sus fondos (no archivados)
+ *
+ * En un fondo de terceros, lo gastado con el fondo es una deuda: se salda con
+ * movimientos `repay` (devolver), que salen de tu plata libre.
  */
 
 export type AccountFund = {
@@ -20,6 +23,8 @@ export type AccountFund = {
   /** Para gastos que vienen: apartar baja lo libre pero no cuenta como ahorro */
   isProvision: boolean;
   isArchived: boolean;
+  /** Solo terceros: lo que usaste del fondo y aún no devuelves */
+  debt: number;
 };
 
 export type FundTotals = {
@@ -47,7 +52,17 @@ export async function getAccountFunds(projectId: string, includeArchived = false
       - coalesce((
         select sum(t.base_amount) from n1n4_transactions t
         where t.account_fund_id = f.id and t.type = 'expense'
-      ), 0) as balance
+      ), 0) as balance,
+      case when f.is_third_party then greatest(0,
+        coalesce((
+          select sum(t.base_amount) from n1n4_transactions t
+          where t.account_fund_id = f.id and t.type = 'expense'
+        ), 0)
+        - coalesce((
+          select sum(m.amount) from n1n4_fund_movements m
+          where m.fund_id = f.id and m.kind = 'repay'
+        ), 0)
+      ) else 0 end as debt
     from n1n4_account_funds f
     join n1n4_accounts a on a.id = f.account_id
     where f.project_id = ${projectId}
@@ -65,6 +80,7 @@ export async function getAccountFunds(projectId: string, includeArchived = false
     isThirdParty: Boolean(r.is_third_party),
     isProvision: Boolean(r.is_provision),
     isArchived: Boolean(r.is_archived),
+    debt: num(r.debt),
   }));
 }
 

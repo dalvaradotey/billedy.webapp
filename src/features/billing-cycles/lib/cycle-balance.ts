@@ -67,6 +67,13 @@ export type CycleBalance = {
   provisionsOut: Amounts;
   /** Aportes a inversiones: salen de la caja, pero no son gasto */
   investmentsIn: Amounts;
+  /**
+   * Gastos pagados con un fondo (no provisión): la plata ya estaba apartada, así
+   * que se compensa sin bajar el ahorro del ciclo. Incluye fondos de terceros.
+   */
+  fundsUsed: Amounts;
+  /** Lo devuelto a fondos de terceros que se habían usado: baja lo libre, no es ahorro */
+  debtRepaid: Amounts;
   /** Abonos que llegaron por gastos que aún no salen de la caja (p. ej. TC sin pagar) */
   reservedIn: Amounts;
   /** Reservas de ciclos anteriores cuyo gasto se pagó en este */
@@ -284,6 +291,8 @@ export function buildBalances(
     const provisionsIn = cashLine(rangeRows, 'provision_in', isOpen);
     const provisionsOut = cashLine(rangeRows, 'provision_out', isOpen);
     const investmentsIn = cashLine(rangeRows, 'investment_in', isOpen);
+    const fundsUsed = cashLine(rangeRows, 'fund_used', isOpen);
+    const debtRepaid = cashLine(rangeRows, 'debt_repay', isOpen);
     const paidCardPayment = cashLine(rangeRows, 'card_payment', isOpen);
     const reserve = reservesForRange(reserves, range.start, range.end);
     const reservedIn: Amounts = { real: reserve.reserved, committed: reserve.reserved, projected: reserve.reserved };
@@ -333,6 +342,8 @@ export function buildBalances(
       [provisionsIn, -1],
       [provisionsOut, 1],
       [investmentsIn, -1],
+      [fundsUsed, 1],
+      [debtRepaid, -1],
       [reservedIn, -1],
       [reservedOut, 1]
     );
@@ -377,6 +388,8 @@ export function buildBalances(
       provisionsIn,
       provisionsOut,
       investmentsIn,
+      fundsUsed,
+      debtRepaid,
       reservedIn,
       reservedOut,
       finalBalance,

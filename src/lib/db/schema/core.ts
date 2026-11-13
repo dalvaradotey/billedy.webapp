@@ -232,7 +232,7 @@ export const accountFunds = pgTable('n1n4_account_funds', {
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
 });
 
-export const fundMovementKindEnum = pgEnum('fund_movement_kind', ['initial', 'allocate', 'release']);
+export const fundMovementKindEnum = pgEnum('fund_movement_kind', ['initial', 'allocate', 'release', 'repay']);
 
 export const fundMovements = pgTable('n1n4_fund_movements', {
   id: uuid('id').primaryKey().defaultRandom(),

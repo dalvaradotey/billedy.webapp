@@ -143,6 +143,32 @@ export function CycleCascade({ balance, isOpen, tone = 'light', animated }: Cycl
           </div>
         )}
 
+        {balance.fundsUsed.real > 0 && (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className={t.label}>
+              Pagado con fondos
+              <span className={cn('block text-[11px]', t.muted)}>
+                Gastos pagados con plata que ya estaba apartada; no bajan tu ahorro
+              </span>
+            </dt>
+            <dd className={cn('font-medium', t.value)}>
+              +<Amount value={balance.fundsUsed.real} animated={animated} />
+            </dd>
+          </div>
+        )}
+
+        {balance.debtRepaid.real > 0 && (
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className={t.label}>
+              Devuelto a terceros
+              <span className={cn('block text-[11px]', t.muted)}>Lo que usaste de fondos de otras personas</span>
+            </dt>
+            <dd className={cn('font-medium', t.value)}>
+              −<Amount value={balance.debtRepaid.real} animated={animated} />
+            </dd>
+          </div>
+        )}
+
         {balance.reservedIn.real > 0 && (
           <div className="flex items-baseline justify-between gap-3">
             <dt className={t.label}>

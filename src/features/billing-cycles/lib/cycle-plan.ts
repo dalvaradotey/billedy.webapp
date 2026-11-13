@@ -55,6 +55,8 @@ export type CyclePlanStatus = {
   expectedIncome: number;
   debitCommitments: number;
   pending: PendingSettlementSummary;
+  /** Lo usado de fondos de terceros que aún no devuelves (no se descuenta de lo libre) */
+  debts: { name: string; amount: number }[];
   contingencyAccount: { id: string; name: string } | null;
 };
 
@@ -123,7 +125,7 @@ export async function getCyclePlanStatus(cycle: CycleInput): Promise<CyclePlanSt
   const start = toDate(cycle.startDate);
   const end = toDate(cycle.endDate);
 
-  const [[project], templateRows, creditRows, pending] = await Promise.all([
+  const [[project], templateRows, creditRows, pending, debtRows] = await Promise.all([
     rows<Record<string, string | null>>(sql`
       select p.savings_target, p.savings_ideal_target, p.card_spending_cap, p.contingency_account_id, a.name as contingency_name
       from n1n4_projects p
@@ -154,6 +156,12 @@ export async function getCyclePlanStatus(cycle: CycleInput): Promise<CyclePlanSt
       where t.project_id = ${projectId} and t.credit_id is not null
         and t.date between ${start}::date and ${end}::date`),
     getPendingSettlementSummary(projectId),
+    rows<Record<string, string>>(sql`
+      select f.name,
+        coalesce((select sum(t.base_amount) from n1n4_transactions t where t.account_fund_id = f.id and t.type = 'expense'), 0)
+        - coalesce((select sum(m.amount) from n1n4_fund_movements m where m.fund_id = f.id and m.kind = 'repay'), 0) as debt
+      from n1n4_account_funds f
+      where f.project_id = ${projectId} and f.is_third_party and not f.is_archived`),
   ]);
 
   const sumTemplates = (predicate: (r: Record<string, string>) => boolean) =>
@@ -198,6 +206,7 @@ export async function getCyclePlanStatus(cycle: CycleInput): Promise<CyclePlanSt
     expectedIncome,
     debitCommitments,
     pending,
+    debts: debtRows.map((r) => ({ name: r.name, amount: num(r.debt) })).filter((d) => d.amount > 0),
     contingencyAccount:
       project?.contingency_account_id && project.contingency_name
         ? { id: project.contingency_account_id, name: project.contingency_name }
@@ -261,7 +270,7 @@ export type CycleDailyPoint = { day: number; cash: number; savings: number };
 /**
  * Caja y ahorro acumulados día a día (solo lo real, hasta hoy), con las mismas
  * reglas de la cascada: caja = ingresos + abonos − débito − pago TC − aportes + retiros;
- * ahorro = aportes − retiros (incluye apartar/liberar en fondos y gastos pagados con fondos).
+ * ahorro = aportes − retiros (incluye apartar/liberar en fondos; usar un fondo en lo que era no resta).
  * Los abonos reservados (ver cycle-reserves) salen de la caja hasta que se paga su gasto.
  */
 export async function getCycleDailySeries(
@@ -315,18 +324,21 @@ export async function getCycleDailySeries(
       from tx
       union all
       select m.date,
-        case when m.kind = 'allocate' then -m.amount else m.amount end as cash,
-        case when f.is_provision then 0 when m.kind = 'allocate' then m.amount else -m.amount end as savings
+        case when m.kind in ('allocate', 'repay') then -m.amount else m.amount end as cash,
+        case when f.is_provision or m.kind = 'repay' then 0 when m.kind = 'allocate' then m.amount else -m.amount end as savings
       from n1n4_fund_movements m
       join n1n4_account_funds f on f.id = m.fund_id
       join n1n4_accounts a on a.id = f.account_id
       where f.project_id = ${projectId}
-        and not f.is_third_party
         and a.type in ('checking', 'cash')
-        and m.kind in ('allocate', 'release')
+        and (
+          (not f.is_third_party and m.kind in ('allocate', 'release'))
+          or (f.is_third_party and m.kind = 'repay')
+        )
         and m.date between ${start}::date and ${until}::date
       union all
-      select t.date, t.base_amount as cash, case when f.is_provision then 0 else -t.base_amount end as savings
+      -- Gasto pagado con un fondo: compensa la caja; no baja el ahorro del ciclo
+      select t.date, t.base_amount as cash, 0 as savings
       from n1n4_transactions t
       join n1n4_account_funds f on f.id = t.account_fund_id
       join n1n4_accounts a on a.id = t.account_id
