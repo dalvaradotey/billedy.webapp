@@ -224,7 +224,7 @@ export function PulseHome({
           </div>
           <p className="mt-4 flex items-center gap-1.5 text-sm text-muted-foreground">
             Te quedan libres
-            <FreeExplainer balance={cycle.balance} free={free} savings={savings} daysRemaining={cycle.daysRemaining} perDay={perDay} />
+            <FreeExplainer balance={cycle.balance} free={free} savings={savings} debts={plan.debts} daysRemaining={cycle.daysRemaining} perDay={perDay} />
           </p>
           <p className={cn('num text-[52px] font-extrabold leading-[1.05]', free < 0 && 'text-coral-text')}>
             {formatCurrency(free)}

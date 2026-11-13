@@ -175,6 +175,44 @@ export async function releaseFromFund(
 }
 
 /**
+ * Devuelve a un fondo de terceros lo que usaste de él (p. ej. un préstamo de un
+ * familiar). Sale de tu plata libre de la cuenta y salda la deuda; no es ahorro.
+ */
+export async function repayToFund(
+  userId: string,
+  fundId: string,
+  value: number,
+  notes?: string
+): Promise<ActionResult> {
+  if (!(await isSessionUser(userId))) return { success: false, error: UNAUTHORIZED_ERROR };
+  const parsedAmount = amount.safeParse(value);
+  if (!parsedAmount.success) return { success: false, error: parsedAmount.error.issues[0].message };
+
+  const fund = await getFundForUser(fundId, userId);
+  if (!fund || fund.isArchived) return { success: false, error: 'Fondo no encontrado' };
+  if (!fund.isThirdParty) return { success: false, error: 'Solo se devuelve a fondos de terceros' };
+  if (value > fund.debt) {
+    return { success: false, error: `Solo debes $${fund.debt.toLocaleString('es-CL')} a este fondo` };
+  }
+
+  const free = (await getAccountFree(fund.projectId, fund.accountId)) ?? 0;
+  if (value > free) {
+    return { success: false, error: `No alcanza: lo libre de la cuenta es $${free.toLocaleString('es-CL')}` };
+  }
+
+  await db.insert(fundMovements).values({
+    fundId,
+    kind: 'repay',
+    amount: String(value),
+    date: getToday(),
+    notes: notes?.slice(0, 500) || null,
+  });
+
+  invalidate();
+  return { success: true, data: undefined };
+}
+
+/**
  * Cambia nombre, meta o si es provisión. Pasar a provisión (o volver) reclasifica
  * sus movimientos en los ciclos: se calculan en vivo.
  */

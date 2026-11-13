@@ -14,6 +14,8 @@ interface FreeExplainerProps {
   free: number;
   /** Metas de ahorro (mínima e ideal) y cuánto llevas */
   savings: CyclePlanStatus['savings'];
+  /** Lo que debes a fondos de terceros (aún no se descuenta) */
+  debts?: { name: string; amount: number }[];
   daysRemaining: number;
   perDay: number;
 }
@@ -22,7 +24,7 @@ interface FreeExplainerProps {
  * Botón ⓘ junto a "Te quedan libres": explica qué es ese monto con el desglose
  * del ciclo (los mismos valores de la cascada, así que siempre cuadra).
  */
-export function FreeExplainer({ balance, free, savings, daysRemaining, perDay }: FreeExplainerProps) {
+export function FreeExplainer({ balance, free, savings, debts = [], daysRemaining, perDay }: FreeExplainerProps) {
   const [open, setOpen] = useState(false);
   const b = balance;
   const savingsNet = b.savingsIn.projected - b.savingsOut.projected;
@@ -37,6 +39,8 @@ export function FreeExplainer({ balance, free, savings, daysRemaining, perDay }:
     { label: 'Ahorro del ciclo', hint: 'Lo que mandaste a ahorro o apartaste en fondos', value: -savingsNet },
     { label: 'Provisiones', hint: 'Apartado para gastos que vienen', value: -provisionsNet },
     { label: 'Inversiones', value: -b.investmentsIn.projected },
+    { label: 'Pagado con fondos', hint: 'Gastos pagados con plata que ya tenías apartada', value: b.fundsUsed.projected },
+    { label: 'Devuelto a terceros', hint: 'Lo que usaste de fondos de otras personas', value: -b.debtRepaid.projected },
     {
       label: reservedNet >= 0 ? 'Reservado para la tarjeta' : 'Reserva liberada',
       hint: 'Abonos que ya llegaron por gastos de la tarjeta que aún no pagas',
@@ -108,6 +112,12 @@ export function FreeExplainer({ balance, free, savings, daysRemaining, perDay }:
 
             <h3 className="mt-5 text-sm font-extrabold">Lo que no descuenta</h3>
             <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+              {debts.map((d) => (
+                <li key={d.name}>
+                  <b className="text-amber-text">Le debes {formatCurrency(d.amount)} a «{d.name}»</b>: se descuenta de lo libre cuando lo
+                  devuelvas (en el fondo, «Devolver lo que usaste»).
+                </li>
+              ))}
               <li>
                 <b className="text-foreground">Lo que gastaste con la tarjeta este ciclo</b>
                 {b.card.own.real > 0 && <> ({formatCurrency(b.card.own.real)} propios)</>}: ese estado de cuenta lo pagas el próximo ciclo, con

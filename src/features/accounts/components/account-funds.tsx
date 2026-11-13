@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, ArrowDownToLine, ArrowUpFromLine, Pencil, MoveRight, Archive, Users, PiggyBank, CalendarClock } from 'lucide-react';
+import { Plus, ArrowDownToLine, ArrowUpFromLine, Pencil, MoveRight, Archive, Users, PiggyBank, CalendarClock, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ import {
   createFund,
   moveFund,
   releaseFromFund,
+  repayToFund,
   updateFund,
 } from '../fund-actions';
 import type { AccountFund } from '../lib/funds';
@@ -56,6 +57,7 @@ type Mode =
   | { kind: 'edit'; fund: AccountFund }
   | { kind: 'allocate'; fund: AccountFund }
   | { kind: 'release'; fund: AccountFund }
+  | { kind: 'repay'; fund: AccountFund }
   | { kind: 'move'; fund: AccountFund };
 
 /**
@@ -91,7 +93,8 @@ export function AccountFundsSection({
     setActionsFund(null);
     setName(next.kind === 'edit' ? next.fund.name : '');
     setTarget(next.kind === 'edit' ? (next.fund.targetAmount ?? undefined) : undefined);
-    setAmount(undefined);
+    // Devolver: por defecto, todo lo que debes
+    setAmount(next.kind === 'repay' ? next.fund.debt : undefined);
     setIsThirdParty(false);
     setIsProvision(next.kind === 'edit' ? next.fund.isProvision : false);
     setNotes('');
@@ -128,6 +131,8 @@ export function AccountFundsSection({
         return run('Apartando...', () => allocateToFund(userId, mode.fund.id, amount ?? 0, notes), `Apartaste ${formatCurrency(amount ?? 0)}`);
       case 'release':
         return run('Liberando...', () => releaseFromFund(userId, mode.fund.id, amount ?? 0, notes), `Liberaste ${formatCurrency(amount ?? 0)}`);
+      case 'repay':
+        return run('Devolviendo...', () => repayToFund(userId, mode.fund.id, amount ?? 0, notes), `Devolviste ${formatCurrency(amount ?? 0)}`);
       case 'move':
         return run('Moviendo fondo...', () => moveFund(userId, mode.fund.id, moveTo ?? ''), 'Fondo movido');
     }
@@ -153,6 +158,7 @@ export function AccountFundsSection({
     edit: 'Editar fondo',
     allocate: 'Apartar en el fondo',
     release: 'Liberar del fondo',
+    repay: 'Devolver al fondo',
     move: 'Mover fondo a otra cuenta',
   };
 
@@ -197,7 +203,9 @@ export function AccountFundsSection({
                         <span className="block truncate text-sm font-bold">{fund.name}</span>
                         <span className="block text-[11px] text-muted-foreground">
                           {fund.isThirdParty
-                            ? 'de terceros · no cuenta como tuyo'
+                            ? fund.debt > 0
+                              ? `de terceros · le debes ${formatCurrency(fund.debt)}`
+                              : 'de terceros · no cuenta como tuyo'
                             : [
                                 fund.isProvision && 'provisión',
                                 percent != null ? `${percent}% de ${formatCurrency(fund.targetAmount!)}` : 'sin meta',
@@ -256,10 +264,14 @@ export function AccountFundsSection({
                   Saldo {formatCurrency(actionsFund.balance)}
                   {actionsFund.targetAmount ? ` de ${formatCurrency(actionsFund.targetAmount)}` : ''}
                   {actionsFund.isThirdParty ? ' · de terceros' : actionsFund.isProvision ? ' · provisión' : ''}
+                  {actionsFund.debt > 0 ? ` · le debes ${formatCurrency(actionsFund.debt)}` : ''}
                 </DrawerDescription>
               </DrawerHeader>
               <div className="px-2 pb-2">
                 {[
+                  ...(actionsFund.debt > 0
+                    ? [{ key: 'repay', label: `Devolver lo que usaste (${formatCurrency(actionsFund.debt)})`, icon: <Undo2 />, onClick: () => open({ kind: 'repay', fund: actionsFund }) }]
+                    : []),
                   { key: 'allocate', label: 'Apartar', icon: <ArrowDownToLine />, onClick: () => open({ kind: 'allocate', fund: actionsFund }) },
                   { key: 'release', label: 'Liberar', icon: <ArrowUpFromLine />, onClick: () => open({ kind: 'release', fund: actionsFund }) },
                   { key: 'edit', label: 'Editar fondo', icon: <Pencil />, onClick: () => open({ kind: 'edit', fund: actionsFund }) },
@@ -304,6 +316,8 @@ export function AccountFundsSection({
                 <DrawerDescription>
                   {mode.kind === 'release'
                     ? `Vuelve a quedar libre en la cuenta. El fondo tiene ${formatCurrency(mode.fund.balance)}.`
+                    : mode.kind === 'repay'
+                      ? `Le debes ${formatCurrency(mode.fund.debt)}. Sale de tu plata libre (${formatCurrency(free)}) y no cuenta como ahorro.`
                     : mode.kind === 'move'
                       ? 'Registra la transferencia del banco por separado; esto solo cambia la cuenta del fondo.'
                       : `Libre en la cuenta: ${formatCurrency(free)}.`}
@@ -348,7 +362,7 @@ export function AccountFundsSection({
                   </>
                 )}
 
-                {(mode.kind === 'allocate' || mode.kind === 'release') && (
+                {(mode.kind === 'allocate' || mode.kind === 'release' || mode.kind === 'repay') && (
                   <>
                     <CurrencyInput value={amount} onChange={setAmount} label="Monto" placeholder="0" autoFocus />
                     <Input

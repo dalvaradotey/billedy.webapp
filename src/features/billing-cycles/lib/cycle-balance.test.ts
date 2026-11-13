@@ -44,6 +44,22 @@ describe('buildBalances', () => {
     expect(toClosingSnapshot(b)).toMatchObject({ version: 1, finalBalance: b.finalBalance.real, savingsIn: 300_000 });
   });
 
+  it('pagar con un fondo se compensa sin bajar el ahorro; devolver a terceros baja lo libre', () => {
+    const rows = [
+      row({ bucket: 'income', total: 1_000_000 }),
+      row({ bucket: 'savings_in', total: 300_000 }),
+      // Maquinaria: 3.100.000 pagados con fondos (2.860.000 propios + 240.000 de terceros)
+      row({ bucket: 'debit_expense', total: 3_100_000 }),
+      row({ bucket: 'fund_used', total: 3_100_000 }),
+      row({ bucket: 'debt_repay', total: 240_000 }),
+    ];
+    const b = buildBalances([oct], rows, cards).get('oct')!;
+    expect(b.savingsIn.real - b.savingsOut.real).toBe(300_000);
+    expect(b.fundsUsed.real).toBe(3_100_000);
+    expect(b.debtRepaid.real).toBe(240_000);
+    expect(b.finalBalance.real).toBe(1_000_000 - 300_000 - 240_000);
+  });
+
   it('separa lo real de lo comprometido en el ciclo abierto', () => {
     const rows = [
       row({ bucket: 'income', total: 1_000 }),

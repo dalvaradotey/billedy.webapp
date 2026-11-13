@@ -25,7 +25,13 @@ export function CycleFlowCard() {
   const entered = b.income.projected + b.reimbursements.projected;
   const savingsNet = b.savingsIn.projected - b.savingsOut.projected;
   const parts = [
-    { label: 'Débito', value: b.debitExpenses.projected, color: 'bg-coral', dot: 'bg-coral' },
+    // Lo pagado con fondos no salió de lo que entró en el ciclo; lo devuelto a terceros sí
+    {
+      label: 'Débito',
+      value: Math.max(0, b.debitExpenses.projected - b.fundsUsed.projected + b.debtRepaid.projected),
+      color: 'bg-coral',
+      dot: 'bg-coral',
+    },
     { label: 'Pago TC', value: b.cardPayment.projected, color: 'bg-amber', dot: 'bg-amber' },
     { label: 'Ahorro', value: Math.max(0, savingsNet), color: 'bg-violet', dot: 'bg-violet' },
     { label: 'Saldo final', value: Math.max(0, b.finalBalance.projected), color: 'bg-jade', dot: 'bg-jade' },
